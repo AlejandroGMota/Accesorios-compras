@@ -224,6 +224,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         <label for="9h">9H</label>
         <input type="radio" id="privacidad" name="micaType" value="Privacidad">
         <label for="privacidad">Privacidad</label>
+        <input type="radio" id="hidrogel" name="micaType" value="Hidrogel">
+        <label for="hidrogel">Hidrogel</label>
     </div>
 
     <!-- Colores para Fundas -->
@@ -255,6 +257,9 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
 
     <div id="micasPrivacidadHeader" class="category-header" style="font-size: 1.2em; padding-left: 20px;">Micas Privacidad</div>
     <div id="micasPrivacidadList" class="productList"></div>
+
+    <div id="micasHidrogelHeader" class="category-header" style="font-size: 1.2em; padding-left: 20px;">Micas Hidrogel</div>
+    <div id="micasHidrogelList" class="productList"></div>
 
     <div id="fundasHeader" class="category-header">Fundas</div>
     <div id="fundasList" class="productList"></div>
@@ -296,6 +301,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                             productPrice.value = 35;
                         } else if (this.value === 'Privacidad') {
                             productPrice.value = 23;
+                        } else if (this.value === 'Hidrogel') {
+                            productPrice.value = 25;
                         }
                     });
                 });
@@ -320,6 +327,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                     productList = document.getElementById('micas9HList');
                 } else if (product.type === 'Privacidad') {
                     productList = document.getElementById('micasPrivacidadList');
+                }else if (product.type === 'Hidrogel') {
+                    productList = document.getElementById('micasHidrogelList');
                 }
             } else if (product.category === 'Fundas') {
                 productList = document.getElementById('fundasList');
@@ -347,6 +356,7 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             document.getElementById('micas9DList').innerHTML = '';
             document.getElementById('micas9HList').innerHTML = '';
             document.getElementById('micasPrivacidadList').innerHTML = '';
+            document.getElementById('micasHidrogelList').innerHTML = '';
             document.getElementById('fundasList').innerHTML = '';
             document.getElementById('refaccionesList').innerHTML = '';
             document.getElementById('otrosList').innerHTML = '';
