@@ -203,20 +203,24 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
     <h1>Lista de accesorios</h1>
 
     <h2>Añadir nuevo producto</h2>
+    <select id="productCategory">
+        <option value="">Selecciona una categoría</option>
+        <option value="Micas">Micas</option>
+        <option value="Hidrogel">Hidrogel</option>
+        <option value="Fundas">Fundas</option>
+        <option value="Fundas nuevas">Fundas nuevas</option>
+        <option value="1hora">1hora</option>
+        <option value="Refacciones">Refacciones</option>
+        <option value="Otros">Otros</option>
+    </select>
     <input type="text" id="productName" placeholder="Nombre del producto">
     <input type="number" id="productPrice" placeholder="Precio del producto" min="0" step="0.01">
     <input type="number" id="productQuantity" placeholder="Cantidad" min="0" step="1">
     
-    <select id="productCategory">
-        <option value="">Selecciona una categoría</option>
-        <option value="Micas">Micas</option>
-        <option value="Fundas">Fundas</option>
-        <option value="Refacciones">Refacciones</option>
-        <option value="Otros">Otros</option>
-    </select>
+    
 
     <!-- Opciones para Micas -->
-    <div id="micaOptions" class="micaOptions">
+    <div id="micaOptions" class="micaOptions" style="display:none">
         <label>Selecciona tipo de mica:</label><br>
         <input type="radio" id="9d" name="micaType" value="9D">
         <label for="9d">9D</label>
@@ -224,12 +228,23 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         <label for="9h">9H</label>
         <input type="radio" id="privacidad" name="micaType" value="Privacidad">
         <label for="privacidad">Privacidad</label>
-        <input type="radio" id="hidrogel" name="micaType" value="Hidrogel">
-        <label for="hidrogel">Hidrogel</label>
+    </div>
+
+    <!-- Opciones para Hidrogel -->
+    <div id="hidrogelOptions" class="hidrogelOptions" style="display:none">
+        <label>Selecciona tipo de hidrogel:</label><br>
+        <input type="radio" id="matte" name="hidrogelType" value="matte">
+        <label for="matte">Matte</label>
+        <input type="radio" id="privacidadHidro" name="hidrogelType" value="privacidad">
+        <label for="privacidadHidro">Privacidad</label>
+        <input type="radio" id="hd" name="hidrogelType" value="hd">
+        <label for="hd">HD</label>
+        <input type="radio" id="blueray" name="hidrogelType" value="blueray">
+        <label for="blueray">Blueray</label>
     </div>
 
     <!-- Colores para Fundas -->
-    <div id="fundaColors" class="fundaColors">
+    <div id="fundaColors" class="fundaColors" style="display:none">
         <label>Selecciona colores:</label><br>
         <input type="checkbox" id="rojo" value="Rojo">
         <label for="rojo">Rojo</label>
@@ -245,10 +260,48 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         <label for="rosa">Rosa</label>
     </div>
 
+    <!-- Opciones para tipos de Fundas -->
+    <div id="fundaTypes" class="fundaTypes" style="display:none">
+        <label>Selecciona tipo de funda:</label><br>
+        <input type="checkbox" id="magsafe" value="Magsafe">
+        <label for="magsafe">Magsafe</label>
+        <input type="checkbox" id="transparente" value="Transparente">
+        <label for="transparente">Transparente</label>
+        <input type="checkbox" id="tresPiezas" value="3 piezas">
+        <label for="tresPiezas">3 piezas</label>
+        <input type="checkbox" id="diseno" value="diseño">
+        <label for="diseno">Diseño</label>
+    </div>
+
+    <!-- Opciones para Fundas nuevas -->
+    <div id="fundasNuevasOptions" class="fundasNuevasOptions" style="display:none">
+        <label>Selecciona tipo:</label><br>
+        <input type="radio" id="muyNuevo" name="fundasNuevasType" value="Muy nuevo">
+        <label for="muyNuevo">Muy nuevo</label>
+        <input type="radio" id="dificilVender" name="fundasNuevasType" value="Dificil de vender">
+        <label for="dificilVender">Dificil de vender</label>
+        <input type="radio" id="urgente" name="fundasNuevasType" value="Urgente">
+        <label for="urgente">Urgente</label>
+    </div>
+
+    <!-- Opciones para 1hora -->
+    <div id="unaHoraOptions" class="unaHoraOptions" style="display:none">
+        <label>Selecciona tipo:</label><br>
+        <input type="radio" id="audifonosBT" name="unaHoraType" value="Audifonos BT">
+        <label for="audifonosBT">Audifonos BT</label>
+        <input type="radio" id="cables50" name="unaHoraType" value="Cables 50">
+        <label for="cables50">Cables 50</label>
+        <input type="radio" id="cargadorCompleto" name="unaHoraType" value="Cargador Completo">
+        <label for="cargadorCompleto">Cargador Completo</label>
+        <input type="radio" id="cables2M" name="unaHoraType" value="Cables 2M">
+        <label for="cables2M">Cables 2M</label>
+    </div>
+
     <button id="addProductBtn">Agregar Producto</button>
 
     <!-- Sección para cada categoría -->
     <div id="micasHeader" class="category-header">Micas</div>
+    <div id="micasSubtotal" class="category-subtotal" style="font-size: 1.1em; padding-left: 20px; font-weight: bold; color: #27ae60;">Subtotal: $0.00</div>
     <div id="micas9DHeader" class="category-header" style="font-size: 1.2em; padding-left: 20px;">Micas 9D</div>
     <div id="micas9DList" class="productList"></div>
 
@@ -258,16 +311,28 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
     <div id="micasPrivacidadHeader" class="category-header" style="font-size: 1.2em; padding-left: 20px;">Micas Privacidad</div>
     <div id="micasPrivacidadList" class="productList"></div>
 
-    <div id="micasHidrogelHeader" class="category-header" style="font-size: 1.2em; padding-left: 20px;">Micas Hidrogel</div>
-    <div id="micasHidrogelList" class="productList"></div>
+    <div id="hidrogelHeader" class="category-header">Hidrogel</div>
+    <div id="hidrogelSubtotal" class="category-subtotal" style="font-size: 1.1em; padding-left: 20px; font-weight: bold; color: #27ae60;">Subtotal: $0.00</div>
+    <div id="hidrogelList" class="productList"></div>
 
     <div id="fundasHeader" class="category-header">Fundas</div>
+    <div id="fundasSubtotal" class="category-subtotal" style="font-size: 1.1em; padding-left: 20px; font-weight: bold; color: #27ae60;">Subtotal: $0.00</div>
     <div id="fundasList" class="productList"></div>
 
+    <div id="fundasNuevasHeader" class="category-header">Fundas nuevas</div>
+    <div id="fundasNuevasSubtotal" class="category-subtotal" style="font-size: 1.1em; padding-left: 20px; font-weight: bold; color: #27ae60;">Subtotal: $0.00</div>
+    <div id="fundasNuevasList" class="productList"></div>
+
+    <div id="unaHoraHeader" class="category-header">1hora</div>
+    <div id="unaHoraSubtotal" class="category-subtotal" style="font-size: 1.1em; padding-left: 20px; font-weight: bold; color: #27ae60;">Subtotal: $0.00</div>
+    <div id="unaHoraList" class="productList"></div>
+
     <div id="refaccionesHeader" class="category-header">Refacciones</div>
+    <div id="refaccionesSubtotal" class="category-subtotal" style="font-size: 1.1em; padding-left: 20px; font-weight: bold; color: #27ae60;">Subtotal: $0.00</div>
     <div id="refaccionesList" class="productList"></div>
 
     <div id="otrosHeader" class="category-header">Otros</div>
+    <div id="otrosSubtotal" class="category-subtotal" style="font-size: 1.1em; padding-left: 20px; font-weight: bold; color: #27ae60;">Subtotal: $0.00</div>
     <div id="otrosList" class="productList"></div>
 
     <div id="totalPrice">Total: $0.00</div>
@@ -276,7 +341,11 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         // Inicializar la página ocultando las opciones de mica y fundas
         window.onload = function() {
             document.getElementById('micaOptions').style.display = 'none';
+            document.getElementById('hidrogelOptions').style.display = 'none';
             document.getElementById('fundaColors').style.display = 'none';
+            document.getElementById('fundaTypes').style.display = 'none';
+            document.getElementById('fundasNuevasOptions').style.display = 'none';
+            document.getElementById('unaHoraOptions').style.display = 'none';
             const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
             savedProducts.forEach((product, index) => {
                 addProductToDOM(product, index);
@@ -287,12 +356,23 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         // Mostrar opciones de micas o fundas cuando se selecciona la categoría
         document.getElementById('productCategory').addEventListener('change', function() {
             const micaOptions = document.getElementById('micaOptions');
+            const hidrogelOptions = document.getElementById('hidrogelOptions');
             const fundaColors = document.getElementById('fundaColors');
+            const fundaTypes = document.getElementById('fundaTypes');
+            const fundasNuevasOptions = document.getElementById('fundasNuevasOptions');
+            const unaHoraOptions = document.getElementById('unaHoraOptions');
             const productPrice = document.getElementById('productPrice');
-            
+
+            // Ocultar todas las opciones primero
+            micaOptions.style.display = 'none';
+            hidrogelOptions.style.display = 'none';
+            fundaColors.style.display = 'none';
+            fundaTypes.style.display = 'none';
+            fundasNuevasOptions.style.display = 'none';
+            unaHoraOptions.style.display = 'none';
+
             if (this.value === 'Micas') {
                 micaOptions.style.display = 'block';
-                fundaColors.style.display = 'none';
                 document.querySelectorAll('input[name="micaType"]').forEach(radio => {
                     radio.addEventListener('change', function() {
                         if (this.value === '9D') {
@@ -301,19 +381,32 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                             productPrice.value = 35;
                         } else if (this.value === 'Privacidad') {
                             productPrice.value = 23;
-                        } else if (this.value === 'Hidrogel') {
-                            productPrice.value = 25;
+                        }
+                    });
+                });
+            } else if (this.value === 'Hidrogel') {
+                hidrogelOptions.style.display = 'block';
+                document.querySelectorAll('input[name="hidrogelType"]').forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        if (this.value === 'matte' || this.value === 'hd' || this.value === 'blueray') {
+                            productPrice.value = 180;
+                        } else if (this.value === 'privacidad') {
+                            productPrice.value = 330;
                         }
                     });
                 });
             } else if (this.value === 'Fundas') {
                 fundaColors.style.display = 'block';
-                micaOptions.style.display = 'none';
-                productPrice.value = ''; // Limpiar precio si se selecciona Fundas
+                fundaTypes.style.display = 'block';
+                productPrice.value = '';
+            } else if (this.value === 'Fundas nuevas') {
+                fundasNuevasOptions.style.display = 'block';
+                productPrice.value = '';
+            } else if (this.value === '1hora') {
+                unaHoraOptions.style.display = 'block';
+                productPrice.value = '';
             } else {
-                micaOptions.style.display = 'none';
-                fundaColors.style.display = 'none';
-                productPrice.value = ''; // Limpiar precio si se selecciona otra categoría
+                productPrice.value = '';
             }
         });
 
@@ -327,22 +420,50 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                     productList = document.getElementById('micas9HList');
                 } else if (product.type === 'Privacidad') {
                     productList = document.getElementById('micasPrivacidadList');
-                }else if (product.type === 'Hidrogel') {
-                    productList = document.getElementById('micasHidrogelList');
                 }
+            } else if (product.category === 'Hidrogel') {
+                productList = document.getElementById('hidrogelList');
             } else if (product.category === 'Fundas') {
                 productList = document.getElementById('fundasList');
+            } else if (product.category === 'Fundas nuevas') {
+                productList = document.getElementById('fundasNuevasList');
+            } else if (product.category === '1hora') {
+                productList = document.getElementById('unaHoraList');
             } else {
                 productList = document.getElementById(`${product.category.toLowerCase()}List`);
             }
 
             const newProductDiv = document.createElement('div');
             newProductDiv.className = 'product';
+
+            // Construir el HTML dinámicamente
+            let detailsHTML = '';
+
+            // Mostrar tipo para Hidrogel
+            if (product.category === 'Hidrogel' && product.type) {
+                detailsHTML += `<p>Tipo: ${product.type}</p>`;
+            }
+
+            // Mostrar colores para Fundas
+            if (product.category === 'Fundas' && product.colors && product.colors.length > 0) {
+                detailsHTML += `<p>Color: ${product.colors.join(', ')}</p>`;
+            }
+
+            // Mostrar tipos de Fundas
+            if (product.category === 'Fundas' && product.fundaTypes && product.fundaTypes.length > 0) {
+                detailsHTML += `<p>Tipo: ${product.fundaTypes.join(', ')}</p>`;
+            }
+
+            // Mostrar tipo para otras categorías con radio buttons
+            if ((product.category === 'Fundas nuevas' || product.category === '1hora') && product.type) {
+                detailsHTML += `<p>Tipo: ${product.type}</p>`;
+            }
+
             newProductDiv.innerHTML = `
                 <h3>${product.name}</h3>
                 <p>Precio: $${product.price}</p>
                 <p>Cantidad: ${product.quantity}</p>
-                ${product.category === 'Fundas' ? `<p>Color: ${product.colors.join(', ')}</p>` : ''}
+                ${detailsHTML}
                 <button class="deleteBtn" onclick="deleteProduct(${index})">Eliminar</button>
             `;
             productList.appendChild(newProductDiv);
@@ -353,22 +474,52 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
             savedProducts.splice(index, 1); // Eliminar el producto de la lista
             localStorage.setItem('products', JSON.stringify(savedProducts)); // Actualizar el localStorage
+
+            // Limpiar todas las listas
             document.getElementById('micas9DList').innerHTML = '';
             document.getElementById('micas9HList').innerHTML = '';
             document.getElementById('micasPrivacidadList').innerHTML = '';
-            document.getElementById('micasHidrogelList').innerHTML = '';
+            document.getElementById('hidrogelList').innerHTML = '';
             document.getElementById('fundasList').innerHTML = '';
+            document.getElementById('fundasNuevasList').innerHTML = '';
+            document.getElementById('unaHoraList').innerHTML = '';
             document.getElementById('refaccionesList').innerHTML = '';
             document.getElementById('otrosList').innerHTML = '';
-            savedProducts.forEach((product, i) => addProductToDOM(product, i)); // Recargar productos
-            updateTotalPrice(); // Actualizar el precio total
+
+            // Recargar productos
+            savedProducts.forEach((product, i) => addProductToDOM(product, i));
+
+            // Actualizar el precio total
+            updateTotalPrice();
         }
 
         // Función para actualizar el precio total
+        function updateCategorySubtotal(category) {
+            const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
+            const categoryTotal = savedProducts
+                .filter(product => product.category === category)
+                .reduce((sum, product) => sum + product.price * product.quantity, 0);
+
+            const subtotalElement = document.getElementById(`${category.toLowerCase().replace(' ', '')}Subtotal`);
+            if (subtotalElement) {
+                subtotalElement.innerText = `Subtotal: $${categoryTotal.toFixed(2)}`;
+            }
+            return categoryTotal;
+        }
+
         function updateTotalPrice() {
             const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
-            const total = savedProducts.reduce((sum, product) => sum + product.price * product.quantity, 0);
-            document.getElementById('totalPrice').innerText = `Total: $${total.toFixed(2)}`;
+
+            // Update all category subtotals
+            const categories = ['Micas', 'Hidrogel', 'Fundas', 'Fundas nuevas', '1hora', 'Refacciones', 'Otros'];
+            let grandTotal = 0;
+
+            categories.forEach(category => {
+                const categoryTotal = updateCategorySubtotal(category);
+                grandTotal += categoryTotal;
+            });
+
+            document.getElementById('totalPrice').innerText = `Total General: $${grandTotal.toFixed(2)}`;
         }
 
         // Agregar producto a la lista y al localStorage
@@ -402,15 +553,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                 addProductToDOM(newProduct, savedProducts.length - 1);
                 updateTotalPrice();
 
-                // Limpiar los campos
+                // Limpiar solo el nombre del producto, mantener los demás valores
                 document.getElementById('productName').value = '';
-                document.getElementById('productPrice').value = '';
-                document.getElementById('productQuantity').value = '';
-                document.getElementById('productCategory').value = '';
-                document.querySelectorAll('#micaOptions input[type="radio"]').forEach(radio => radio.checked = false);
-                document.querySelectorAll('#fundaColors input[type="checkbox"]').forEach(checkbox => checkbox.checked = false);
-                document.getElementById('micaOptions').style.display = 'none';
-                document.getElementById('fundaColors').style.display = 'none';
             } else {
                 alert('Por favor, rellena todos los campos.');
             }
