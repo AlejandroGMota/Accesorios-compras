@@ -362,6 +362,31 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             updateTotalPrice();
         };
 
+        // Event listeners para asignar precios automáticamente (fuera del handler de categoría para evitar duplicados)
+        document.querySelectorAll('input[name="micaType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const productPrice = document.getElementById('productPrice');
+                if (this.value === '9D') {
+                    productPrice.value = 60;
+                } else if (this.value === '9H') {
+                    productPrice.value = 35;
+                } else if (this.value === 'Privacidad') {
+                    productPrice.value = 23;
+                }
+            });
+        });
+
+        document.querySelectorAll('input[name="hidrogelType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const productPrice = document.getElementById('productPrice');
+                if (this.value === 'matte' || this.value === 'hd' || this.value === 'blueray') {
+                    productPrice.value = 180;
+                } else if (this.value === 'privacidad') {
+                    productPrice.value = 330;
+                }
+            });
+        });
+
         // Mostrar opciones de micas o fundas cuando se selecciona la categoría
         document.getElementById('productCategory').addEventListener('change', function() {
             const micaOptions = document.getElementById('micaOptions');
@@ -380,30 +405,20 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             fundasNuevasOptions.style.display = 'none';
             unaHoraOptions.style.display = 'none';
 
+            // Limpiar selecciones previas al cambiar de categoría
+            document.querySelectorAll('input[name="micaType"]').forEach(r => r.checked = false);
+            document.querySelectorAll('input[name="hidrogelType"]').forEach(r => r.checked = false);
+            document.querySelectorAll('input[name="fundasNuevasType"]').forEach(r => r.checked = false);
+            document.querySelectorAll('input[name="unaHoraType"]').forEach(r => r.checked = false);
+            document.querySelectorAll('#fundaColors input[type="checkbox"]').forEach(cb => cb.checked = false);
+            document.querySelectorAll('#fundaTypes input[type="checkbox"]').forEach(cb => cb.checked = false);
+
             if (this.value === 'Micas') {
                 micaOptions.style.display = 'block';
-                document.querySelectorAll('input[name="micaType"]').forEach(radio => {
-                    radio.addEventListener('change', function() {
-                        if (this.value === '9D') {
-                            productPrice.value = 60;
-                        } else if (this.value === '9H') {
-                            productPrice.value = 35;
-                        } else if (this.value === 'Privacidad') {
-                            productPrice.value = 23;
-                        }
-                    });
-                });
+                productPrice.value = '';
             } else if (this.value === 'Hidrogel') {
                 hidrogelOptions.style.display = 'block';
-                document.querySelectorAll('input[name="hidrogelType"]').forEach(radio => {
-                    radio.addEventListener('change', function() {
-                        if (this.value === 'matte' || this.value === 'hd' || this.value === 'blueray') {
-                            productPrice.value = 180;
-                        } else if (this.value === 'privacidad') {
-                            productPrice.value = 330;
-                        }
-                    });
-                });
+                productPrice.value = '';
             } else if (this.value === 'Fundas') {
                 fundaColors.style.display = 'block';
                 fundaTypes.style.display = 'block';
@@ -537,33 +552,70 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             const productPrice = document.getElementById('productPrice').value;
             const productQuantity = document.getElementById('productQuantity').value;
             const productCategory = document.getElementById('productCategory').value;
+
+            // Capturar tipos según categoría
             const micaType = document.querySelector('input[name="micaType"]:checked');
-            
+            const hidrogelType = document.querySelector('input[name="hidrogelType"]:checked');
+            const fundasNuevasType = document.querySelector('input[name="fundasNuevasType"]:checked');
+            const unaHoraType = document.querySelector('input[name="unaHoraType"]:checked');
+
+            // Capturar colores de fundas
             const selectedColors = [];
             if (productCategory === 'Fundas') {
                 document.querySelectorAll('#fundaColors input[type="checkbox"]:checked').forEach(checkbox => {
                     selectedColors.push(checkbox.value);
-             
-   });
+                });
+            }
+
+            // Capturar tipos de fundas (magsafe, transparente, etc.)
+            const selectedFundaTypes = [];
+            if (productCategory === 'Fundas') {
+                document.querySelectorAll('#fundaTypes input[type="checkbox"]:checked').forEach(checkbox => {
+                    selectedFundaTypes.push(checkbox.value);
+                });
             }
 
             if (productName && productPrice && productQuantity && productCategory) {
                 const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
+
+                // Determinar el tipo según la categoría
+                let productType = '';
+                if (productCategory === 'Micas' && micaType) {
+                    productType = micaType.value;
+                } else if (productCategory === 'Hidrogel' && hidrogelType) {
+                    productType = hidrogelType.value;
+                } else if (productCategory === 'Fundas nuevas' && fundasNuevasType) {
+                    productType = fundasNuevasType.value;
+                } else if (productCategory === '1hora' && unaHoraType) {
+                    productType = unaHoraType.value;
+                }
+
                 const newProduct = {
                     name: productName,
                     price: parseFloat(productPrice),
                     quantity: parseInt(productQuantity),
                     category: productCategory,
-                    type: productCategory === 'Micas' && micaType ? micaType.value : '',
-                    colors: productCategory === 'Fundas' ? selectedColors : []
+                    type: productType,
+                    colors: productCategory === 'Fundas' ? selectedColors : [],
+                    fundaTypes: productCategory === 'Fundas' ? selectedFundaTypes : []
                 };
                 savedProducts.push(newProduct);
                 localStorage.setItem('products', JSON.stringify(savedProducts));
                 addProductToDOM(newProduct, savedProducts.length - 1);
                 updateTotalPrice();
 
-                // Limpiar solo el nombre del producto, mantener los demás valores
+                // Limpiar todos los campos después de agregar
                 document.getElementById('productName').value = '';
+                document.getElementById('productPrice').value = '';
+                document.getElementById('productQuantity').value = '';
+
+                // Limpiar checkboxes y radio buttons
+                document.querySelectorAll('#fundaColors input[type="checkbox"]').forEach(cb => cb.checked = false);
+                document.querySelectorAll('#fundaTypes input[type="checkbox"]').forEach(cb => cb.checked = false);
+                document.querySelectorAll('input[name="micaType"]').forEach(r => r.checked = false);
+                document.querySelectorAll('input[name="hidrogelType"]').forEach(r => r.checked = false);
+                document.querySelectorAll('input[name="fundasNuevasType"]').forEach(r => r.checked = false);
+                document.querySelectorAll('input[name="unaHoraType"]').forEach(r => r.checked = false);
             } else {
                 alert('Por favor, rellena todos los campos.');
             }
