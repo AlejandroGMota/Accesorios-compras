@@ -604,18 +604,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                 addProductToDOM(newProduct, savedProducts.length - 1);
                 updateTotalPrice();
 
-                // Limpiar todos los campos después de agregar
+                // Limpiar solo el nombre del producto, mantener los demás valores
                 document.getElementById('productName').value = '';
-                document.getElementById('productPrice').value = '';
-                document.getElementById('productQuantity').value = '';
-
-                // Limpiar checkboxes y radio buttons
-                document.querySelectorAll('#fundaColors input[type="checkbox"]').forEach(cb => cb.checked = false);
-                document.querySelectorAll('#fundaTypes input[type="checkbox"]').forEach(cb => cb.checked = false);
-                document.querySelectorAll('input[name="micaType"]').forEach(r => r.checked = false);
-                document.querySelectorAll('input[name="hidrogelType"]').forEach(r => r.checked = false);
-                document.querySelectorAll('input[name="fundasNuevasType"]').forEach(r => r.checked = false);
-                document.querySelectorAll('input[name="unaHoraType"]').forEach(r => r.checked = false);
             } else {
                 alert('Por favor, rellena todos los campos.');
             }
