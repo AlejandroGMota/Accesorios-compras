@@ -49,6 +49,54 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
+        /* Búsqueda */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-input {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            width: 300px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .filter-btn {
             padding: 10px 20px;
             border: 2px solid #0056b3;
@@ -315,6 +363,21 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             .pagination {
                 flex-wrap: wrap;
             }
+
+            .search-box {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .search-input {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .search-btn {
+                width: 100%;
+                max-width: 280px;
+            }
         }
     </style>
 </head>
@@ -326,8 +389,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
 
         <!-- Tabs de fuente de datos -->
         <div class="source-tabs">
-            <button class="source-tab active" data-source="latest">🆕 Últimos</button>
-            <button class="source-tab" data-source="top-interest">🔥 Top Interés</button>
+            <button class="source-tab active" data-source="latest"> Últimos</button>
+            <button class="source-tab" data-source="top-interest"> Top Interés</button>
         </div>
 
         <!-- Filtros por marca -->
@@ -337,6 +400,12 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             <button class="filter-btn" data-brand="motorola">Motorola</button>
             <button class="filter-btn" data-brand="xiaomi">Xiaomi / Redmi</button>
             <button class="filter-btn" data-brand="oppo">Oppo</button>
+        </div>
+
+        <!-- Búsqueda de cualquier modelo -->
+        <div class="search-box">
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar cualquier modelo (ej: iPhone 15, Galaxy S24)">
+            <button id="searchBtn" class="search-btn"> Buscar</button>
         </div>
 
         <div id="results-count" class="results-count"></div>
@@ -363,12 +432,76 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         let currentBrand = 'all';
         let currentSource = 'latest'; // 'latest' o 'top-interest'
 
+        // Configuración de la API PhoneWise
+        const PHONEWISE_BASE = 'https://phonewise.onrender.com/api';
+        const MAX_RESULTS = 200; // Límite de resultados
+
         // Inicializar
         document.addEventListener('DOMContentLoaded', () => {
             setupSourceTabs();
             setupFilterButtons();
+            setupSearch();
             fetchPhones();
         });
+
+        // Configurar búsqueda
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('searchBtn');
+
+            searchBtn.addEventListener('click', () => {
+                const query = searchInput.value.trim();
+                if (query.length >= 2) {
+                    searchPhones(query);
+                }
+            });
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const query = searchInput.value.trim();
+                    if (query.length >= 2) {
+                        searchPhones(query);
+                    }
+                }
+            });
+        }
+
+        // Buscar teléfonos con PhoneWise API
+        async function searchPhones(query) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = '<div class="loading">Buscando</div>';
+
+            try {
+                const response = await fetch(`${PHONEWISE_BASE}/search?q=${encodeURIComponent(query)}`);
+                if (!response.ok) throw new Error('Error en búsqueda');
+
+                const data = await response.json();
+
+                if (Array.isArray(data) && data.length > 0) {
+                    allPhones = data.map(p => ({
+                        phone_name: p.phone_name || p.slug,
+                        slug: p.slug,
+                        image: p.image || '',
+                        brand: p.brand || extractBrand(p.phone_name || ''),
+                        source: 'phonewise'
+                    }));
+
+                    // Reset filtros
+                    currentBrand = 'all';
+                    currentPage = 1;
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelector('.filter-btn[data-brand="all"]').classList.add('active');
+
+                    applyFilter();
+                } else {
+                    contentDiv.innerHTML = '<div class="no-results">No se encontraron resultados para "' + query + '"</div>';
+                    document.getElementById('pagination').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error en búsqueda:', error);
+                contentDiv.innerHTML = '<div class="error">Error al buscar. Intenta de nuevo.</div>';
+            }
+        }
 
         // Configurar tabs de fuente
         function setupSourceTabs() {
@@ -426,7 +559,7 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             });
         }
 
-        // Obtener datos de la API según fuente seleccionada
+        // Obtener datos de phone-specs-api (para tabs Últimos/Top Interés)
         async function fetchPhones() {
             const contentDiv = document.getElementById('content');
             contentDiv.innerHTML = '<div class="loading">Cargando datos</div>';
@@ -439,7 +572,7 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                 const response = await fetch(endpoint);
 
                 if (!response.ok) {
-                    throw new Error('API principal no disponible');
+                    throw new Error('API no disponible');
                 }
 
                 const data = await response.json();
@@ -451,41 +584,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                     throw new Error('Datos no válidos');
                 }
             } catch (error) {
-                console.error('Error con API principal, usando fallback:', error);
-                // Fallback a DummyJSON
-                await fetchFallbackPhones();
-            }
-        }
-
-        // Fallback usando DummyJSON
-        async function fetchFallbackPhones() {
-            const contentDiv = document.getElementById('content');
-
-            try {
-                //https://phonewise.onrender.com/api/search?q=apple new fallback url
-                const response = await fetch('https://dummyjson.com/products/category/smartphones');
-                const data = await response.json();
-
-                if (data.products && data.products.length > 0) {
-                    // Convertir formato DummyJSON al formato esperado
-                    allPhones = data.products.map(p => ({
-                        phone_name: p.title,
-                        slug: `dummy-${p.id}`,
-                        image: p.thumbnail,
-                        brand: p.brand,
-                        // Datos adicionales de DummyJSON
-                        price: `$${p.price}`,
-                        rating: p.rating,
-                        description: p.description,
-                        isDummy: true // Marcar como datos de fallback
-                    }));
-                    applyFilter();
-                } else {
-                    contentDiv.innerHTML = '<div class="error">No se pudieron obtener los datos</div>';
-                }
-            } catch (error) {
-                console.error('Error con fallback:', error);
-                contentDiv.innerHTML = '<div class="error">Error: Las APIs no están disponibles. Intenta más tarde.</div>';
+                console.error('Error con phone-specs-api:', error);
+                contentDiv.innerHTML = '<div class="error">No se pudieron cargar los datos. Intenta buscar un modelo específico.</div>';
             }
         }
 
@@ -496,7 +596,15 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             }
 
             try {
-                const response = await fetch(`https://phone-specs-api.vercel.app/${slug}`);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+                const response = await fetch(`https://phone-specs-api.vercel.app/${slug}`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) return null;
                 const data = await response.json();
 
                 if (data.status && data.data) {
@@ -504,32 +612,28 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                     return data.data;
                 }
             } catch (error) {
-                console.error('Error fetching details:', error);
+                console.warn('Error fetching details for', slug);
             }
             return null;
         }
 
-        // Cargar detalles (fecha y precio) para los teléfonos visibles
+        // Cargar detalles (fecha y precio) para los teléfonos visibles - EN PARALELO
         async function loadPhoneDetails(phonesToShow) {
-            for (const phone of phonesToShow) {
+            // Cargar todos los detalles en paralelo
+            const detailPromises = phonesToShow.map(async (phone) => {
+                if (!phoneDetails[phone.slug]) {
+                    await fetchPhoneDetails(phone.slug);
+                }
+                return { phone, details: phoneDetails[phone.slug] };
+            });
+
+            const results = await Promise.all(detailPromises);
+
+            // Actualizar las celdas
+            results.forEach(({ phone, details }) => {
                 const dateCell = document.getElementById(`date-${phone.slug}`);
                 const priceCell = document.getElementById(`price-${phone.slug}`);
 
-                // Si es datos de DummyJSON, ya tenemos el precio
-                if (phone.isDummy) {
-                    if (dateCell) {
-                        dateCell.innerHTML = '<span class="release-date">2024</span>';
-                    }
-                    if (priceCell) {
-                        priceCell.innerHTML = `<span class="price-tag">${phone.price}</span>`;
-                    }
-                    continue;
-                }
-
-                // Para API principal, obtener detalles
-                const details = await fetchPhoneDetails(phone.slug);
-
-                // Actualizar fecha
                 if (dateCell) {
                     if (details && details.release_date) {
                         let releaseDate = details.release_date;
@@ -540,7 +644,6 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                     }
                 }
 
-                // Actualizar precio
                 if (priceCell) {
                     if (details && details.price) {
                         priceCell.innerHTML = `<span class="price-tag">${details.price}</span>`;
@@ -548,11 +651,40 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                         priceCell.innerHTML = '<span class="price-tag">-</span>';
                     }
                 }
+            });
+        }
+
+        // Parsear fecha de lanzamiento a objeto Date para ordenar
+        function parseReleaseDate(dateStr) {
+            if (!dateStr) return new Date(0);
+            // Formatos comunes: "2024, January 15" o "Released 2024, January"
+            const cleaned = dateStr.replace('Released ', '').replace('Exp. release ', '');
+            const parsed = Date.parse(cleaned);
+            if (!isNaN(parsed)) return new Date(parsed);
+
+            // Intentar extraer año y mes
+            const match = cleaned.match(/(\d{4})/);
+            if (match) {
+                return new Date(parseInt(match[1]), 0, 1);
             }
+            return new Date(0);
+        }
+
+        // Ordenar teléfonos por fecha de lanzamiento (más reciente primero)
+        function sortByReleaseDate() {
+            filteredPhones.sort((a, b) => {
+                const detailsA = phoneDetails[a.slug];
+                const detailsB = phoneDetails[b.slug];
+                const dateA = parseReleaseDate(detailsA?.release_date);
+                const dateB = parseReleaseDate(detailsB?.release_date);
+                return dateB - dateA; // Más reciente primero
+            });
         }
 
         // Aplicar filtro por marca
-        function applyFilter() {
+        async function applyFilter() {
+            const contentDiv = document.getElementById('content');
+
             if (currentBrand === 'all') {
                 filteredPhones = [...allPhones];
             } else {
@@ -573,9 +705,27 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                 });
             }
 
+            // Mostrar loading mientras cargamos detalles
+            contentDiv.innerHTML = '<div class="loading">Cargando detalles y ordenando por fecha</div>';
+
+            // Pre-cargar detalles de todos los teléfonos filtrados (en lotes de 10)
+            await preloadAllDetails(filteredPhones);
+
+            // Ordenar por fecha de lanzamiento (más reciente primero)
+            sortByReleaseDate();
+
             updateResultsCount();
             renderTable();
             updatePagination();
+        }
+
+        // Pre-cargar detalles en lotes para no saturar la API
+        async function preloadAllDetails(phones) {
+            const batchSize = 10;
+            for (let i = 0; i < phones.length; i += batchSize) {
+                const batch = phones.slice(i, i + batchSize);
+                await Promise.all(batch.map(phone => fetchPhoneDetails(phone.slug)));
+            }
         }
 
         // Actualizar contador de resultados
@@ -608,15 +758,16 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             const endIndex = startIndex + itemsPerPage;
             const phonesToShow = filteredPhones.slice(startIndex, endIndex);
 
+            const showImage = currentSource === 'latest';
+
             let tableHTML = `
                 <table>
                     <thead>
                         <tr>
-                            <th>Imagen</th>
+                            ${showImage ? '<th>Imagen</th>' : ''}
                             <th>Marca</th>
                             <th>Modelo</th>
                             <th>Lanzamiento</th>
-                            <th>Precio</th>
                             <th>Specs</th>
                         </tr>
                     </thead>
@@ -627,21 +778,29 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                 // Usar brand del objeto si existe, sino extraer del nombre
                 const brand = phone.brand || extractBrand(phone.phone_name);
                 const gsmUrl = getGSMArenaUrl(phone.slug);
-                const isDummy = phone.isDummy || false;
+
+                // Obtener detalles del cache (ya pre-cargados)
+                const details = phoneDetails[phone.slug];
+                let releaseDate = '-';
+
+                if (details && details.release_date) {
+                    releaseDate = details.release_date
+                        .replace('Released ', '')
+                        .replace('Exp. release ', '');
+                }
 
                 tableHTML += `
                     <tr>
-                        <td>
+                        ${showImage ? `<td>
                             <img src="${phone.image}"
                                  alt="${phone.phone_name}"
                                  class="phone-image"
                                  onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2280%22><rect fill=%22%23f0f0f0%22 width=%22100%%22 height=%22100%%22/><text x=%2250%%22 y=%2250%%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22>Sin img</text></svg>'">
-                        </td>
+                        </td>` : ''}
                         <td><span class="brand-tag">${brand}</span></td>
                         <td class="phone-name">${phone.phone_name}</td>
-                        <td id="date-${phone.slug}"><span class="loading-date">Cargando...</span></td>
-                        <td id="price-${phone.slug}"><span class="loading-date">Cargando...</span></td>
-                        <td>${isDummy ? '<span style="color:#999">-</span>' : `<a href="${gsmUrl}" target="_blank" class="gsm-link">GSMArena</a>`}</td>
+                        <td><span class="release-date">${releaseDate}</span></td>
+                        <td><a href="${gsmUrl}" target="_blank" class="gsm-link">GSMArena</a></td>
                     </tr>
                 `;
             });
@@ -652,9 +811,6 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             `;
 
             contentDiv.innerHTML = tableHTML;
-
-            // Cargar detalles de forma asíncrona
-            loadPhoneDetails(phonesToShow);
         }
 
         // Extraer marca del nombre
