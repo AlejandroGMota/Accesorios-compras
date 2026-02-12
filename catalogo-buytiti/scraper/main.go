@@ -78,9 +78,19 @@ type task struct {
 // --- Configuration ---
 
 var categories = map[string]string{
-	"Electrónica": "electronica",
-	"Cables":      "cables-3",
-	"Hogar":       "hogar",
+	"Electrónica":    "electronica",
+	"Hogar":          "hogar",
+	"Entretenimiento": "entretenimiento",
+	"Papelería":      "papeleria",
+	"Salud y Belleza": "salud-y-belleza",
+	"Minitiki":       "minitiki",
+	"Imenso":         "imenso",
+	"Titiko":         "titiko",
+	"Regalos":        "regalos-2",
+	"Ofertas Semanales": "ofertas-semanales",
+	"Remates Regreso a Clases": "remates-clases",
+	"Últimas Piezas":  "ultimas-piezas",
+	"Temporada":       "temporada",
 }
 
 const (
