@@ -92,6 +92,21 @@
             border-color: #0056b3;
         }
 
+        .sort-select {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .sort-select:focus {
+            outline: none;
+            border-color: #0056b3;
+        }
+
         /* Tabla */
         table {
             width: 100%;
@@ -278,9 +293,16 @@
             <button class="filter-btn active" data-category="all">Todas</button>
         </div>
 
-        <!-- Búsqueda -->
+        <!-- Búsqueda y ordenamiento -->
         <div class="search-box">
             <input type="text" id="searchInput" class="search-input" placeholder="Buscar producto...">
+            <select id="sortSelect" class="sort-select">
+                <option value="default">Ordenar por...</option>
+                <option value="price-asc">Precio: menor a mayor</option>
+                <option value="price-desc">Precio: mayor a menor</option>
+                <option value="name-asc">Nombre: A - Z</option>
+                <option value="name-desc">Nombre: Z - A</option>
+            </select>
         </div>
 
         <div id="results-count" class="results-count"></div>
@@ -336,14 +358,32 @@
             });
         }
 
-        // Aplicar filtro y búsqueda
+        // Aplicar filtro, búsqueda y ordenamiento
         function applyFilter() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            const sortValue = document.getElementById('sortSelect').value;
+
             filteredProducts = allProducts.filter(p => {
                 const matchCategory = currentCategory === 'all' || p.categoria === currentCategory;
                 const matchSearch = !searchTerm || p.nombre.toLowerCase().includes(searchTerm);
                 return matchCategory && matchSearch;
             });
+
+            switch (sortValue) {
+                case 'price-asc':
+                    filteredProducts.sort((a, b) => a.precio - b.precio);
+                    break;
+                case 'price-desc':
+                    filteredProducts.sort((a, b) => b.precio - a.precio);
+                    break;
+                case 'name-asc':
+                    filteredProducts.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                    break;
+                case 'name-desc':
+                    filteredProducts.sort((a, b) => b.nombre.localeCompare(a.nombre));
+                    break;
+            }
+
             displayProducts(filteredProducts);
         }
 
@@ -394,8 +434,9 @@
             contentDiv.innerHTML = html;
         }
 
-        // Búsqueda en tiempo real
+        // Búsqueda y ordenamiento en tiempo real
         document.getElementById('searchInput').addEventListener('input', applyFilter);
+        document.getElementById('sortSelect').addEventListener('change', applyFilter);
 
         // Inicializar
         document.addEventListener('DOMContentLoaded', loadProducts);
