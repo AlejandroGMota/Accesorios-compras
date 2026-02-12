@@ -1,0 +1,23 @@
+[
+    {
+        "nombre": "Funda iPhone 15 Pro Max Transparente",
+        "precio": 45.00,
+        "imagen": "https://via.placeholder.com/80x80?text=Funda",
+        "link": "https://ejemplo.com/producto1",
+        "categoria": "Fundas"
+    },
+    {
+        "nombre": "Mica 9D Samsung Galaxy S24",
+        "precio": 25.00,
+        "imagen": "https://via.placeholder.com/80x80?text=Mica",
+        "link": "https://ejemplo.com/producto2",
+        "categoria": "Micas"
+    },
+    {
+        "nombre": "Cable USB-C 2 metros",
+        "precio": 35.00,
+        "imagen": "https://via.placeholder.com/80x80?text=Cable",
+        "link": "https://ejemplo.com/producto3",
+        "categoria": "Accesorios"
+    }
+]
