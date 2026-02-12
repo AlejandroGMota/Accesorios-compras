@@ -415,8 +415,9 @@
             `;
 
             products.forEach(product => {
-                const imgHtml = product.imagen
-                    ? `<img src="${product.imagen}" alt="${product.nombre}" class="product-image" onerror="this.style.display='none'">`
+                const imgSrc = product.imagen64 || product.imagen;
+                const imgHtml = imgSrc
+                    ? `<img src="${imgSrc}" alt="${product.nombre}" class="product-image" onerror="this.style.display='none'">`
                     : '';
 
                 html += `

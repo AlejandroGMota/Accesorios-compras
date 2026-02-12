@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +24,7 @@ type Product struct {
 	Nombre    string  `json:"nombre"`
 	Precio    float64 `json:"precio"`
 	Imagen    string  `json:"imagen"`
+	Imagen64  string  `json:"imagen64"`
 	Link      string  `json:"link"`
 	Categoria string  `json:"categoria"`
 }
@@ -43,7 +45,8 @@ type APIPrices struct {
 }
 
 type APIImage struct {
-	Src string `json:"src"`
+	Src    string `json:"src"`
+	Srcset string `json:"srcset"`
 }
 
 // --- Task for the worker pool ---
@@ -167,13 +170,30 @@ func convertPrice(prices APIPrices) float64 {
 	return math.Round(float64(val)/divisor*100) / 100
 }
 
+// extractSrcsetURL extracts a URL for a specific width descriptor from a srcset string.
+// e.g. extractSrcsetURL("...img-64x64.jpg 64w, ...img-100x100.jpg 100w", "64w") returns the 64w URL.
+func extractSrcsetURL(srcset string, width string) string {
+	for _, entry := range strings.Split(srcset, ",") {
+		parts := strings.Fields(strings.TrimSpace(entry))
+		if len(parts) == 2 && parts[1] == width {
+			return parts[0]
+		}
+	}
+	return ""
+}
+
 // parseProducts transforms API products into the output JSON format.
 func parseProducts(apiProducts []APIProduct, categoryName string) []Product {
 	products := make([]Product, 0, len(apiProducts))
 	for _, ap := range apiProducts {
 		imagen := ""
+		imagen64 := ""
 		if len(ap.Images) > 0 {
 			imagen = ap.Images[0].Src
+			imagen64 = extractSrcsetURL(ap.Images[0].Srcset, "64w")
+			if imagen64 == "" {
+				imagen64 = imagen
+			}
 		} else {
 			log.Printf("[WARN]   Producto sin imagen: %q", ap.Name)
 		}
@@ -182,6 +202,7 @@ func parseProducts(apiProducts []APIProduct, categoryName string) []Product {
 			Nombre:    ap.Name,
 			Precio:    convertPrice(ap.Prices),
 			Imagen:    imagen,
+			Imagen64:  imagen64,
 			Link:      ap.Permalink,
 			Categoria: categoryName,
 		})
