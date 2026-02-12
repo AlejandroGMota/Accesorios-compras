@@ -32,26 +32,93 @@
             margin: 0 auto;
         }
 
-        /* Filtros por subcategoría (checkboxes) */
-        .filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
+        /* Dropdown de subcategorías */
+        .subcat-dropdown {
+            position: relative;
             margin-bottom: 20px;
-            padding: 15px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .filters-title {
+        .subcat-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            background-color: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: border-color 0.3s;
+            user-select: none;
+        }
+
+        .subcat-toggle:hover {
+            border-color: #0056b3;
+        }
+
+        .subcat-toggle .arrow {
+            transition: transform 0.3s;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .subcat-dropdown.open .subcat-toggle .arrow {
+            transform: rotate(180deg);
+        }
+
+        .subcat-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            padding: 12px;
+        }
+
+        .subcat-dropdown.open .subcat-panel {
+            display: block;
+        }
+
+        .subcat-search {
             width: 100%;
-            text-align: center;
-            font-weight: 600;
-            color: #0056b3;
-            margin-bottom: 5px;
-            font-size: 0.9em;
+            padding: 10px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        .subcat-search:focus {
+            outline: none;
+            border-color: #0056b3;
+        }
+
+        .subcat-list {
+            max-height: 260px;
+            overflow-y: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 4px 0;
+        }
+
+        .subcat-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .subcat-list::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
         }
 
         .filter-checkbox {
@@ -66,8 +133,8 @@
             color: #0056b3;
             border-radius: 25px;
             cursor: pointer;
-            font-size: clamp(0.75em, 1.8vw, 0.9em);
-            transition: all 0.3s ease;
+            font-size: 0.85em;
+            transition: all 0.2s ease;
             font-weight: 500;
             user-select: none;
         }
@@ -81,24 +148,73 @@
             color: white;
         }
 
-        .filter-actions {
-            width: 100%;
-            text-align: center;
-            margin-top: 5px;
+        .filter-item {
+            display: inline;
         }
 
-        .filter-actions button {
-            padding: 5px 12px;
+        .filter-item.hidden {
+            display: none;
+        }
+
+        .subcat-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+
+        .subcat-actions button {
+            flex: 1;
+            padding: 7px 12px;
             border: 1px solid #ccc;
             background: #f5f5f5;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 0.8em;
-            margin: 0 3px;
+            font-size: 0.85em;
+            transition: background 0.2s;
         }
 
-        .filter-actions button:hover {
+        .subcat-actions button:hover {
             background: #e0e0e0;
+        }
+
+        .subcat-no-results {
+            padding: 12px;
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .subcat-selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .subcat-selected-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background-color: #0056b3;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .subcat-selected-tag .remove-tag {
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1.1em;
+            line-height: 1;
+            opacity: 0.8;
+        }
+
+        .subcat-selected-tag .remove-tag:hover {
+            opacity: 1;
         }
 
         /* Búsqueda */
@@ -329,6 +445,20 @@
                 font-size: 0.8em;
             }
 
+            .subcat-panel {
+                position: fixed;
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                border-radius: 16px 16px 0 0;
+                max-height: 70vh;
+            }
+
+            .subcat-list {
+                max-height: 40vh;
+            }
+
             .search-box {
                 flex-direction: column;
                 align-items: center;
@@ -352,9 +482,22 @@
         <h1>Catálogo BuyTiti</h1>
         <p class="subtitle">Productos para comprar - Precios y enlaces directos</p>
 
-        <!-- Filtros por subcategoría (checkboxes) -->
-        <div class="filters" id="filters">
-            <div class="filters-title">Subcategorías</div>
+        <!-- Filtro de subcategorías (dropdown) -->
+        <div class="subcat-dropdown" id="subcatDropdown">
+            <div class="subcat-toggle" id="subcatToggle">
+                <span id="subcatToggleText">Subcategorías</span>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="subcat-panel" id="subcatPanel">
+                <input type="text" class="subcat-search" id="subcatSearch" placeholder="Buscar subcategoría...">
+                <div class="subcat-list" id="subcatList"></div>
+                <div class="subcat-no-results" id="subcatNoResults" style="display:none">No se encontraron subcategorías</div>
+                <div class="subcat-actions">
+                    <button onclick="clearFilters()">Limpiar filtros</button>
+                    <button onclick="selectAll()">Seleccionar visibles</button>
+                </div>
+            </div>
+            <div class="subcat-selected-tags" id="subcatSelectedTags"></div>
         </div>
 
         <!-- Búsqueda y ordenamiento -->
@@ -366,6 +509,7 @@
                 <option value="price-desc">Precio: mayor a menor</option>
                 <option value="name-asc">Nombre: A - Z</option>
                 <option value="name-desc">Nombre: Z - A</option>
+                <option value="discount-desc">Mayor descuento</option>
             </select>
         </div>
 
@@ -396,10 +540,9 @@
             }
         }
 
-        // Crear checkboxes de subcategorías
+        // Crear dropdown de subcategorías
         function setupFilters() {
-            const filtersDiv = document.getElementById('filters');
-            // Collect all unique subcategories across all products
+            const listDiv = document.getElementById('subcatList');
             const subcatSet = new Set();
             allProducts.forEach(p => {
                 if (p.subcategorias) {
@@ -408,10 +551,12 @@
             });
             const subcategories = [...subcatSet].sort();
 
-            filtersDiv.innerHTML = '<div class="filters-title">Subcategorías</div>';
-
             subcategories.forEach(cat => {
                 const id = 'filter-' + cat.replace(/\s+/g, '-').toLowerCase();
+                const item = document.createElement('span');
+                item.className = 'filter-item';
+                item.dataset.name = cat.toLowerCase();
+
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.className = 'filter-checkbox';
@@ -423,6 +568,8 @@
                     } else {
                         selectedCategories.delete(cat);
                     }
+                    updateToggleText();
+                    updateSelectedTags();
                     applyFilter();
                 });
 
@@ -431,28 +578,85 @@
                 label.htmlFor = id;
                 label.textContent = cat;
 
-                filtersDiv.appendChild(checkbox);
-                filtersDiv.appendChild(label);
+                item.appendChild(checkbox);
+                item.appendChild(label);
+                listDiv.appendChild(item);
             });
 
-            // Action buttons
-            const actions = document.createElement('div');
-            actions.className = 'filter-actions';
-            actions.innerHTML = '<button onclick="clearFilters()">Limpiar filtros</button><button onclick="selectAll()">Seleccionar todas</button>';
-            filtersDiv.appendChild(actions);
+            // Toggle dropdown
+            document.getElementById('subcatToggle').addEventListener('click', () => {
+                document.getElementById('subcatDropdown').classList.toggle('open');
+                const search = document.getElementById('subcatSearch');
+                if (document.getElementById('subcatDropdown').classList.contains('open')) {
+                    search.focus();
+                }
+            });
+
+            // Search within subcategories
+            document.getElementById('subcatSearch').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase().trim();
+                let visible = 0;
+                document.querySelectorAll('.filter-item').forEach(item => {
+                    const match = item.dataset.name.includes(term);
+                    item.classList.toggle('hidden', !match);
+                    if (match) visible++;
+                });
+                document.getElementById('subcatNoResults').style.display = visible === 0 ? 'block' : 'none';
+            });
+
+            // Close on click outside
+            document.addEventListener('click', (e) => {
+                const dropdown = document.getElementById('subcatDropdown');
+                if (!dropdown.contains(e.target)) {
+                    dropdown.classList.remove('open');
+                }
+            });
+        }
+
+        function updateToggleText() {
+            const count = selectedCategories.size;
+            const text = count === 0
+                ? 'Subcategorías'
+                : `Subcategorías (${count} seleccionada${count !== 1 ? 's' : ''})`;
+            document.getElementById('subcatToggleText').textContent = text;
+        }
+
+        function updateSelectedTags() {
+            const container = document.getElementById('subcatSelectedTags');
+            if (selectedCategories.size === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = [...selectedCategories].sort().map(cat =>
+                `<span class="subcat-selected-tag">${cat}<span class="remove-tag" onclick="removeCategory('${cat.replace(/'/g, "\\'")}')">&times;</span></span>`
+            ).join('');
+        }
+
+        function removeCategory(cat) {
+            selectedCategories.delete(cat);
+            const cb = document.querySelector(`.filter-checkbox[value="${CSS.escape(cat)}"]`);
+            if (cb) cb.checked = false;
+            updateToggleText();
+            updateSelectedTags();
+            applyFilter();
         }
 
         function clearFilters() {
             selectedCategories.clear();
             document.querySelectorAll('.filter-checkbox').forEach(cb => cb.checked = false);
+            updateToggleText();
+            updateSelectedTags();
             applyFilter();
         }
 
         function selectAll() {
-            document.querySelectorAll('.filter-checkbox').forEach(cb => {
+            // Only select currently visible (not hidden by search)
+            document.querySelectorAll('.filter-item:not(.hidden) .filter-checkbox').forEach(cb => {
                 cb.checked = true;
                 selectedCategories.add(cb.value);
             });
+            updateToggleText();
+            updateSelectedTags();
             applyFilter();
         }
 
@@ -481,6 +685,13 @@
                     break;
                 case 'name-desc':
                     filteredProducts.sort((a, b) => b.nombre.localeCompare(a.nombre));
+                    break;
+                case 'discount-desc':
+                    filteredProducts.sort((a, b) => {
+                        const discA = (a.enOferta && a.precioOriginal > a.precio) ? (1 - a.precio / a.precioOriginal) : 0;
+                        const discB = (b.enOferta && b.precioOriginal > b.precio) ? (1 - b.precio / b.precioOriginal) : 0;
+                        return discB - discA;
+                    });
                     break;
             }
 
