@@ -58,8 +58,11 @@ type APIImage struct {
 }
 
 type APICategory struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Slug   string `json:"slug"`
+	Parent int    `json:"parent"`
+	Count  int    `json:"count"`
 }
 
 type APIStockAvail struct {
@@ -77,27 +80,69 @@ type task struct {
 
 // --- Configuration ---
 
-var categories = map[string]string{
-	"Electrónica":    "electronica",
-	"Hogar":          "hogar",
-	"Entretenimiento": "entretenimiento",
-	"Papelería":      "papeleria",
-	"Salud y Belleza": "salud-y-belleza",
-	"Minitiki":       "minitiki",
-	"Imenso":         "imenso",
-	"Titiko":         "titiko",
-	"Regalos":        "regalos-2",
-	"Ofertas Semanales": "ofertas-semanales",
-	"Remates Regreso a Clases": "remates-clases",
-	"Últimas Piezas":  "ultimas-piezas",
-	"Temporada":       "temporada",
+const (
+	apiBase       = "https://buytiti.com/wp-json/wc/store/v1/products"
+	categoriesAPI = "https://buytiti.com/wp-json/wc/store/v1/products/categories"
+	maxRetries    = 3
+	perPage       = 20
+)
+
+// Slugs to ignore when fetching categories automatically
+var ignoreSlugs = map[string]bool{
+	"uncategorized": true,
 }
 
-const (
-	apiBase    = "https://buytiti.com/wp-json/wc/store/v1/products"
-	maxRetries = 3
-	perPage    = 20
-)
+// fetchCategories obtains all root categories (parent=0) from the WooCommerce API.
+func fetchCategories(client *http.Client) (map[string]string, error) {
+	categories := make(map[string]string)
+	page := 1
+
+	for {
+		url := fmt.Sprintf("%s?per_page=100&page=%d", categoriesAPI, page)
+		log.Printf("[CATS]   Fetching categorías pág %d...", page)
+
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error creando request de categorías: %w", err)
+		}
+		req.Header.Set("User-Agent", "BuyTitiCatalogScraper/1.0")
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("error de red al obtener categorías: %w", err)
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("error leyendo body de categorías: %w", err)
+		}
+
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("HTTP %d al obtener categorías", resp.StatusCode)
+		}
+
+		var cats []APICategory
+		if err := json.Unmarshal(body, &cats); err != nil {
+			return nil, fmt.Errorf("error parsing categorías: %w", err)
+		}
+
+		if len(cats) == 0 {
+			break
+		}
+
+		for _, c := range cats {
+			if c.Parent == 0 && c.Count > 0 && !ignoreSlugs[c.Slug] {
+				categories[c.Name] = c.Slug
+			}
+		}
+
+		page++
+	}
+
+	return categories, nil
+}
 
 var (
 	flagOutput  string
@@ -422,6 +467,17 @@ func main() {
 	log.Printf("[CONFIG] Output:  %s", output)
 	log.Printf("[CONFIG] Workers: %d", flagWorkers)
 	log.Printf("[CONFIG] Delay:   %v", flagDelay)
+
+	// Fetch categories dynamically from the API
+	client := &http.Client{Timeout: 30 * time.Second}
+	categories, err := fetchCategories(client)
+	if err != nil {
+		log.Fatalf("[FATAL]  Error obteniendo categorías: %v", err)
+	}
+	if len(categories) == 0 {
+		log.Fatalf("[FATAL]  No se encontraron categorías")
+	}
+
 	log.Printf("[CONFIG] Categorías: %d", len(categories))
 	for name, slug := range categories {
 		log.Printf("[CONFIG]   %s → %s", name, slug)
