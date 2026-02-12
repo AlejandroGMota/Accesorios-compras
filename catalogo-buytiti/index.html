@@ -32,6 +32,36 @@
             margin: 0 auto;
         }
 
+        /* Filtro de categorías principales */
+        .cat-filters {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .cat-btn {
+            padding: 8px 20px;
+            border: 2px solid #0056b3;
+            background-color: white;
+            color: #0056b3;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .cat-btn:hover {
+            background-color: #e1f0ff;
+        }
+
+        .cat-btn.active {
+            background-color: #0056b3;
+            color: white;
+        }
+
         /* Dropdown de subcategorías */
         .subcat-dropdown {
             position: relative;
@@ -440,6 +470,11 @@
                 height: 50px;
             }
 
+            .cat-btn {
+                padding: 6px 14px;
+                font-size: 0.85em;
+            }
+
             .filter-label {
                 padding: 5px 10px;
                 font-size: 0.8em;
@@ -481,6 +516,9 @@
         <a href="../index.html" class="back-link">← Volver</a>
         <h1>Catálogo BuyTiti</h1>
         <p class="subtitle">Productos para comprar - Precios y enlaces directos</p>
+
+        <!-- Filtro de categorías principales -->
+        <div class="cat-filters" id="catFilters"></div>
 
         <!-- Filtro de subcategorías (dropdown) -->
         <div class="subcat-dropdown" id="subcatDropdown">
@@ -524,6 +562,7 @@
         let allProducts = [];
         let filteredProducts = [];
         let selectedCategories = new Set();
+        let selectedMainCategories = new Set();
 
         // Cargar productos del JSON
         async function loadProducts() {
@@ -540,8 +579,32 @@
             }
         }
 
-        // Crear dropdown de subcategorías
+        // Crear filtros de categoría y subcategoría
         function setupFilters() {
+            // Main category buttons with product count
+            const catFiltersDiv = document.getElementById('catFilters');
+            const catCounts = {};
+            allProducts.forEach(p => {
+                if (p.categoria) catCounts[p.categoria] = (catCounts[p.categoria] || 0) + 1;
+            });
+            const mainCats = Object.keys(catCounts).sort();
+            mainCats.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = 'cat-btn';
+                btn.textContent = `${cat} (${catCounts[cat]})`;
+                btn.addEventListener('click', () => {
+                    if (selectedMainCategories.has(cat)) {
+                        selectedMainCategories.delete(cat);
+                        btn.classList.remove('active');
+                    } else {
+                        selectedMainCategories.add(cat);
+                        btn.classList.add('active');
+                    }
+                    applyFilter();
+                });
+                catFiltersDiv.appendChild(btn);
+            });
+
             const listDiv = document.getElementById('subcatList');
             const subcatSet = new Set();
             allProducts.forEach(p => {
@@ -643,7 +706,9 @@
 
         function clearFilters() {
             selectedCategories.clear();
+            selectedMainCategories.clear();
             document.querySelectorAll('.filter-checkbox').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
             updateToggleText();
             updateSelectedTags();
             applyFilter();
@@ -666,11 +731,14 @@
             const sortValue = document.getElementById('sortSelect').value;
 
             filteredProducts = allProducts.filter(p => {
+                // Main category filter
+                const matchMainCat = selectedMainCategories.size === 0 ||
+                    selectedMainCategories.has(p.categoria);
                 // Subcategory filter: if none selected, show all
                 const matchCategory = selectedCategories.size === 0 ||
                     (p.subcategorias && p.subcategorias.some(s => selectedCategories.has(s)));
                 const matchSearch = !searchTerm || p.nombre.toLowerCase().includes(searchTerm);
-                return matchCategory && matchSearch;
+                return matchMainCat && matchCategory && matchSearch;
             });
 
             switch (sortValue) {
