@@ -35,19 +35,20 @@
         /* Filtro de categorías principales */
         .cat-filters {
             display: flex;
-            gap: 8px;
+            flex-wrap: wrap;
+            gap: 6px;
             justify-content: center;
             margin-bottom: 12px;
         }
 
         .cat-btn {
-            padding: 8px 20px;
+            padding: 5px 12px;
             border: 2px solid #0056b3;
             background-color: white;
             color: #0056b3;
             border-radius: 25px;
             cursor: pointer;
-            font-size: 0.95em;
+            font-size: clamp(0.7em, 1.6vw, 0.85em);
             font-weight: 600;
             transition: all 0.2s ease;
             user-select: none;
@@ -471,8 +472,8 @@
             }
 
             .cat-btn {
-                padding: 6px 14px;
-                font-size: 0.85em;
+                padding: 4px 10px;
+                font-size: 0.75em;
             }
 
             .filter-label {
