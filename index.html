@@ -440,6 +440,16 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             }
         });
 
+        // Actualizar cantidad automáticamente según colores y tipos de fundas seleccionados
+        function updateFundaQuantity() {
+            const colorsCount = document.querySelectorAll('#fundaColors input[type="checkbox"]:checked').length;
+            const typesCount = document.querySelectorAll('#fundaTypes input[type="checkbox"]:checked').length;
+            document.getElementById('productQuantity').value = colorsCount + typesCount;
+        }
+        document.querySelectorAll('#fundaColors input[type="checkbox"], #fundaTypes input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', updateFundaQuantity);
+        });
+
         // Función para agregar producto al DOM en su respectiva categoría
         function addProductToDOM(product, index) {
             let productList;
