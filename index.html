@@ -278,8 +278,14 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         <label for="transparente">Transparente</label>
         <input type="checkbox" id="tresPiezas" value="3 piezas">
         <label for="tresPiezas">3 piezas</label>
-        <input type="checkbox" id="diseno" value="diseño">
-        <label for="diseno">Diseño</label>
+        <input type="checkbox" id="disenoHombre" value="Diseño hombre">
+        <label for="disenoHombre">Diseño hombre</label>
+        <input type="checkbox" id="disenoMujer" value="Diseño mujer">
+        <label for="disenoMujer">Diseño mujer</label>
+        <input type="checkbox" id="usoRudo" value="Uso rudo">
+        <label for="usoRudo">Uso rudo</label>
+        <input type="checkbox" id="color" value="Color">
+        <label for="color">Color</label>
     </div>
 
     <!-- Opciones para Fundas nuevas -->
@@ -604,8 +610,12 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                 addProductToDOM(newProduct, savedProducts.length - 1);
                 updateTotalPrice();
 
-                // Limpiar solo el nombre del producto, mantener los demás valores
+                // Limpiar solo el nombre del producto, mantener precio y cantidad
                 document.getElementById('productName').value = '';
+
+                // Limpiar checkboxes de colores y tipos de fundas
+                document.querySelectorAll('#fundaColors input[type="checkbox"]').forEach(cb => cb.checked = false);
+                document.querySelectorAll('#fundaTypes input[type="checkbox"]').forEach(cb => cb.checked = false);
             } else {
                 alert('Por favor, rellena todos los campos.');
             }
