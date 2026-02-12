@@ -21,25 +21,33 @@ import (
 // --- Output JSON schema ---
 
 type Product struct {
-	Nombre    string  `json:"nombre"`
-	Precio    float64 `json:"precio"`
-	Imagen    string  `json:"imagen"`
-	Imagen64  string  `json:"imagen64"`
-	Link      string  `json:"link"`
-	Categoria string  `json:"categoria"`
+	Nombre         string   `json:"nombre"`
+	Precio         float64  `json:"precio"`
+	PrecioOriginal float64  `json:"precioOriginal"`
+	EnOferta       bool     `json:"enOferta"`
+	Stock          string   `json:"stock"`
+	Imagen         string   `json:"imagen"`
+	Imagen64       string   `json:"imagen64"`
+	Link           string   `json:"link"`
+	Categoria      string   `json:"categoria"`
+	Subcategorias  []string `json:"subcategorias"`
 }
 
 // --- WooCommerce Store API response ---
 
 type APIProduct struct {
-	Name      string     `json:"name"`
-	Permalink string     `json:"permalink"`
-	Prices    APIPrices  `json:"prices"`
-	Images    []APIImage `json:"images"`
+	Name              string            `json:"name"`
+	Permalink         string            `json:"permalink"`
+	OnSale            bool              `json:"on_sale"`
+	Prices            APIPrices         `json:"prices"`
+	Images            []APIImage        `json:"images"`
+	Categories        []APICategory     `json:"categories"`
+	StockAvailability APIStockAvail     `json:"stock_availability"`
 }
 
 type APIPrices struct {
 	Price             string `json:"price"`
+	RegularPrice      string `json:"regular_price"`
 	SalePrice         string `json:"sale_price"`
 	CurrencyMinorUnit int    `json:"currency_minor_unit"`
 }
@@ -47,6 +55,16 @@ type APIPrices struct {
 type APIImage struct {
 	Src    string `json:"src"`
 	Srcset string `json:"srcset"`
+}
+
+type APICategory struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+type APIStockAvail struct {
+	Text  string `json:"text"`
+	Class string `json:"class"`
 }
 
 // --- Task for the worker pool ---
@@ -152,21 +170,19 @@ func fetchPage(client *http.Client, t task) ([]APIProduct, error) {
 	return nil, fmt.Errorf("[%s] página %d falló después de %d intentos: %w", t.categoryName, t.page, maxRetries, lastErr)
 }
 
-// convertPrice converts WooCommerce minor-unit price strings to float64.
-// Uses sale_price if available, otherwise price.
-func convertPrice(prices APIPrices) float64 {
-	priceStr := prices.Price
-	if prices.SalePrice != "" {
-		priceStr = prices.SalePrice
+// convertPrice converts a WooCommerce minor-unit price string to float64.
+// e.g. "2700" with minorUnit=2 -> 27.00
+func convertPrice(priceStr string, minorUnit int) float64 {
+	if priceStr == "" {
+		return 0.0
 	}
-
 	val, err := strconv.Atoi(priceStr)
 	if err != nil {
 		log.Printf("[WARN]   Precio inválido %q, usando 0.0", priceStr)
 		return 0.0
 	}
 
-	divisor := math.Pow(10, float64(prices.CurrencyMinorUnit))
+	divisor := math.Pow(10, float64(minorUnit))
 	return math.Round(float64(val)/divisor*100) / 100
 }
 
@@ -190,7 +206,7 @@ func parseProducts(apiProducts []APIProduct, categoryName string) []Product {
 		imagen64 := ""
 		if len(ap.Images) > 0 {
 			imagen = ap.Images[0].Src
-			imagen64 = extractSrcsetURL(ap.Images[0].Srcset, "64w")
+			imagen64 = extractSrcsetURL(ap.Images[0].Srcset, "100w")
 			if imagen64 == "" {
 				imagen64 = imagen
 			}
@@ -198,13 +214,30 @@ func parseProducts(apiProducts []APIProduct, categoryName string) []Product {
 			log.Printf("[WARN]   Producto sin imagen: %q", ap.Name)
 		}
 
+		// Price: use sale_price if on sale, otherwise price
+		precio := convertPrice(ap.Prices.Price, ap.Prices.CurrencyMinorUnit)
+		if ap.OnSale && ap.Prices.SalePrice != "" {
+			precio = convertPrice(ap.Prices.SalePrice, ap.Prices.CurrencyMinorUnit)
+		}
+		precioOriginal := convertPrice(ap.Prices.RegularPrice, ap.Prices.CurrencyMinorUnit)
+
+		// Subcategories from API
+		var subcategorias []string
+		for _, cat := range ap.Categories {
+			subcategorias = append(subcategorias, cat.Name)
+		}
+
 		products = append(products, Product{
-			Nombre:    ap.Name,
-			Precio:    convertPrice(ap.Prices),
-			Imagen:    imagen,
-			Imagen64:  imagen64,
-			Link:      ap.Permalink,
-			Categoria: categoryName,
+			Nombre:         ap.Name,
+			Precio:         precio,
+			PrecioOriginal: precioOriginal,
+			EnOferta:       ap.OnSale,
+			Stock:          ap.StockAvailability.Text,
+			Imagen:         imagen,
+			Imagen64:       imagen64,
+			Link:           ap.Permalink,
+			Categoria:      categoryName,
+			Subcategorias:  subcategorias,
 		})
 	}
 	return products
