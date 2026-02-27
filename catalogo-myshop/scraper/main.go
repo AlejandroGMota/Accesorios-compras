@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html"
+	"io"
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,8 +19,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
 const (
@@ -26,7 +27,6 @@ const (
 	maxRetries = 3
 )
 
-// Product matches the BuyTiti output schema
 type Product struct {
 	Nombre         string   `json:"nombre"`
 	Precio         float64  `json:"precio"`
@@ -40,10 +40,9 @@ type Product struct {
 	Subcategorias  []string `json:"subcategorias"`
 }
 
-// productEntry holds data collected during the listing phase
 type productEntry struct {
 	url      string
-	imagen64 string // thumbnail from listing page
+	imagen64 string
 	category string
 }
 
@@ -52,7 +51,19 @@ var (
 	flagDelay   time.Duration
 	flagWorkers int
 	flagVerbose bool
-	reFirstNum  = regexp.MustCompile(`\d[\d,]*\.?\d*`)
+
+	// Regex patterns for HTML parsing
+	reProductHref = regexp.MustCompile(`href="(/shop/[^"?]+\-(\d+))(?:\?[^"]*)?"\s*`)
+	reCatHref     = regexp.MustCompile(`href="(/shop/category/([^"]+))"`)
+	reImgSrc      = regexp.MustCompile(`src="(/web/image/product[^"]*)"`)
+	reH1          = regexp.MustCompile(`<h1[^>]*>(.*?)</h1>`)
+	rePrice       = regexp.MustCompile(`\$\s*([\d,]+\.?\d*)`)
+	reHiddenPrice = regexp.MustCompile(`itemprop="price"[^>]*>\s*([\d.]+)\s*<`)
+	reListPrice   = regexp.MustCompile(`oe_default_price[^>]*>.*?oe_currency_value">([\d,.]+)<`)
+	reBreadcrumb  = regexp.MustCompile(`<li[^>]*class="breadcrumb-item[^"]*"[^>]*>(?:<a[^>]*>)?([^<]+)`)
+	reItempName   = regexp.MustCompile(`itemprop="name"[^>]*>([^<]+)<`)
+	reAddToCart   = regexp.MustCompile(`id="add_to_cart"`)
+	reCombNoExist = regexp.MustCompile(`Esta combinación no existe`)
 )
 
 func init() {
@@ -64,7 +75,7 @@ func init() {
 	flag.BoolVar(&flagVerbose, "verbose", false, "Logging detallado")
 }
 
-func fetchDoc(client *http.Client, rawURL string) (*goquery.Document, error) {
+func fetchHTML(client *http.Client, rawURL string) (string, error) {
 	var lastErr error
 	for attempt := range maxRetries {
 		if attempt > 0 {
@@ -75,43 +86,42 @@ func fetchDoc(client *http.Client, rawURL string) (*goquery.Document, error) {
 
 		req, err := http.NewRequest("GET", rawURL, nil)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		req.Header.Set("User-Agent", "MyShopCatalogScraper/1.0")
-		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+		req.Header.Set("Accept", "text/html")
 		req.Header.Set("Accept-Language", "es-MX,es;q=0.9")
 
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
-			log.Printf("[ERROR]  %s — error de red: %v", rawURL, err)
+			log.Printf("[ERROR]  %s — red: %v", rawURL, err)
+			continue
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
 			continue
 		}
 
 		if resp.StatusCode == 429 {
 			backoff := time.Duration(math.Pow(3, float64(attempt+1))) * time.Second
 			log.Printf("[WARN]   Rate limited (429), espera %v", backoff)
-			resp.Body.Close()
 			time.Sleep(backoff)
 			lastErr = fmt.Errorf("HTTP 429")
 			continue
 		}
 		if resp.StatusCode != 200 {
-			resp.Body.Close()
 			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
 			log.Printf("[ERROR]  %s — HTTP %d", rawURL, resp.StatusCode)
 			continue
 		}
 
-		doc, err := goquery.NewDocumentFromReader(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		return doc, nil
+		return string(body), nil
 	}
-	return nil, fmt.Errorf("falló después de %d intentos: %w", maxRetries, lastErr)
+	return "", fmt.Errorf("falló después de %d intentos: %w", maxRetries, lastErr)
 }
 
 func absURL(rel string) string {
@@ -121,51 +131,49 @@ func absURL(rel string) string {
 	return baseURL + rel
 }
 
-// parsePrice extracts the first valid price from strings like "$ 30.00 30.0 MXN"
 func parsePrice(s string) float64 {
 	s = strings.ReplaceAll(s, ",", "")
-	m := reFirstNum.FindString(s)
-	if m == "" {
-		return 0
-	}
-	v, _ := strconv.ParseFloat(m, 64)
+	v, _ := strconv.ParseFloat(s, 64)
 	return v
 }
 
-// isProductURL returns true if href looks like a product page (ends with numeric ID)
-func isProductURL(href string) bool {
-	if !strings.HasPrefix(href, "/shop/") {
-		return false
-	}
-	if strings.Contains(href, "/category/") {
-		return false
-	}
-	parts := strings.Split(strings.TrimPrefix(href, "/shop/"), "-")
-	if len(parts) < 2 {
-		return false
-	}
-	_, err := strconv.Atoi(parts[len(parts)-1])
-	return err == nil
-}
-
-// fetchCategories scrapes the shop sidebar to get all category URLs
+// fetchCategories discovers categories from the shop sidebar
 func fetchCategories(client *http.Client) (map[string]string, error) {
-	doc, err := fetchDoc(client, shopURL)
+	body, err := fetchHTML(client, shopURL)
 	if err != nil {
 		return nil, err
 	}
-	cats := make(map[string]string) // name -> full URL
-	doc.Find("a[href^='/shop/category/']").Each(func(_ int, s *goquery.Selection) {
-		href, _ := s.Attr("href")
-		name := strings.TrimSpace(s.Text())
-		if name != "" && href != "" {
-			cats[name] = absURL(href)
+
+	cats := make(map[string]string)
+	// Find category links and their labels
+	// Pattern: <div ... data-link-href="/shop/category/name-id"> ... <label>Name</label>
+	reLabel := regexp.MustCompile(`data-link-href="(/shop/category/[^"]+)"[^>]*>[\s\S]*?<label[^>]*>([^<]+)</label>`)
+	for _, m := range reLabel.FindAllStringSubmatch(body, -1) {
+		catURL := m[1]
+		name := strings.TrimSpace(m[2])
+		if name != "" {
+			cats[name] = absURL(catURL)
 		}
-	})
+	}
+
+	// Fallback: simpler pattern
+	if len(cats) == 0 {
+		for _, m := range reCatHref.FindAllStringSubmatch(body, -1) {
+			path := m[1]
+			slug := m[2]
+			// Convert slug to name: "belleza-1" -> "Belleza"
+			parts := strings.Split(slug, "-")
+			if len(parts) >= 2 {
+				name := strings.Title(strings.Join(parts[:len(parts)-1], " "))
+				cats[name] = absURL(path)
+			}
+		}
+	}
+
 	return cats, nil
 }
 
-// collectFromCategory scrapes all pages of a category and returns product entries
+// collectFromCategory scrapes all pages of a category to collect product URLs
 func collectFromCategory(client *http.Client, catName, catURL string, delay time.Duration) []productEntry {
 	var entries []productEntry
 	seen := make(map[string]bool)
@@ -173,45 +181,62 @@ func collectFromCategory(client *http.Client, catName, catURL string, delay time
 	for page := 1; ; page++ {
 		pageURL := catURL
 		if page > 1 {
-			pageURL = fmt.Sprintf("%s?page=%d", catURL, page)
+			sep := "?"
+			if strings.Contains(catURL, "?") {
+				sep = "&"
+			}
+			pageURL = fmt.Sprintf("%s%spage=%d", catURL, sep, page)
 		}
 
 		log.Printf("[CAT]    %s pág %d...", catName, page)
-		doc, err := fetchDoc(client, pageURL)
+		body, err := fetchHTML(client, pageURL)
 		if err != nil {
 			log.Printf("[ERROR]  %s pág %d: %v", catName, page, err)
 			break
 		}
 
 		found := 0
-		doc.Find("a[href]").Each(func(_ int, s *goquery.Selection) {
-			href, _ := s.Attr("href")
-			if !isProductURL(href) {
-				return
+		// Find all product links: href="/shop/slug-ID?category=N"
+		for _, m := range reProductHref.FindAllStringSubmatch(body, -1) {
+			path := m[1] // /shop/slug-ID (without query string)
+			if strings.Contains(path, "/category/") || strings.Contains(path, "/cart") || strings.Contains(path, "/wishlist") {
+				continue
 			}
-			fullURL := absURL(href)
+			fullURL := absURL(path)
 			if seen[fullURL] {
-				return
+				continue
 			}
 			seen[fullURL] = true
 
-			imgSrc, _ := s.Find("img").First().Attr("src")
+			// Try to find nearby image
+			imagen64 := ""
+			idx := strings.Index(body, m[0])
+			if idx >= 0 {
+				// Look for product image within ~500 chars around this link
+				start := max(0, idx-500)
+				end := min(len(body), idx+500)
+				chunk := body[start:end]
+				if imgMatch := reImgSrc.FindStringSubmatch(chunk); imgMatch != nil {
+					imagen64 = absURL(imgMatch[1])
+				}
+			}
+
 			entries = append(entries, productEntry{
 				url:      fullURL,
-				imagen64: absURL(imgSrc),
+				imagen64: imagen64,
 				category: catName,
 			})
 			found++
-		})
+		}
 
 		log.Printf("[CAT]    %s pág %d → %d nuevos (total: %d)", catName, page, found, len(entries))
 		if found == 0 {
 			break
 		}
 
-		// Check if next page exists
-		nextExists := doc.Find(fmt.Sprintf("a[href*='page=%d']", page+1)).Length() > 0
-		if !nextExists {
+		// Check if next page link exists
+		nextPage := fmt.Sprintf("page=%d", page+1)
+		if !strings.Contains(body, nextPage) {
 			break
 		}
 		time.Sleep(delay)
@@ -220,9 +245,9 @@ func collectFromCategory(client *http.Client, catName, catURL string, delay time
 	return entries
 }
 
-// scrapeProduct fetches a product detail page and returns a Product
+// scrapeProduct fetches a product detail page and parses it
 func scrapeProduct(client *http.Client, entry productEntry) (Product, error) {
-	doc, err := fetchDoc(client, entry.url)
+	body, err := fetchHTML(client, entry.url)
 	if err != nil {
 		return Product{}, err
 	}
@@ -232,84 +257,67 @@ func scrapeProduct(client *http.Client, entry productEntry) (Product, error) {
 		Imagen64: entry.imagen64,
 	}
 
-	// Name
-	p.Nombre = strings.TrimSpace(doc.Find("h1").First().Text())
-
-	// Price — try itemprop="price" content attribute first (machine-readable)
-	priceStr, hasMeta := doc.Find("[itemprop='price']").First().Attr("content")
-	if hasMeta && priceStr != "" {
-		p.Precio, _ = strconv.ParseFloat(priceStr, 64)
-	} else {
-		// Fallback: parse visible price text
-		priceText := ""
-		doc.Find("#product_price, .o_product_price, .oe_price, [id*='price']").Each(func(_ int, s *goquery.Selection) {
-			if priceText == "" {
-				priceText = strings.TrimSpace(s.Text())
-			}
-		})
-		if priceText == "" {
-			// Last resort: find any short text containing "$ ... MXN"
-			doc.Find("span, div, p").Each(func(_ int, s *goquery.Selection) {
-				t := strings.TrimSpace(s.Text())
-				if priceText == "" && strings.Contains(t, "$") && strings.Contains(t, "MXN") && len(t) < 60 {
-					priceText = t
-				}
-			})
-		}
-		p.Precio = parsePrice(priceText)
+	// Name — try itemprop="name" first, then <h1>
+	if m := reItempName.FindStringSubmatch(body); m != nil {
+		p.Nombre = html.UnescapeString(strings.TrimSpace(m[1]))
+	} else if m := reH1.FindStringSubmatch(body); m != nil {
+		// Strip HTML tags inside h1
+		name := regexp.MustCompile(`<[^>]+>`).ReplaceAllString(m[1], "")
+		p.Nombre = html.UnescapeString(strings.TrimSpace(name))
 	}
 
-	// Original price (if on sale — look for strikethrough)
-	delText := strings.TrimSpace(doc.Find("del, .oe_price_strikethrough, .text-decoration-line-through").First().Text())
-	if delText != "" {
-		p.PrecioOriginal = parsePrice(delText)
-		p.EnOferta = p.PrecioOriginal > p.Precio
+	// Price — Odoo hides the machine-readable price in:
+	// <span itemprop="price" style="display:none;">15.0</span>
+	if m := reHiddenPrice.FindStringSubmatch(body); m != nil {
+		p.Precio = parsePrice(m[1])
+	} else if m := rePrice.FindStringSubmatch(body); m != nil {
+		p.Precio = parsePrice(m[1])
+	}
+
+	// Original/list price — Odoo renders it in a span with class "oe_default_price"
+	// (hidden with d-none when not on sale)
+	if m := reListPrice.FindStringSubmatch(body); m != nil {
+		listPrice := parsePrice(m[1])
+		if listPrice > p.Precio {
+			p.PrecioOriginal = listPrice
+			p.EnOferta = true
+		} else {
+			p.PrecioOriginal = p.Precio
+		}
 	} else {
 		p.PrecioOriginal = p.Precio
 	}
 
-	// Stock — try specific selectors, fallback to body text analysis
-	stockText := ""
-	doc.Find(".availability_message, .o_not_available, [itemprop='availability'], .in_stock, .out_of_stock, .oe_website_sale_stock").Each(func(_ int, s *goquery.Selection) {
-		if stockText == "" {
-			if t := strings.TrimSpace(s.Text()); t != "" {
-				stockText = t
-			}
-		}
-	})
-	if stockText == "" {
-		body := doc.Find("body").Text()
-		switch {
-		case strings.Contains(body, "Esta combinación no existe"):
-			stockText = "Agotado"
-		case strings.Contains(body, "Añadir al carrito"), strings.Contains(body, "Agregar al carrito"):
-			stockText = "Disponible"
-		default:
-			stockText = "Desconocido"
-		}
+	// Stock — check for add-to-cart button vs "no existe" message
+	switch {
+	case reCombNoExist.MatchString(body):
+		p.Stock = "Agotado"
+	case reAddToCart.MatchString(body):
+		p.Stock = "Disponible"
+	default:
+		p.Stock = "Desconocido"
 	}
-	p.Stock = stockText
 
-	// Image — prefer high-res from detail page
-	imgSrc, _ := doc.Find("img[src*='/web/image/product']").First().Attr("src")
-	if imgSrc != "" {
-		p.Imagen = absURL(imgSrc)
-	} else {
+	// Image — high-res from detail page
+	if m := reImgSrc.FindStringSubmatch(body); m != nil {
+		p.Imagen = absURL(m[1])
+	}
+	if p.Imagen == "" {
 		p.Imagen = p.Imagen64
 	}
 	if p.Imagen64 == "" {
 		p.Imagen64 = p.Imagen
 	}
 
-	// Categories — breadcrumb + category from listing phase
+	// Categories from breadcrumb
 	var subcats []string
-	doc.Find("ol.breadcrumb li, nav[aria-label='breadcrumb'] li").Each(func(_ int, s *goquery.Selection) {
-		t := strings.TrimSpace(s.Text())
-		if t != "" && !strings.EqualFold(t, "home") && !strings.EqualFold(t, "inicio") {
-			subcats = append(subcats, t)
+	for _, m := range reBreadcrumb.FindAllStringSubmatch(body, -1) {
+		name := html.UnescapeString(strings.TrimSpace(m[1]))
+		if name != "" && !strings.EqualFold(name, "inicio") && !strings.EqualFold(name, "home") {
+			subcats = append(subcats, name)
 		}
-	})
-	// Remove last item (product name itself)
+	}
+	// Last breadcrumb is product name — remove
 	if len(subcats) > 0 {
 		subcats = subcats[:len(subcats)-1]
 	}
@@ -338,7 +346,7 @@ func worker(id int, client *http.Client, jobs <-chan productEntry, results chan<
 			log.Printf("[W%d]     ERROR %s: %v", id, entry.url, err)
 			continue
 		}
-		log.Printf("[W%d]     OK  %q — %.2f MXN | %s | %s", id, p.Nombre, p.Precio, p.Stock, p.Categoria)
+		log.Printf("[W%d]     OK  %q — $%.2f | %s | %s", id, p.Nombre, p.Precio, p.Stock, p.Categoria)
 		results <- p
 		time.Sleep(delay)
 	}
@@ -347,32 +355,47 @@ func worker(id int, client *http.Client, jobs <-chan productEntry, results chan<
 func writeJSON(products []Product, fpath string) error {
 	data, err := json.MarshalIndent(products, "", "    ")
 	if err != nil {
-		return fmt.Errorf("error serializando JSON: %w", err)
+		return err
 	}
 	return os.WriteFile(fpath, data, 0644)
+}
+
+func resolveOutput() string {
+	output := flagOutput
+	if !filepath.IsAbs(output) {
+		wd, _ := os.Getwd()
+		output = filepath.Join(wd, output)
+	}
+
+	// Decode percent-encoded path segments (e.g. from runtime.Caller)
+	if decoded, err := url.PathUnescape(output); err == nil {
+		output = decoded
+	}
+
+	return output
 }
 
 func run(numWorkers int, delay time.Duration, outputPath string) error {
 	client := &http.Client{Timeout: 30 * time.Second}
 
-	// Phase 1: discover categories from shop sidebar
+	// Phase 1: discover categories
 	log.Printf("[CATS]   Obteniendo categorías...")
 	cats, err := fetchCategories(client)
 	if err != nil {
 		return fmt.Errorf("error obteniendo categorías: %w", err)
 	}
 	log.Printf("[CATS]   %d categorías:", len(cats))
-	for name, url := range cats {
-		log.Printf("[CATS]     %s → %s", name, url)
+	for name, u := range cats {
+		log.Printf("[CATS]     %s → %s", name, u)
 	}
 	fmt.Println()
 
 	// Phase 2: collect product URLs per category
-	log.Printf("[LIST]   Recolectando URLs de productos por categoría...")
+	log.Printf("[LIST]   Recolectando URLs de productos...")
 	seen := make(map[string]bool)
 	var allEntries []productEntry
-	for name, url := range cats {
-		entries := collectFromCategory(client, name, url, delay)
+	for name, u := range cats {
+		entries := collectFromCategory(client, name, u, delay)
 		for _, e := range entries {
 			if seen[e.url] {
 				continue
@@ -382,11 +405,11 @@ func run(numWorkers int, delay time.Duration, outputPath string) error {
 		}
 		time.Sleep(delay)
 	}
-	log.Printf("[LIST]   %d URLs únicas encontradas", len(allEntries))
+	log.Printf("[LIST]   %d URLs únicas", len(allEntries))
 	fmt.Println()
 
-	// Phase 3: scrape each product detail page
-	log.Printf("[START]  Lanzando %d workers para scraping de detalle...", numWorkers)
+	// Phase 3: scrape detail pages with worker pool
+	log.Printf("[START]  %d workers scraping detalle...", numWorkers)
 	jobs := make(chan productEntry, len(allEntries))
 	results := make(chan Product, len(allEntries))
 	var wg sync.WaitGroup
@@ -412,7 +435,6 @@ func run(numWorkers int, delay time.Duration, outputPath string) error {
 		counts[p.Categoria]++
 	}
 
-	// Sort by category then name
 	sort.Slice(products, func(i, j int) bool {
 		if products[i].Categoria != products[j].Categoria {
 			return products[i].Categoria < products[j].Categoria
@@ -420,7 +442,6 @@ func run(numWorkers int, delay time.Duration, outputPath string) error {
 		return products[i].Nombre < products[j].Nombre
 	})
 
-	// Summary
 	fmt.Println()
 	log.Printf("[RESUMEN] ─────────────────────────────")
 	for cat, n := range counts {
@@ -436,14 +457,7 @@ func main() {
 	flag.Parse()
 	log.SetFlags(log.Ltime)
 
-	output := flagOutput
-	if !filepath.IsAbs(output) {
-		wd, err := os.Getwd()
-		if err != nil {
-			log.Fatalf("Error obteniendo directorio actual: %v", err)
-		}
-		output = filepath.Join(wd, output)
-	}
+	output := resolveOutput()
 
 	log.Printf("[CONFIG] Output:  %s", output)
 	log.Printf("[CONFIG] Workers: %d", flagWorkers)
