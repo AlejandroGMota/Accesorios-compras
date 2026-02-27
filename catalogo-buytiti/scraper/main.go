@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -152,7 +153,8 @@ var (
 )
 
 func init() {
-	defaultOutput := filepath.Join("..", "productos.json")
+	_, srcFile, _, _ := runtime.Caller(0)
+	defaultOutput := filepath.Join(filepath.Dir(srcFile), "..", "productos.json")
 	flag.StringVar(&flagOutput, "output", defaultOutput, "Ruta del archivo JSON de salida")
 	flag.DurationVar(&flagDelay, "delay", 500*time.Millisecond, "Delay entre requests por worker")
 	flag.IntVar(&flagWorkers, "workers", 3, "Número de goroutines workers")
@@ -165,7 +167,7 @@ func fetchPage(client *http.Client, t task) ([]APIProduct, error) {
 	url := fmt.Sprintf("%s?category=%s&page=%d&per_page=%d", apiBase, t.slug, t.page, perPage)
 
 	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		if attempt > 0 {
 			backoff := time.Duration(math.Pow(2, float64(attempt))) * time.Second
 			log.Printf("[RETRY]  %s pág %d — intento %d/%d (espera %v)", t.categoryName, t.page, attempt+1, maxRetries, backoff)
@@ -244,7 +246,7 @@ func convertPrice(priceStr string, minorUnit int) float64 {
 // extractSrcsetURL extracts a URL for a specific width descriptor from a srcset string.
 // e.g. extractSrcsetURL("...img-64x64.jpg 64w, ...img-100x100.jpg 100w", "64w") returns the 64w URL.
 func extractSrcsetURL(srcset string, width string) string {
-	for _, entry := range strings.Split(srcset, ",") {
+	for entry := range strings.SplitSeq(srcset, ",") {
 		parts := strings.Fields(strings.TrimSpace(entry))
 		if len(parts) == 2 && parts[1] == width {
 			return parts[0]
@@ -358,7 +360,7 @@ func run(cats map[string]string, numWorkers int, delay time.Duration, outputPath
 	log.Printf("[RESET]  JSON reiniciado: %s", outputPath)
 
 	log.Printf("[START]  Lanzando %d workers...", numWorkers)
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		wg.Add(1)
 		go worker(i+1, client, tasksCh, results, tasksCh, &pending, &wg, delay)
 	}
