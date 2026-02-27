@@ -278,3 +278,20 @@ Alejandro G. Mota
 **Última actualización:** 2024
 
 ⭐ Si este proyecto te fue útil, considera darle una estrella en GitHub
+
+
+
+
+                                                                                                                                          catalogos mayoristas          
+
+  ┌────────────┬────────────────────────────┬─────────────────────────────┐
+  │            │          BuyTiti           │         my-shop.mx          │
+  ├────────────┼────────────────────────────┼─────────────────────────────┤
+  │ API        │ JSON REST (WooCommerce)    │ HTML scraping (Odoo)        │
+  ├────────────┼────────────────────────────┼─────────────────────────────┤
+  │ Categorías │ Dinámicas desde API        │ Dinámicas desde sidebar     │
+  ├────────────┼────────────────────────────┼─────────────────────────────┤
+  │ Estrategia │ 1 fase (API por categoría) │ 2 fases (listing → detalle) │
+  ├────────────┼────────────────────────────┼─────────────────────────────┤
+  │ Dedup      │ Por link en collect        │ Por link en collect         │
+  └────────────┴────────────────────────────┴─────────────────────────
