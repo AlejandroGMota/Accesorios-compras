@@ -392,13 +392,18 @@ func run(cats map[string]string, numWorkers int, delay time.Duration, outputPath
 	// Collect results incrementally and write JSON after each batch
 	var allProducts []Product
 	var mu sync.Mutex
+	seen := make(map[string]bool)
 	counts := make(map[string]int)
 	totalBatches := 0
 
 	for batch := range results {
 		mu.Lock()
-		allProducts = append(allProducts, batch...)
 		for _, p := range batch {
+			if seen[p.Link] {
+				continue
+			}
+			seen[p.Link] = true
+			allProducts = append(allProducts, p)
 			counts[p.Categoria]++
 		}
 		totalBatches++
