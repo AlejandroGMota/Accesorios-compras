@@ -358,8 +358,62 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         <a href="fundas-lanzadas.html" style="padding: 12px 25px; background-color: #0056b3; color: white; text-decoration: none; border-radius: 8px; font-size: 1.1em; font-weight: 600; transition: background-color 0.3s;">Celulares Recientes</a>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
     <script>
-        // Inicializar la página ocultando las opciones de mica y fundas
+        // ========== Firebase Setup ==========
+        const firebaseConfig = {
+            apiKey: "AIzaSyAp2ZO1VNG44zGsYGxaTw9HTCNKPvZ-d0E",
+            authDomain: "listaaccesorios-b1db4.firebaseapp.com",
+            projectId: "listaaccesorios-b1db4",
+            storageBucket: "listaaccesorios-b1db4.firebasestorage.app",
+            messagingSenderId: "341527541112",
+            appId: "1:341527541112:web:bfafd627caee241c97c48d"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Habilitar persistencia offline
+        db.enablePersistence().catch(err => {
+            console.warn('Persistencia offline no disponible:', err.code);
+        });
+
+        // Referencia al documento unico de productos
+        const PRODUCTS_REF = db.collection('app').doc('productos');
+
+        // Variable en memoria para acceso rapido
+        let currentProducts = [];
+
+        // ========== Funciones de datos ==========
+        async function saveProducts(products) {
+            currentProducts = products;
+            await PRODUCTS_REF.set({ items: products });
+        }
+
+        function clearAllProductLists() {
+            document.getElementById('micas9DList').innerHTML = '';
+            document.getElementById('micas9HList').innerHTML = '';
+            document.getElementById('micasPrivacidadList').innerHTML = '';
+            document.getElementById('hidrogelList').innerHTML = '';
+            document.getElementById('fundasList').innerHTML = '';
+            document.getElementById('fundasNuevasList').innerHTML = '';
+            document.getElementById('unaHoraList').innerHTML = '';
+            document.getElementById('refaccionesList').innerHTML = '';
+            document.getElementById('otrosList').innerHTML = '';
+        }
+
+        function renderAllProducts(products) {
+            clearAllProductLists();
+            products.forEach((product, index) => {
+                addProductToDOM(product, index);
+            });
+            updateTotalPrice();
+        }
+
+        // ========== Inicializacion ==========
         window.onload = function() {
             document.getElementById('micaOptions').style.display = 'none';
             document.getElementById('hidrogelOptions').style.display = 'none';
@@ -367,11 +421,16 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             document.getElementById('fundaTypes').style.display = 'none';
             document.getElementById('fundasNuevasOptions').style.display = 'none';
             document.getElementById('unaHoraOptions').style.display = 'none';
-            const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
-            savedProducts.forEach((product, index) => {
-                addProductToDOM(product, index);
+
+            // Listener en tiempo real: sincroniza entre dispositivos
+            PRODUCTS_REF.onSnapshot(snap => {
+                if (snap.exists) {
+                    currentProducts = snap.data().items || [];
+                } else {
+                    currentProducts = [];
+                }
+                renderAllProducts(currentProducts);
             });
-            updateTotalPrice();
         };
 
         // Event listeners para asignar precios automáticamente (fuera del handler de categoría para evitar duplicados)
@@ -516,33 +575,14 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         }
 
         // Función para eliminar producto
-        function deleteProduct(index) {
-            const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
-            savedProducts.splice(index, 1); // Eliminar el producto de la lista
-            localStorage.setItem('products', JSON.stringify(savedProducts)); // Actualizar el localStorage
-
-            // Limpiar todas las listas
-            document.getElementById('micas9DList').innerHTML = '';
-            document.getElementById('micas9HList').innerHTML = '';
-            document.getElementById('micasPrivacidadList').innerHTML = '';
-            document.getElementById('hidrogelList').innerHTML = '';
-            document.getElementById('fundasList').innerHTML = '';
-            document.getElementById('fundasNuevasList').innerHTML = '';
-            document.getElementById('unaHoraList').innerHTML = '';
-            document.getElementById('refaccionesList').innerHTML = '';
-            document.getElementById('otrosList').innerHTML = '';
-
-            // Recargar productos
-            savedProducts.forEach((product, i) => addProductToDOM(product, i));
-
-            // Actualizar el precio total
-            updateTotalPrice();
+        async function deleteProduct(index) {
+            currentProducts.splice(index, 1);
+            await saveProducts(currentProducts);
         }
 
         // Función para actualizar el precio total
         function updateCategorySubtotal(category) {
-            const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
-            const categoryTotal = savedProducts
+            const categoryTotal = currentProducts
                 .filter(product => product.category === category)
                 .reduce((sum, product) => sum + product.price * product.quantity, 0);
 
@@ -554,7 +594,6 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         }
 
         function updateTotalPrice() {
-            const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
 
             // Update all category subtotals
             const categories = ['Micas', 'Hidrogel', 'Fundas', 'Fundas nuevas', '1hora', 'Refacciones', 'Otros'];
@@ -568,8 +607,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             document.getElementById('totalPrice').innerText = `Total General: $${grandTotal.toFixed(2)}`;
         }
 
-        // Agregar producto a la lista y al localStorage
-        document.getElementById('addProductBtn').onclick = function() {
+        // Agregar producto a la lista y a Firestore
+        document.getElementById('addProductBtn').onclick = async function() {
             const productName = document.getElementById('productName').value;
             const productPrice = document.getElementById('productPrice').value;
             const productQuantity = document.getElementById('productQuantity').value;
@@ -598,8 +637,6 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
             }
 
             if (productName && productPrice && productQuantity && productCategory) {
-                const savedProducts = JSON.parse(localStorage.getItem('products')) || [];
-
                 // Determinar el tipo según la categoría
                 let productType = '';
                 if (productCategory === 'Micas' && micaType) {
@@ -621,10 +658,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                     colors: productCategory === 'Fundas' ? selectedColors : [],
                     fundaTypes: productCategory === 'Fundas' ? selectedFundaTypes : []
                 };
-                savedProducts.push(newProduct);
-                localStorage.setItem('products', JSON.stringify(savedProducts));
-                addProductToDOM(newProduct, savedProducts.length - 1);
-                updateTotalPrice();
+                currentProducts.push(newProduct);
+                await saveProducts(currentProducts);
 
                 // Limpiar solo el nombre del producto, mantener precio y cantidad
                 document.getElementById('productName').value = '';
