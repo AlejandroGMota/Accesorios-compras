@@ -16,7 +16,7 @@
 
 - [x] **Unificar estilos de catálogos** — CSS extraído a `catalogo.css` compartido entre `catalogo-buytiti` y `catalogo-myshop`.
 
-- [ ] **Rediseñar `fundas-lanzadas.html`** — aún tiene CSS inline y estructura antigua. Migrar al diseño del `style.css` actual.
+- [x] **Rediseñar `fundas-lanzadas.html`** — migrado a `secondary-styles.css` compartido con los catálogos.
 
 ---
 
