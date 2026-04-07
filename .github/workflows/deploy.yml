@@ -13,6 +13,13 @@ on:
       - 'catalogo-myshop/index.html'
       - 'catalogo-myshop/productos.json'
       - 'CNAME'
+  # Se dispara también cuando el workflow de BuyTiti termina exitosamente
+  workflow_run:
+    workflows: ["Actualizar catálogo BuyTiti"]
+    types:
+      - completed
+    branches:
+      - main
 
 # Permisos mínimos necesarios para publicar en GitHub Pages
 permissions:
