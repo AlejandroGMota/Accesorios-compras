@@ -1,0 +1,349 @@
+/* ========== Variables ========== */
+:root {
+    --primary: #0056b3;
+    --primary-dark: #003d82;
+    --primary-light: #e8f0fb;
+    --accent: #27ae60;
+    --danger: #e74c3c;
+    --danger-dark: #c0392b;
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --text: #2c3e50;
+    --text-muted: #7f8c8d;
+    --border: #d0dce8;
+    --shadow: 0 2px 12px rgba(0, 86, 179, 0.1);
+    --shadow-hover: 0 6px 20px rgba(0, 86, 179, 0.18);
+    --radius: 12px;
+    --radius-sm: 8px;
+}
+
+/* ========== Reset & Base ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    padding: 24px 20px 140px;
+    min-height: 100vh;
+}
+
+/* ========== Tipografía ========== */
+h1 {
+    color: var(--primary);
+    text-align: center;
+    font-size: clamp(1.8em, 4vw, 2.8em);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.95em;
+    margin-bottom: 32px;
+}
+
+h2 {
+    color: var(--primary);
+    font-size: clamp(1.2em, 2.5vw, 1.6em);
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+/* ========== Layout ========== */
+.container {
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+/* ========== Card (formulario) ========== */
+.card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 28px;
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+}
+
+/* ========== Formulario ========== */
+label {
+    font-size: 0.88em;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 6px;
+    margin-top: 16px;
+}
+
+label:first-child { margin-top: 0; }
+
+input[type="text"],
+input[type="number"],
+select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 1em;
+    background-color: var(--bg);
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.12);
+    background-color: var(--surface);
+}
+
+/* ========== Opciones de categoría ========== */
+.options-group {
+    background: var(--primary-light);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-top: 12px;
+    border: 1.5px solid var(--border);
+}
+
+.options-group > p {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+/* Radio y checkbox pill */
+.pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pill-group input[type="radio"],
+.pill-group input[type="checkbox"] {
+    display: none;
+}
+
+.pill-group label {
+    display: inline-block;
+    background: var(--surface);
+    padding: 7px 14px;
+    border-radius: 50px;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    margin: 0;
+    transition: all 0.15s;
+}
+
+.pill-group input[type="radio"]:checked + label,
+.pill-group input[type="checkbox"]:checked + label {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+/* ========== Botón principal ========== */
+.btn-primary {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 1.05em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: 0.3px;
+}
+
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:active { transform: scale(0.99); }
+
+/* ========== Categorías ========== */
+.category-section { margin-bottom: 8px; }
+
+.category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--primary);
+    color: white;
+    padding: 12px 18px;
+    border-radius: var(--radius-sm);
+    margin-top: 28px;
+    margin-bottom: 4px;
+    font-size: clamp(1em, 2.5vw, 1.2em);
+    font-weight: 600;
+}
+
+.category-header.sub {
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.95em;
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+.category-subtotal {
+    font-size: 0.9em;
+    font-weight: 700;
+    color: var(--accent);
+    padding: 6px 18px 10px;
+}
+
+/* ========== Producto ========== */
+.product {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 70px 18px 18px;
+    margin-bottom: 10px;
+    position: relative;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.product:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+.product h3 {
+    color: var(--primary);
+    font-size: 1.05em;
+    font-weight: 600;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.product p {
+    font-size: 0.9em;
+    color: var(--text);
+    padding: 4px 0;
+}
+
+.product p span {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ========== Botón eliminar ========== */
+.deleteBtn {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    background: var(--danger);
+    color: white;
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.15s;
+    line-height: 1;
+}
+
+.deleteBtn:hover {
+    background: var(--danger-dark);
+    transform: translateY(-50%) scale(1.1);
+}
+
+/* ========== Total general ========== */
+#totalPrice {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 2px solid var(--primary-light);
+    color: var(--primary);
+    font-size: clamp(1.1em, 2.5vw, 1.4em);
+    font-weight: 700;
+    text-align: center;
+    padding: 14px 20px;
+    box-shadow: 0 -4px 16px rgba(0, 86, 179, 0.1);
+    z-index: 1000;
+}
+
+/* ========== Nav de catálogos ========== */
+.nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin: 36px 0 16px;
+}
+
+.nav-links a {
+    padding: 10px 22px;
+    background: var(--primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 50px;
+    font-size: 0.95em;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.15s;
+    border: 2px solid transparent;
+}
+
+.nav-links a:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+/* ========== Toast ========== */
+#toast {
+    position: fixed;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: #2c3e50;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 0.92em;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 9999;
+    white-space: nowrap;
+}
+
+#toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+#toast.error { background: var(--danger); }
+#toast.success { background: var(--accent); }
+
+/* ========== Responsive ========== */
+@media (max-width: 480px) {
+    body { padding: 16px 14px 130px; }
+    .card { padding: 20px 16px; }
+    .nav-links a { padding: 9px 16px; font-size: 0.88em; }
+}

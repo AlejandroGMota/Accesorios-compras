@@ -25,10 +25,11 @@ Sistema web para gestionar inventario y listas de compras de accesorios para dis
 ## Tecnologías Utilizadas
 
 - **HTML5** - Estructura semántica
-- **CSS3** - Diseño responsive con Flexbox
-- **JavaScript (Vanilla)** - Lógica de aplicación
+- **CSS3** - Diseño responsive con variables CSS y Flexbox (`style.css`)
+- **JavaScript (Vanilla)** - Lógica modularizada en funciones (`app.js`)
 - **Firebase Firestore** - Persistencia y sincronización en tiempo real
 - **GitHub Actions** - CI/CD para deploy automático a GitHub Pages
+- **Inter** - Tipografía (Google Fonts)
 
 ### Sin frameworks ni librerías externas
 
@@ -44,13 +45,23 @@ El proyecto está desarrollado completamente con tecnologías web fundamentales:
 Accesorios-compras/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml          # Pipeline de CI/CD para GitHub Pages
-├── catalogo-buytiti/           # Catálogo scrapeado de BuyTiti
-├── catalogo-myshop/            # Catálogo scrapeado de my-shop.mx
-├── index.html                  # Aplicación principal
-├── fundas-lanzadas.html        # Vista de fundas lanzadas
-├── CNAME                       # Dominio personalizado de GitHub Pages
-└── README.md                   # Este archivo
+│       ├── deploy.yml                    # Deploy a GitHub Pages
+│       ├── update-catalogo-buytiti.yml   # Actualización semanal BuyTiti
+│       └── update-catalogo-myshop.yml    # Actualización manual my-shop.mx
+├── catalogo-buytiti/                     # Catálogo scrapeado de BuyTiti
+│   ├── index.html
+│   ├── productos.json
+│   └── scraper/main.go
+├── catalogo-myshop/                      # Catálogo scrapeado de my-shop.mx
+│   ├── index.html
+│   ├── productos.json
+│   └── scraper/main.go
+├── index.html                            # Aplicación principal
+├── style.css                             # Estilos globales
+├── app.js                                # Lógica de la aplicación
+├── fundas-lanzadas.html                  # Vista de fundas lanzadas
+├── CNAME                                 # Dominio personalizado de GitHub Pages
+└── README.md                             # Este archivo
 ```
 
 ## Categorías de Productos

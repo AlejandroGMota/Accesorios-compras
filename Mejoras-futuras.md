@@ -6,8 +6,9 @@ Lista de mejoras pendientes y deuda técnica del proyecto.
 
 ## Pendientes
 
-- [ ] Extraer el CSS inline de `index.html` a un archivo separado
-- [ ] Modularizar el JavaScript en funciones bien definidas
+- [x] Extraer el CSS inline de `index.html` a `style.css`
+- [x] Modularizar el JavaScript en `app.js` con funciones bien definidas
+- [x] Mejorar la estética general (diseño moderno, Inter font, pill selectors, cards)
 
 ## Completado
 
