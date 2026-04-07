@@ -5,6 +5,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'index.html'
+      - 'fundas-lanzadas.html'
+      - 'catalogo-buytiti/index.html'
+      - 'catalogo-buytiti/productos.json'
+      - 'catalogo-myshop/index.html'
+      - 'catalogo-myshop/productos.json'
+      - 'CNAME'
 
 # Permisos mínimos necesarios para publicar en GitHub Pages
 permissions:
