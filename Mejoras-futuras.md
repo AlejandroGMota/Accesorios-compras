@@ -1,10 +1,7 @@
 # Plan de Mejoras Futuras - Lista de Accesorios
 
-
-
 ## Tabla de Contenidos
 
-- [Resumen Ejecutivo](#resumen-ejecutivo)
 - [Estado Actual - Problemas Críticos](#estado-actual---problemas-críticos)
 - [FASE 1: FUNDACIÓN SÓLIDA](#fase-1-fundación-sólida-2-3-semanas)
 - [FASE 2: FEATURES CORE](#fase-2-features-core-2-3-semanas)
@@ -21,7 +18,7 @@
 
 **Para resaltar acciones críticas**, usa bloques de advertencia:
 
-> ⚠️ **CRÍTICO:** Refactorizar `index.html` para eliminar CSS/JS inline.
+**CRÍTICO:** Refactorizar `index.html` para eliminar CSS/JS inline.
 
 ---
 
@@ -30,6 +27,10 @@
 - [ ] Extraer CSS inline
 - [ ] Modularizar JavaScript
 - [ ] Implementar ToastManager accesible
+- [ ] llamar a una funcion para actualizar el catalogo del catalogo buytiti products, el sitio esta alojado en github pages, y coneccion a la db en google, cambiar el acceso de la db de google, para almacenarse en una variable de gh secrets.
+
+
+
 
 ---
 
@@ -52,5 +53,3 @@
 **Para pasos inmediatos**, usa bloques de comandos y resalta el siguiente paso con negritas o emojis.
 
 ---
-
-_¿Quieres que adapte alguna sección específica a un formato markdown más visual o interactivo?_
