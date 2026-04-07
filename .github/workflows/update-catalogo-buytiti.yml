@@ -1,0 +1,38 @@
+name: Actualizar catálogo BuyTiti
+
+on:
+  # Permite ejecutarlo manualmente desde la pestaña Actions
+  workflow_dispatch:
+  # Automatico cada lunes a las 6am UTC
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # Ejecuta el scraper; escribe el resultado en catalogo-buytiti/productos.json
+      - name: Ejecutar scraper
+        run: go run ./catalogo-buytiti/scraper/main.go
+
+      # Si el JSON cambió, hace commit y push directamente a main
+      - name: Commit y push si hay cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add catalogo-buytiti/productos.json
+          if git diff --cached --quiet; then
+            echo "Sin cambios en el catálogo."
+          else
+            git commit -m "chore: actualizar catálogo BuyTiti"
+            git push
+          fi
