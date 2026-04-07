@@ -206,9 +206,57 @@ document.getElementById('addProductBtn').onclick = async function () {
     await saveProducts(currentProducts);
     showToast('Producto agregado', 'success');
 
+    if (category === 'Micas') registrarCompraMica(product).catch(() => {});
+
     document.getElementById('productName').value = '';
     document.querySelectorAll('#fundaColors input, #fundaTypes input').forEach(cb => cb.checked = false);
 };
+
+// ========== Analytics: registro de compra de mica ==========
+
+let _aliasMap = null;
+
+async function cargarAliases() {
+    if (_aliasMap) return _aliasMap;
+    try {
+        const resp = await fetch('./analytics/aliases.csv');
+        const text = await resp.text();
+        _aliasMap = new Map();
+        text.trim().split('\n').slice(1).forEach(linea => {
+            const [alias, nombre] = linea.split(',').map(s => s.trim());
+            if (alias && nombre) _aliasMap.set(alias.toLowerCase(), nombre);
+        });
+    } catch (e) {
+        console.warn('aliases.csv no disponible, se usará nombre original:', e);
+        _aliasMap = new Map();
+    }
+    return _aliasMap;
+}
+
+function normalizarNombre(nombreOriginal, aliasMap) {
+    const clave = nombreOriginal.trim().toLowerCase();
+    return aliasMap.get(clave) ?? nombreOriginal.trim();
+}
+
+async function registrarCompraMica(product) {
+    try {
+        const aliasMap = await cargarAliases();
+        const nombre   = normalizarNombre(product.name, aliasMap);
+        const ahora    = new Date();
+        await db.collection('micas_compras').add({
+            nombre,
+            nombre_original: product.name,
+            tipo:     product.type,
+            precio:   product.price,
+            cantidad: product.quantity,
+            fecha:    firebase.firestore.FieldValue.serverTimestamp(),
+            mes:      ahora.getMonth() + 1,
+            año:      ahora.getFullYear(),
+        });
+    } catch (err) {
+        console.error('Error registrando analytics de mica:', err);
+    }
+}
 
 // ========== Inicialización ==========
 window.addEventListener('DOMContentLoaded', () => {
