@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics · Accesorios</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>Analytics</h1>
+        <p class="header-subtitle">Historial de compras · Micas</p>
+    </div>
+    <nav class="header-nav">
+        <a href="../index.html" class="header-link">← Volver</a>
+    </nav>
+</header>
+
+<div class="container">
+
+    <!-- Tabs de categoría -->
+    <div class="tab-bar">
+        <button class="tab active">Micas</button>
+        <button class="tab locked" disabled title="Próximamente">Fundas 🔒</button>
+        <button class="tab locked" disabled title="Próximamente">Hidrogel 🔒</button>
+    </div>
+
+    <!-- Resumen -->
+    <section class="card">
+        <h2>Resumen</h2>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="stat-label">Micas registradas</span>
+                <span class="stat-value" id="stat-total">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total invertido</span>
+                <span class="stat-value" id="stat-invertido">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Modelo más vendido</span>
+                <span class="stat-value" id="stat-modelo">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Tipo más vendido</span>
+                <span class="stat-value" id="stat-tipo">—</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Ranking por modelo -->
+    <section class="card">
+        <h2>Ranking por modelo</h2>
+        <div class="table-wrapper">
+            <table id="tabla-ranking">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-col="nombre">Modelo ↕</th>
+                        <th class="sortable" data-col="9D">9D ↕</th>
+                        <th class="sortable" data-col="9H">9H ↕</th>
+                        <th class="sortable" data-col="Privacidad">Privacidad ↕</th>
+                        <th class="sortable" data-col="total">Total ↕</th>
+                        <th class="sortable" data-col="pct">% ↕</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-ranking"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Distribución por tipo -->
+    <section class="card">
+        <h2>Distribución por tipo</h2>
+        <div class="chart-container">
+            <canvas id="chart-donut"></canvas>
+        </div>
+    </section>
+
+    <!-- Tendencia mensual -->
+    <section class="card">
+        <h2>Tendencia mensual</h2>
+        <p class="chart-note">Unidades compradas por mes, desglosadas por tipo de mica.</p>
+        <div class="chart-container">
+            <canvas id="chart-lineas"></canvas>
+        </div>
+    </section>
+
+    <!-- Proyecciones -->
+    <section class="card">
+        <h2>Proyección del próximo mes</h2>
+        <div id="proyecciones-contenido"></div>
+    </section>
+
+</div>
+
+<!-- Firebase SDK compat (mismo que app principal) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+    const firebaseConfig = %%FIREBASE_CONFIG%%;
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+</script>
+<script src="./analytics.js"></script>
+</body>
+</html>

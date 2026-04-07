@@ -16,6 +16,9 @@ on:
       - 'catalogo-myshop/index.html'
       - 'catalogo-myshop/productos.json'
       - 'CNAME'
+      - 'analytics/index.html'
+      - 'analytics/analytics.js'
+      - 'analytics/aliases.csv'
   # Se dispara también cuando algún workflow de catálogo termina
   workflow_run:
     workflows: ["Actualizar catálogo BuyTiti", "Actualizar catálogo my-shop.mx"]
@@ -59,11 +62,13 @@ jobs:
           python3 -c "
           import os
           config = os.environ['FIREBASE_CONFIG'].strip()
-          with open('index.html', 'r') as f:
-              content = f.read()
-          content = content.replace('%%FIREBASE_CONFIG%%', config)
-          with open('index.html', 'w') as f:
-              f.write(content)
+          targets = ['index.html', 'analytics/index.html']
+          for path in targets:
+              with open(path, 'r') as f:
+                  content = f.read()
+              content = content.replace('%%FIREBASE_CONFIG%%', config)
+              with open(path, 'w') as f:
+                  f.write(content)
           "
 
       - name: Setup Pages
