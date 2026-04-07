@@ -13,9 +13,9 @@ on:
       - 'catalogo-myshop/index.html'
       - 'catalogo-myshop/productos.json'
       - 'CNAME'
-  # Se dispara también cuando el workflow de BuyTiti termina exitosamente
+  # Se dispara también cuando algún workflow de catálogo termina
   workflow_run:
-    workflows: ["Actualizar catálogo BuyTiti"]
+    workflows: ["Actualizar catálogo BuyTiti", "Actualizar catálogo my-shop.mx"]
     types:
       - completed
     branches:
