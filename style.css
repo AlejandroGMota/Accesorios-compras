@@ -1,9 +1,8 @@
 /* ========== Variables ========== */
 :root {
-    --primary: #1a1a1a;
-    --primary-hover: #333333;
-    --accent: #0056b3;
-    --accent-light: #e8f0fb;
+    --primary: #023265;
+    --primary-hover: #0056b3;
+    --primary-light: #e8f0fb;
     --success: #27ae60;
     --danger: #e74c3c;
     --danger-dark: #c0392b;
@@ -12,9 +11,9 @@
     --text: #333333;
     --text-muted: #888888;
     --border: #e8e8e8;
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-    --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    --shadow-hover: 0 10px 24px rgba(0, 0, 0, 0.12);
+    --shadow-sm: 0 2px 8px rgba(2, 50, 101, 0.07);
+    --shadow: 0 4px 16px rgba(2, 50, 101, 0.1);
+    --shadow-hover: 0 10px 24px rgba(2, 50, 101, 0.15);
     --radius: 14px;
     --radius-sm: 8px;
     --section-gap: 80px;
@@ -393,9 +392,50 @@ select:focus {
 #toast.success { background: var(--success); }
 
 /* ========== Responsive ========== */
+
+/* Tablet */
+@media (max-width: 768px) {
+    header { padding: 14px 18px; }
+    .container { padding: 32px 18px; }
+    .card { padding: 24px 20px; }
+    :root { --section-gap: 56px; }
+}
+
+/* Mobile */
 @media (max-width: 480px) {
-    .container { padding: 28px 16px; }
-    .card { padding: 22px 16px; }
-    .nav-links a { padding: 9px 16px; font-size: 0.85em; }
-    :root { --section-gap: 48px; }
+    header h1 { font-size: 1.2em; }
+    .header-subtitle { display: none; }
+
+    .container { padding: 20px 14px; }
+    .card { padding: 18px 14px; }
+
+    /* Formulario */
+    input[type="text"],
+    input[type="number"],
+    select { font-size: 16px; } /* Evita zoom en iOS */
+
+    .pill-group { gap: 6px; }
+    .pill-group label { padding: 6px 12px; font-size: 0.85em; }
+
+    .btn-primary { padding: 14px; font-size: 0.95em; }
+
+    /* Productos */
+    .product { padding: 14px 52px 14px 14px; }
+    .product h3 { font-size: 0.92em; }
+    .deleteBtn { width: 30px; height: 30px; font-size: 0.9em; right: 12px; }
+
+    /* Categorías */
+    .category-header { padding: 11px 14px; font-size: 0.92em; }
+
+    /* Nav */
+    .nav-links { gap: 8px; }
+    .nav-links a { padding: 9px 14px; font-size: 0.85em; }
+
+    /* Total */
+    #totalPrice { font-size: 1em; padding: 12px 16px; }
+
+    /* Toast */
+    #toast { font-size: 0.82em; padding: 10px 18px; max-width: 90vw; white-space: normal; text-align: center; }
+
+    :root { --section-gap: 40px; }
 }
