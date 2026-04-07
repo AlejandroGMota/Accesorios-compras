@@ -22,10 +22,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache: false
 
       # Ejecuta el scraper; escribe el resultado en catalogo-myshop/productos.json
       - name: Ejecutar scraper
-        run: go run ./catalogo-myshop/scraper/main.go
+        working-directory: catalogo-myshop/scraper
+        run: go run .
 
       # Si el JSON cambió, hace commit y push directamente a main
       - name: Commit y push si hay cambios

@@ -10,7 +10,7 @@
 
 - [ ] **Exportar lista como PDF** — botón en la vista principal que genere un PDF con la lista de productos agrupados por categoría y totales. Usar `window.print()` con estilos `@media print` o librería ligera como `jsPDF`.
 
-- [ ] **go.mod en los scrapers** — agregar `go.mod` a `catalogo-buytiti/scraper/` y `catalogo-myshop/scraper/` para que GitHub Actions pueda cachear el módulo y reducir el tiempo de compilación.
+- [x] **go.mod en los scrapers** — ya existían; se desactivó el cache en `setup-go` (sin dependencias externas no hay `go.sum`) y se corrigió el `working-directory` en los workflows.
 
 ### UX / Estética
 
