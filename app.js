@@ -15,7 +15,12 @@ let currentProducts = [];
 // ========== Datos ==========
 async function saveProducts(products) {
     currentProducts = products;
-    await PRODUCTS_REF.set({ items: products });
+    try {
+        await PRODUCTS_REF.set({ items: products });
+    } catch (err) {
+        console.error('Error al guardar en Firestore:', err);
+        showToast('Error al guardar. Revisa tu conexión.', 'error', 5000);
+    }
 }
 
 function clearAllProductLists() {
