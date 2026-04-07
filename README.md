@@ -226,12 +226,23 @@ Basado en los commits del repositorio:
 
 ## Deployment
 
-El deploy es automático mediante GitHub Actions. Cada push a `main` dispara el pipeline que:
+El proyecto tiene dos workflows de GitHub Actions:
+
+### Deploy del sitio (`deploy.yml`)
+
+Se dispara en cada push a `main`:
 
 1. Inyecta la configuración de Firebase desde los secrets del repositorio
 2. Publica el sitio en GitHub Pages
 
 **Dominio:** [accesories.alejandrogmota.com](https://accesories.alejandrogmota.com)
+
+### Actualización del catálogo BuyTiti (`update-catalogo-buytiti.yml`)
+
+Corre el scraper de Go y hace commit del `productos.json` actualizado. Se ejecuta:
+
+- **Automáticamente** cada lunes a las 6am UTC
+- **Manualmente** desde Actions → Actualizar catálogo BuyTiti → Run workflow
 
 ### Secrets requeridos en GitHub Actions
 
