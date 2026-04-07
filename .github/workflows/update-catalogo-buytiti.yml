@@ -7,6 +7,9 @@ on:
   schedule:
     - cron: '0 6 * * 1'
 
+permissions:
+  contents: write
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
@@ -25,7 +28,7 @@ jobs:
 
       # Ejecuta el scraper; escribe el resultado en catalogo-buytiti/productos.json
       - name: Ejecutar scraper
-        run: go run ./catalogo-buytiti/scraper/main.go
+        run: go run ./catalogo-buytiti/scraper/main.go -workers 10 -delay 100ms
 
       # Si el JSON cambió, hace commit y push directamente a main
       - name: Commit y push si hay cambios
@@ -36,6 +39,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Sin cambios en el catálogo."
           else
-            git commit -m "chore: actualizar catálogo BuyTiti"
+            git commit -m "chore: actualizar catálogo BuyTiti $(date +'%Y-%m-%d')"
             git push
           fi
