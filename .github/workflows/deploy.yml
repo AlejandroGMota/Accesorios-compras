@@ -1,15 +1,18 @@
 name: Deploy to GitHub Pages
 
+# Se ejecuta en cada push a main
 on:
   push:
     branches:
       - main
 
+# Permisos mínimos necesarios para publicar en GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# Evita deploys simultáneos; cancela el anterior si hay uno en curso
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -25,18 +28,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject Firebase secrets
-        run: |
-          sed -i "s|%%FIREBASE_API_KEY%%|${{ secrets.FIREBASE_API_KEY }}|g" index.html
-          sed -i "s|%%FIREBASE_AUTH_DOMAIN%%|${{ secrets.FIREBASE_AUTH_DOMAIN }}|g" index.html
-          sed -i "s|%%FIREBASE_PROJECT_ID%%|${{ secrets.FIREBASE_PROJECT_ID }}|g" index.html
-          sed -i "s|%%FIREBASE_STORAGE_BUCKET%%|${{ secrets.FIREBASE_STORAGE_BUCKET }}|g" index.html
-          sed -i "s|%%FIREBASE_MESSAGING_SENDER_ID%%|${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}|g" index.html
-          sed -i "s|%%FIREBASE_APP_ID%%|${{ secrets.FIREBASE_APP_ID }}|g" index.html
+      # Reemplaza el placeholder %%FIREBASE_CONFIG%% en index.html con el
+      # objeto JSON almacenado en el secret FIREBASE_CONFIG.
+      # El secret debe contener el objeto tal como lo entrega Google Firebase,
+      # por ejemplo: {"apiKey":"...","authDomain":"...",...}
+      - name: Inject Firebase config
+        run: sed -i "s|%%FIREBASE_CONFIG%%|${{ secrets.FIREBASE_CONFIG }}|g" index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      # Sube todo el directorio raíz como artefacto de Pages
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -16,17 +16,19 @@ Sistema web para gestionar inventario y listas de compras de accesorios para dis
 - ✅ Gestión de productos por categorías
 - ✅ Propiedades personalizables según tipo de producto
 - ✅ Cálculo automático de subtotales y total general
-- ✅ Persistencia de datos con localStorage
+- ✅ Sincronización en tiempo real con Firebase Firestore
 - ✅ Interfaz responsive y amigable
 - ✅ Eliminación de productos con recálculo automático
 - ✅ Sin dependencias externas (Vanilla JavaScript)
+- ✅ Deploy automático vía GitHub Actions con secrets seguros
 
 ## Tecnologías Utilizadas
 
 - **HTML5** - Estructura semántica
 - **CSS3** - Diseño responsive con Flexbox
 - **JavaScript (Vanilla)** - Lógica de aplicación
-- **localStorage** - Persistencia de datos
+- **Firebase Firestore** - Persistencia y sincronización en tiempo real
+- **GitHub Actions** - CI/CD para deploy automático a GitHub Pages
 
 ### Sin frameworks ni librerías externas
 
@@ -34,15 +36,20 @@ El proyecto está desarrollado completamente con tecnologías web fundamentales:
 - No requiere Node.js ni npm
 - No utiliza React, Vue o Angular
 - No utiliza Bootstrap o Tailwind CSS
-- No requiere proceso de build
+- El proceso de build lo maneja GitHub Actions
 
 ## Estructura del Proyecto
 
 ```
 Accesorios-compras/
-├── index.html                  # Aplicación principal (565 líneas)
-├── Compras-accesorios.html     # Versión alternativa simplificada
-├── CNAME                       # Configuración de dominio personalizado
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          # Pipeline de CI/CD para GitHub Pages
+├── catalogo-buytiti/           # Catálogo scrapeado de BuyTiti
+├── catalogo-myshop/            # Catálogo scrapeado de my-shop.mx
+├── index.html                  # Aplicación principal
+├── fundas-lanzadas.html        # Vista de fundas lanzadas
+├── CNAME                       # Dominio personalizado de GitHub Pages
 └── README.md                   # Este archivo
 ```
 
@@ -141,10 +148,10 @@ Acceder directamente a: [accesories.alejandrogmota.com](https://accesories.aleja
 
 ## Almacenamiento de Datos
 
-Los datos se guardan automáticamente en el navegador usando `localStorage`:
+Los datos se sincronizan en tiempo real con **Firebase Firestore**, lo que permite acceder a la lista desde cualquier dispositivo.
 
 ```javascript
-// Estructura de datos
+// Estructura de un documento en Firestore
 {
   "name": "Mica 9D iPhone 13",
   "price": 150,
@@ -154,7 +161,7 @@ Los datos se guardan automáticamente en el navegador usando `localStorage`:
 }
 ```
 
-**Nota:** Los datos persisten incluso al cerrar el navegador, pero se almacenan localmente en cada dispositivo.
+**Nota:** La configuración de Firebase nunca se almacena en el repositorio; se inyecta durante el deploy a través de GitHub Secrets.
 
 ## Diseño y Estilos
 
@@ -219,14 +226,37 @@ Basado en los commits del repositorio:
 
 ## Deployment
 
-El proyecto está configurado para GitHub Pages con un dominio personalizado:
+El deploy es automático mediante GitHub Actions. Cada push a `main` dispara el pipeline que:
 
-**Dominio:** accesories.alejandrogmota.com
+1. Inyecta la configuración de Firebase desde los secrets del repositorio
+2. Publica el sitio en GitHub Pages
 
-Configuración en archivo `CNAME`:
+**Dominio:** [accesories.alejandrogmota.com](https://accesories.alejandrogmota.com)
+
+### Secrets requeridos en GitHub Actions
+
+El pipeline necesita el siguiente secret configurado en **Settings → Secrets and variables → Actions**:
+
+| Secret | Descripción |
+|--------|-------------|
+| `FIREBASE_CONFIG` | Objeto JSON con la configuración del proyecto de Firebase |
+
+**Estructura del valor:**
+
+```json
+{
+  "apiKey": "AIzaSy...",
+  "authDomain": "tu-proyecto.firebaseapp.com",
+  "projectId": "tu-proyecto",
+  "storageBucket": "tu-proyecto.firebasestorage.app",
+  "messagingSenderId": "000000000000",
+  "appId": "1:000000000000:web:abc123"
+}
 ```
-accesories.alejandrogmota.com
-```
+
+Puedes obtener este objeto desde la consola de Firebase en **Configuración del proyecto → Tus apps → SDK setup and configuration**.
+
+> Asegúrate de cambiar la fuente de Pages a **GitHub Actions** en Settings → Pages.
 
 ## Contribuciones
 
@@ -246,16 +276,15 @@ Las contribuciones son bienvenidas. Para cambios importantes:
 - Requiere JavaScript habilitado
 
 ### Limitaciones
-- Datos solo en navegador local (no hay backend)
-- Sin sincronización entre dispositivos
-- Capacidad limitada por localStorage (~5-10MB)
+- Requiere conexión a internet para sincronizar con Firestore
+- La configuración de Firebase debe estar correctamente seteada en los secrets del repo para que el deploy funcione
 
 ## Solución de Problemas
 
 ### Los datos no se guardan
 - Verificar que JavaScript esté habilitado
-- Comprobar que localStorage no esté deshabilitado
-- Revisar el modo incógnito (puede deshabilitar localStorage)
+- Comprobar conexión a internet (Firestore la requiere)
+- Revisar la consola del navegador por errores de autenticación de Firebase
 
 ### La página no carga correctamente
 - Limpiar caché del navegador

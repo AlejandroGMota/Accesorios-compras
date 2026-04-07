@@ -1,55 +1,20 @@
-# Plan de Mejoras Futuras - Lista de Accesorios
+# Mejoras Futuras
 
-## Tabla de Contenidos
-
-- [Estado Actual - Problemas Críticos](#estado-actual---problemas-críticos)
-- [FASE 1: FUNDACIÓN SÓLIDA](#fase-1-fundación-sólida-2-3-semanas)
-- [FASE 2: FEATURES CORE](#fase-2-features-core-2-3-semanas)
-- [FASE 3: PROFESIONALIZACIÓN](#fase-3-profesionalización-3-4-semanas)
-- [Archivos Críticos a Modificar](#archivos-críticos-a-modificar)
-- [Mejoras Medibles](#mejoras-medibles)
-- [Cronograma](#cronograma)
-- [Riesgos y Mitigaciones](#riesgos-y-mitigaciones)
-- [Siguiente Paso Inmediato](#siguiente-paso-inmediato)
+Lista de mejoras pendientes y deuda técnica del proyecto.
 
 ---
 
-**Para navegación rápida**, puedes agregar enlaces internos usando `[Texto](#ancla)` como en la tabla de contenidos.
+## Pendientes
 
-**Para resaltar acciones críticas**, usa bloques de advertencia:
+- [ ] Extraer el CSS inline de `index.html` a un archivo separado
+- [ ] Modularizar el JavaScript en funciones bien definidas
+- [ ] Implementar notificaciones de usuario accesibles (reemplazar `alert`)
+- [ ] Agregar función para actualizar el catálogo de BuyTiti desde la interfaz principal (el sitio está en GitHub Pages con Firestore como base de datos)
 
-**CRÍTICO:** Refactorizar `index.html` para eliminar CSS/JS inline.
+## Completado
 
----
-
-**Para listas de tareas**, usa checklists:
-
-- [ ] Extraer CSS inline
-- [ ] Modularizar JavaScript
-- [ ] Implementar ToastManager accesible
-- [ ] llamar a una funcion para actualizar el catalogo del catalogo buytiti products, el sitio esta alojado en github pages, y coneccion a la db en google, cambiar el acceso de la db de google, para almacenarse en una variable de gh secrets.
-
-
-
-
----
-
-**Para métricas y cronogramas**, usa tablas markdown como ya tienes.
-
----
-
-**Para separar fases**, usa líneas horizontales (`---`) y títulos claros.
-
----
-
-**Para código estructural**, usa bloques de código con comentarios descriptivos.
-
----
-
-**Para riesgos y mitigaciones**, mantén la tabla y considera agregar emojis para visualización rápida.
-
----
-
-**Para pasos inmediatos**, usa bloques de comandos y resalta el siguiente paso con negritas o emojis.
-
----
+- [x] Migrar persistencia de `localStorage` a Firebase Firestore para sincronización entre dispositivos
+- [x] Mover la configuración de Firebase a un GitHub Secret (`FIREBASE_CONFIG`) para no exponerla en el repositorio
+- [x] Crear workflow de GitHub Actions que inyecta el secret durante el deploy a GitHub Pages
+- [x] Agregar scraper de BuyTiti (API WooCommerce) con visor de catálogo
+- [x] Agregar scraper de my-shop.mx (HTML scraping sobre Odoo)
