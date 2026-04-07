@@ -8,7 +8,7 @@
 
 - [x] **Feedback de error en Firestore** — toast de error cuando falla `saveProducts` (sin conexión, permisos, etc.)
 
-- [ ] **Exportar lista como PDF** — botón en la vista principal que genere un PDF con la lista de productos agrupados por categoría y totales. Usar `window.print()` con estilos `@media print` o librería ligera como `jsPDF`.
+- [x] **Exportar lista como PDF** — botón en la vista principal que genere un PDF con la lista de productos agrupados por categoría y totales. Usar `window.print()` con estilos `@media print` o librería ligera como `jsPDF`.
 
 - [x] **go.mod en los scrapers** — ya existían; se desactivó el cache en `setup-go` (sin dependencias externas no hay `go.sum`) y se corrigió el `working-directory` en los workflows.
 

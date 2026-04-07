@@ -391,6 +391,94 @@ select:focus {
 #toast.error   { background: var(--danger); }
 #toast.success { background: var(--success); }
 
+/* ========== Botón PDF ========== */
+.btn-pdf {
+    padding: 10px 22px;
+    background: transparent;
+    color: var(--primary);
+    border: 1.5px solid var(--primary);
+    border-radius: 50px;
+    font-size: 0.9em;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.2px;
+}
+
+.btn-pdf:hover {
+    background: var(--primary);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(2, 50, 101, 0.15);
+}
+
+/* ========== Print / PDF ========== */
+@media print {
+    /* Ocultar elementos no necesarios */
+    header, nav.nav-links, .card, #toast, #totalPrice { display: none !important; }
+
+    body {
+        padding: 0;
+        background: white;
+        font-size: 11pt;
+        color: #000;
+    }
+
+    .container { max-width: 100%; padding: 0; }
+
+    /* Mostrar total al imprimir */
+    #totalPrice {
+        display: block !important;
+        position: static !important;
+        box-shadow: none !important;
+        border-top: 2px solid #023265;
+        padding: 12px 0;
+        font-size: 14pt;
+        color: #023265;
+        background: white !important;
+    }
+
+    /* Categorías */
+    .category-header {
+        background: #023265 !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        margin-top: 20px;
+        border-radius: 4px;
+        font-size: 11pt;
+    }
+
+    .category-header.sub {
+        background: transparent !important;
+        color: #555 !important;
+        border-bottom: 1px solid #ccc;
+    }
+
+    .category-subtotal {
+        font-size: 9pt;
+        padding: 4px 4px 8px;
+    }
+
+    /* Producto */
+    .product {
+        padding: 10px 12px;
+        margin-bottom: 6px;
+        box-shadow: none !important;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        page-break-inside: avoid;
+    }
+
+    .product:hover { transform: none; }
+
+    .deleteBtn { display: none !important; }
+
+    .product h3 { font-size: 10pt; }
+    .product p  { font-size: 9pt; padding: 2px 0; }
+}
+
 /* ========== Responsive ========== */
 
 /* Tablet */
