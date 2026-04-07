@@ -14,7 +14,7 @@
 
 ### UX / Estética
 
-- [ ] **Unificar estilos de catálogos** — `catalogo-buytiti/index.html` y `catalogo-myshop/index.html` tienen CSS inline propio. Migrarlos a un `style.css` compartido o al `style.css` global del proyecto.
+- [x] **Unificar estilos de catálogos** — CSS extraído a `catalogo.css` compartido entre `catalogo-buytiti` y `catalogo-myshop`.
 
 - [ ] **Rediseñar `fundas-lanzadas.html`** — aún tiene CSS inline y estructura antigua. Migrar al diseño del `style.css` actual.
 

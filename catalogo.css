@@ -1,0 +1,471 @@
+/* ========== Variables ========== */
+:root {
+    --primary: #023265;
+    --primary-hover: #0056b3;
+    --primary-light: #e8f0fb;
+    --success: #27ae60;
+    --danger: #e74c3c;
+    --bg: #f9f9f9;
+    --surface: #ffffff;
+    --text: #333333;
+    --text-muted: #666666;
+    --border: #e0e0e0;
+    --shadow-sm: 0 2px 8px rgba(2, 50, 101, 0.08);
+    --shadow: 0 4px 12px rgba(2, 50, 101, 0.1);
+    --radius: 10px;
+    --radius-sm: 8px;
+    --section-gap: 80px;
+}
+
+/* ========== Base ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg);
+    padding: 20px;
+    color: var(--text);
+}
+
+h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    color: var(--primary);
+    text-align: center;
+    font-size: clamp(1.5em, 4vw, 2.5em);
+    margin-bottom: 10px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+
+.subtitle {
+    text-align: center;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    font-size: 0.9em;
+}
+
+.subtitle a { color: var(--primary); }
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* ========== Back link ========== */
+.back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    background-color: var(--primary);
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.back-link:hover { background-color: var(--primary-dark); }
+
+/* ========== Filtros de categoría ========== */
+.cat-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.cat-btn {
+    padding: 5px 12px;
+    border: 2px solid var(--primary);
+    background-color: var(--surface);
+    color: var(--primary);
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: clamp(0.7em, 1.6vw, 0.85em);
+    font-weight: 600;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.cat-btn:hover { background-color: var(--primary-light); }
+.cat-btn.active { background-color: var(--primary); color: white; }
+
+/* ========== Dropdown de subcategorías ========== */
+.subcat-dropdown {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.subcat-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background-color: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--text);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.3s;
+    user-select: none;
+}
+
+.subcat-toggle:hover { border-color: var(--primary); }
+
+.subcat-toggle .arrow {
+    transition: transform 0.3s;
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+.subcat-dropdown.open .subcat-toggle .arrow { transform: rotate(180deg); }
+
+.subcat-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    padding: 12px;
+}
+
+.subcat-dropdown.open .subcat-panel { display: block; }
+
+.subcat-search {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    margin-bottom: 10px;
+    transition: border-color 0.3s;
+    outline: none;
+}
+
+.subcat-search:focus { border-color: var(--primary); }
+
+.subcat-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0;
+}
+
+.subcat-list::-webkit-scrollbar { width: 6px; }
+.subcat-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+.filter-checkbox { display: none; }
+
+.filter-label {
+    display: inline-block;
+    padding: 6px 14px;
+    border: 2px solid var(--primary);
+    background-color: var(--surface);
+    color: var(--primary);
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.filter-label:hover { background-color: var(--primary-light); }
+.filter-checkbox:checked + .filter-label { background-color: var(--primary); color: white; }
+
+.filter-item { display: inline; }
+.filter-item.hidden { display: none; }
+
+.subcat-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.subcat-actions button {
+    flex: 1;
+    padding: 7px 12px;
+    border: 1px solid #ccc;
+    background: #f5f5f5;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background 0.2s;
+}
+
+.subcat-actions button:hover { background: #e0e0e0; }
+
+.subcat-no-results {
+    padding: 12px;
+    text-align: center;
+    color: #999;
+    font-size: 0.9em;
+}
+
+.subcat-selected-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.subcat-selected-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background-color: var(--primary);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.subcat-selected-tag .remove-tag {
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 1.1em;
+    line-height: 1;
+    opacity: 0.8;
+}
+
+.subcat-selected-tag .remove-tag:hover { opacity: 1; }
+
+/* ========== Búsqueda ========== */
+.search-box {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.search-input {
+    padding: 10px 15px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    width: 300px;
+    transition: border-color 0.3s;
+    outline: none;
+}
+
+.search-input:focus { border-color: var(--primary); }
+
+.sort-select {
+    padding: 10px 15px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: var(--surface);
+    cursor: pointer;
+    transition: border-color 0.3s;
+    outline: none;
+}
+
+.sort-select:focus { border-color: var(--primary); }
+
+/* ========== Tabla ========== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--surface);
+    box-shadow: var(--shadow);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+thead { background-color: var(--primary); color: white; }
+
+th {
+    padding: 15px 10px;
+    text-align: left;
+    font-size: clamp(0.8em, 2vw, 1em);
+}
+
+td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: clamp(0.8em, 2vw, 0.95em);
+    vertical-align: middle;
+}
+
+tr:hover { background-color: var(--primary-light); }
+tr:last-child td { border-bottom: none; }
+
+.product-image {
+    width: 70px;
+    height: 70px;
+    object-fit: contain;
+    border-radius: 8px;
+    background-color: #f5f5f5;
+}
+
+.product-name { font-weight: 600; color: var(--text); }
+
+.category-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border-radius: 15px;
+    font-size: 0.75em;
+    font-weight: 500;
+    margin: 1px 2px;
+}
+
+.price-tag { font-weight: 700; color: var(--success); font-size: 1.1em; }
+
+.price-original {
+    text-decoration: line-through;
+    color: #999;
+    font-size: 0.85em;
+    font-weight: 400;
+}
+
+.sale-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: var(--danger);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.7em;
+    font-weight: 700;
+    margin-left: 4px;
+}
+
+.stock-text { font-size: 0.8em; color: var(--text-muted); }
+.stock-text.out { color: var(--danger); font-weight: 600; }
+
+.buy-link {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #ff6600;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.buy-link:hover { background-color: #cc5200; transform: translateY(-1px); }
+
+/* ========== Estados ========== */
+.loading {
+    text-align: center;
+    padding: 40px;
+    font-size: 1.2em;
+    color: var(--text-muted);
+}
+
+.loading::after {
+    content: '';
+    animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+    0%, 20%  { content: '.'; }
+    40%      { content: '..'; }
+    60%, 100%{ content: '...'; }
+}
+
+.error {
+    text-align: center;
+    padding: 40px;
+    font-size: 1.2em;
+    color: #ff5c5c;
+    background-color: #ffe6e6;
+    border-radius: var(--radius);
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px;
+    font-size: 1.1em;
+    color: var(--text-muted);
+    background-color: #f0f0f0;
+    border-radius: var(--radius);
+}
+
+.results-count {
+    text-align: center;
+    margin-bottom: 15px;
+    color: var(--text-muted);
+    font-size: 0.95em;
+}
+
+/* ========== Responsive ========== */
+
+/* Tablet */
+@media (max-width: 900px) {
+    body { padding: 16px; }
+    .container { padding: 0; }
+    .search-input { width: 220px; }
+
+    /* Ocultar columna imagen en tablet para ganar espacio */
+    th:first-child, td:first-child { display: none; }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    body { padding: 12px; }
+    h1 { font-size: 1.4em; margin-bottom: 6px; }
+
+    /* Filtros */
+    .cat-btn { padding: 4px 10px; font-size: 0.75em; }
+    .filter-label { padding: 5px 10px; font-size: 0.8em; }
+
+    /* Subcategorías: bottom sheet en mobile */
+    .subcat-panel {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 75vh;
+        overflow-y: auto;
+    }
+    .subcat-list { max-height: 45vh; }
+
+    /* Búsqueda */
+    .search-box {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        gap: 8px;
+    }
+    .search-input,
+    .sort-select {
+        width: 100%;
+        font-size: 16px; /* Evita zoom en iOS */
+    }
+
+    /* Tabla: ocultar columnas no esenciales */
+    th:first-child, td:first-child { display: none; } /* imagen */
+    th:nth-child(3), td:nth-child(3) { display: none; } /* categoría */
+    th, td { padding: 8px 6px; }
+
+    /* Precios y acciones */
+    .buy-link { padding: 6px 10px; font-size: 0.78em; }
+    .price-tag { font-size: 0.95em; }
+
+    /* Back link */
+    .back-link { padding: 8px 14px; font-size: 0.88em; }
+}
