@@ -6,7 +6,7 @@
 
 ### Funcional
 
-- [ ] **Feedback de error en Firestore** — mostrar toast cuando falla `saveProducts` (sin conexión, permisos, etc.). Actualmente el error es silencioso para el usuario.
+- [x] **Feedback de error en Firestore** — toast de error cuando falla `saveProducts` (sin conexión, permisos, etc.)
 
 - [ ] **Exportar lista como PDF** — botón en la vista principal que genere un PDF con la lista de productos agrupados por categoría y totales. Usar `window.print()` con estilos `@media print` o librería ligera como `jsPDF`.
 

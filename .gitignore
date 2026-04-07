@@ -3,3 +3,4 @@ __pycache__/
 venv/
 catalogo-buytiti/scraper/scraper
 .env
+index.local.html
