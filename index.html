@@ -204,7 +204,29 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         color: white;
     }
  
-        
+
+    /* ========== Toast notifications ========== */
+    #toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: #323232;
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 0.95em;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s, transform 0.3s;
+        z-index: 9999;
+    }
+    #toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    #toast.error { background: #c0392b; }
+    #toast.success { background: #27ae60; }
 </style>
 
 </head>
@@ -358,6 +380,8 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
         <a href="fundas-lanzadas.html" style="padding: 12px 25px; background-color: #0056b3; color: white; text-decoration: none; border-radius: 8px; font-size: 1.1em; font-weight: 600; transition: background-color 0.3s;">Celulares Recientes</a>
     </div>
 
+    <div id="toast" role="status" aria-live="polite"></div>
+
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -379,6 +403,16 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
 
         // Variable en memoria para acceso rapido
         let currentProducts = [];
+
+        // ========== Notificaciones ==========
+        let toastTimer;
+        function showToast(message, type = 'default', duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'show' + (type !== 'default' ? ' ' + type : '');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => { toast.className = ''; }, duration);
+        }
 
         // ========== Funciones de datos ==========
         async function saveProducts(products) {
@@ -661,7 +695,7 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwAAAAMACAYAAACTgQCOAAAABmJLR0QA/w
                 document.querySelectorAll('#fundaColors input[type="checkbox"]').forEach(cb => cb.checked = false);
                 document.querySelectorAll('#fundaTypes input[type="checkbox"]').forEach(cb => cb.checked = false);
             } else {
-                alert('Por favor, rellena todos los campos.');
+                showToast('Por favor, rellena todos los campos.', 'error');
             }
         };
 

@@ -8,7 +8,7 @@ Lista de mejoras pendientes y deuda técnica del proyecto.
 
 - [ ] Extraer el CSS inline de `index.html` a un archivo separado
 - [ ] Modularizar el JavaScript en funciones bien definidas
-- [ ] Implementar notificaciones de usuario accesibles (reemplazar `alert`)
+- [x] Implementar notificaciones de usuario accesibles (reemplazar `alert`)
 - [ ] Agregar función para actualizar el catálogo de BuyTiti desde la interfaz principal (el sitio está en GitHub Pages con Firestore como base de datos)
 
 ## Completado
