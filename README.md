@@ -11,7 +11,7 @@ Sistema web para gestionar inventario y listas de compras de accesorios para dis
 
 **URL del proyecto:** [accesories.alejandrogmota.com](https://accesories.alejandrogmota.com)
 
-## ✨ Características
+## Características
 
 - ✅ Gestión de productos por categorías
 - ✅ Propiedades personalizables según tipo de producto
@@ -21,7 +21,7 @@ Sistema web para gestionar inventario y listas de compras de accesorios para dis
 - ✅ Eliminación de productos con recálculo automático
 - ✅ Sin dependencias externas (Vanilla JavaScript)
 
-## 🛠️ Tecnologías Utilizadas
+## Tecnologías Utilizadas
 
 - **HTML5** - Estructura semántica
 - **CSS3** - Diseño responsive con Flexbox
@@ -36,7 +36,7 @@ El proyecto está desarrollado completamente con tecnologías web fundamentales:
 - No utiliza Bootstrap o Tailwind CSS
 - No requiere proceso de build
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 Accesorios-compras/
@@ -46,7 +46,7 @@ Accesorios-compras/
 └── README.md                   # Este archivo
 ```
 
-## 🎯 Categorías de Productos
+## Categorías de Productos
 
 ### 1. **Micas**
 Opciones disponibles:
@@ -86,7 +86,7 @@ Productos de refacción general
 ### 7. **Otros**
 Categoría miscelánea
 
-## 🚀 Instalación y Uso
+## Instalación y Uso
 
 ### Opción 1: Abrir directamente
 ```bash
@@ -139,7 +139,7 @@ Acceder directamente a: [accesories.alejandrogmota.com](https://accesories.aleja
 - **Subtotales** por categoría se muestran en verde
 - **Total General** se muestra al final en azul
 
-## 💾 Almacenamiento de Datos
+## Almacenamiento de Datos
 
 Los datos se guardan automáticamente en el navegador usando `localStorage`:
 
@@ -156,7 +156,7 @@ Los datos se guardan automáticamente en el navegador usando `localStorage`:
 
 **Nota:** Los datos persisten incluso al cerrar el navegador, pero se almacenan localmente en cada dispositivo.
 
-## 🎨 Diseño y Estilos
+## Diseño y Estilos
 
 ### Paleta de Colores
 
@@ -203,7 +203,7 @@ function updateTotalPrice() {
 - Validación de campos numéricos
 - Prevención de valores negativos
 
-## 📊 Historial de Versiones
+## Historial de Versiones
 
 Basado en los commits del repositorio:
 
@@ -217,7 +217,7 @@ Basado en los commits del repositorio:
 - `main` - Rama principal (producción)
 - `dev` - Rama de desarrollo (actual)
 
-## 🌐 Deployment
+## Deployment
 
 El proyecto está configurado para GitHub Pages con un dominio personalizado:
 
@@ -228,7 +228,7 @@ Configuración en archivo `CNAME`:
 accesories.alejandrogmota.com
 ```
 
-## 🤝 Contribuciones
+## Contribuciones
 
 Las contribuciones son bienvenidas. Para cambios importantes:
 
@@ -238,7 +238,7 @@ Las contribuciones son bienvenidas. Para cambios importantes:
 4. Push a la rama (`git push origin feature/NuevaCaracteristica`)
 5. Abrir un Pull Request
 
-## 📝 Notas Técnicas
+## Notas Técnicas
 
 ### Compatibilidad
 - Navegadores modernos (Chrome, Firefox, Safari, Edge)
@@ -250,7 +250,7 @@ Las contribuciones son bienvenidas. Para cambios importantes:
 - Sin sincronización entre dispositivos
 - Capacidad limitada por localStorage (~5-10MB)
 
-## 🐛 Solución de Problemas
+## Solución de Problemas
 
 ### Los datos no se guardan
 - Verificar que JavaScript esté habilitado
@@ -262,11 +262,11 @@ Las contribuciones son bienvenidas. Para cambios importantes:
 - Verificar la consola del navegador (F12) para errores
 - Asegurar conexión a internet (para fuentes externas si las hay)
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT. Consulta el archivo `LICENSE` para más detalles.
 
-## 👤 Autor
+## Autor
 
 Alejandro G. Mota
 
@@ -277,7 +277,7 @@ Alejandro G. Mota
 
 **Última actualización:** 2024
 
-⭐ Si este proyecto te fue útil, considera darle una estrella en GitHub
+Si este proyecto te fue útil, considera darle una estrella en GitHub
 
 
 
