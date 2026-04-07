@@ -9,7 +9,7 @@ on:
       - 'index.html'
       - 'style.css'
       - 'app.js'
-      - 'catalogo.css'
+      - 'secondary-styles.css'
       - 'fundas-lanzadas.html'
       - 'catalogo-buytiti/index.html'
       - 'catalogo-buytiti/productos.json'

@@ -469,3 +469,137 @@ tr:last-child td { border-bottom: none; }
     /* Back link */
     .back-link { padding: 8px 14px; font-size: 0.88em; }
 }
+
+/* ========== Estilos exclusivos de fundas-lanzadas ========== */
+
+/* Filtros de marca */
+.filter-btn {
+    padding: 10px 20px;
+    border: 2px solid var(--primary);
+    background-color: var(--surface);
+    color: var(--primary);
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: clamp(0.8em, 2vw, 1em);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.filter-btn:hover { background-color: var(--primary-light); }
+.filter-btn.active { background-color: var(--primary); color: white; }
+
+/* Tabs de fuente */
+.source-tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.source-tab {
+    padding: 12px 25px;
+    border: 2px solid var(--primary);
+    background-color: var(--surface);
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.source-tab:first-child { border-radius: 8px 0 0 8px; }
+.source-tab:last-child  { border-radius: 0 8px 8px 0; border-left: none; }
+.source-tab:hover       { background-color: var(--primary-light); }
+.source-tab.active      { background-color: var(--primary); color: white; }
+
+/* Botón de búsqueda */
+.search-btn {
+    padding: 10px 20px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.search-btn:hover    { background: var(--primary-hover); transform: translateY(-1px); }
+.search-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Paginación */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.pagination-btn {
+    padding: 10px 25px;
+    border: none;
+    background-color: var(--primary);
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) { background-color: var(--primary-hover); }
+.pagination-btn:disabled             { background-color: #ccc; cursor: not-allowed; }
+
+.pagination-info { font-size: 1em; color: var(--text); font-weight: 500; }
+
+/* Celulares */
+.phone-image {
+    width: 60px;
+    height: 80px;
+    object-fit: contain;
+    border-radius: 5px;
+    background-color: #f5f5f5;
+}
+
+.phone-name  { font-weight: 600; color: var(--text); }
+
+.brand-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.release-date  { font-size: 0.9em; color: #555; }
+.loading-date  { color: #999; font-style: italic; }
+
+.gsm-link {
+    display: inline-block;
+    padding: 5px 12px;
+    background-color: #ff6600;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.gsm-link:hover { background-color: #cc5200; }
+
+/* Responsive fundas-lanzadas */
+@media (max-width: 600px) {
+    .phone-image { width: 45px; height: 60px; }
+    .filter-btn  { padding: 8px 15px; font-size: 0.85em; }
+    .source-tab  { padding: 10px 16px; font-size: 0.88em; }
+    .pagination  { flex-wrap: wrap; }
+    .search-btn  { width: 100%; max-width: 280px; }
+}
