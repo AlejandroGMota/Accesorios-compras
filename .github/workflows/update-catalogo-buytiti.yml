@@ -25,10 +25,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache: false
 
       # Ejecuta el scraper; escribe el resultado en catalogo-buytiti/productos.json
       - name: Ejecutar scraper
-        run: go run ./catalogo-buytiti/scraper/main.go -workers 10 -delay 100ms
+        working-directory: catalogo-buytiti/scraper
+        run: go run . -workers 10 -delay 100ms
 
       # Si el JSON cambió, hace commit y push directamente a main
       - name: Commit y push si hay cambios
