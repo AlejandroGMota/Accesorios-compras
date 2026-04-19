@@ -1,115 +1,200 @@
 alias,nombre_normalizado
-iphone 16 pro max,iPhone 16 Pro Max
-ip16promax,iPhone 16 Pro Max
-16 pro max,iPhone 16 Pro Max
-16 pm,iPhone 16 Pro Max
-iphone 16 pro,iPhone 16 Pro
-ip16pro,iPhone 16 Pro
-iphone 16 plus,iPhone 16 Plus
-ip16plus,iPhone 16 Plus
-iphone 16,iPhone 16
-ip16,iPhone 16
-iphone 15 pro max,iPhone 15 Pro Max
-ip15promax,iPhone 15 Pro Max
+7,iPhone 7/8/SE
+8,iPhone 7/8/SE
+se,iPhone 7/8/SE
+iphone 7,iPhone 7/8/SE
+iphone 8,iPhone 7/8/SE
+iphone se,iPhone 7/8/SE
+7/8/se,iPhone 7/8/SE
+8 plus,iPhone 8 Plus
+8+,iPhone 8 Plus
+iphone 8 plus,iPhone 8 Plus
+xs,iPhone XS/11 Pro
+11 pro,iPhone XS/11 Pro
+iphone xs,iPhone XS/11 Pro
+iphone 11 pro,iPhone XS/11 Pro
+xs/11 pro,iPhone XS/11 Pro
+11,iPhone 11
+ip11,iPhone 11
+iphone 11,iPhone 11
+12,iPhone 12/12 Pro
+ip12,iPhone 12/12 Pro
+iphone 12,iPhone 12/12 Pro
+12 pro,iPhone 12/12 Pro
+ip12pro,iPhone 12/12 Pro
+iphone 12 pro,iPhone 12/12 Pro
+xs max,iPhone XS Max/11 Pro Max
+xsmax,iPhone XS Max/11 Pro Max
+iphone xs max,iPhone XS Max/11 Pro Max
+11 pro max,iPhone XS Max/11 Pro Max
+11 pm,iPhone XS Max/11 Pro Max
+ip11promax,iPhone XS Max/11 Pro Max
+iphone 11 pro max,iPhone XS Max/11 Pro Max
+13,iPhone 13/13 Pro/14
+ip13,iPhone 13/13 Pro/14
+iphone 13,iPhone 13/13 Pro/14
+13 pro,iPhone 13/13 Pro/14
+ip13pro,iPhone 13/13 Pro/14
+iphone 13 pro,iPhone 13/13 Pro/14
+14,iPhone 13/13 Pro/14
+ip14,iPhone 13/13 Pro/14
+iphone 14,iPhone 13/13 Pro/14
+13 pro max,iPhone 13 Pro Max/14 Plus
+13 pm,iPhone 13 Pro Max/14 Plus
+ip13promax,iPhone 13 Pro Max/14 Plus
+14 plus,iPhone 13 Pro Max/14 Plus
+ip14plus,iPhone 13 Pro Max/14 Plus
+iphone 14 plus,iPhone 13 Pro Max/14 Plus
+14 pro,iPhone 14 Pro
+ip14pro,iPhone 14 Pro
+iphone 14 pro,iPhone 14 Pro
+14 pro max,iPhone 14 Pro Max
+14 pm,iPhone 14 Pro Max
+ip14promax,iPhone 14 Pro Max
+iphone 14 pro max,iPhone 14 Pro Max
+15,iPhone 15
+ip15,iPhone 15
+iphone 15,iPhone 15
+15 plus,iPhone 15 Plus
+ip15plus,iPhone 15 Plus
+15 pro,iPhone 15 Pro
+ip15pro,iPhone 15 Pro
+iphone 15 pro,iPhone 15 Pro
 15 pro max,iPhone 15 Pro Max
 15 pm,iPhone 15 Pro Max
-iphone 15 pro,iPhone 15 Pro
-ip15pro,iPhone 15 Pro
-ip 15 pro,iPhone 15 Pro
-iphone15pro,iPhone 15 Pro
-15 pro,iPhone 15 Pro
-iphone 15 plus,iPhone 15 Plus
-ip15plus,iPhone 15 Plus
-iphone 15,iPhone 15
-ip15,iPhone 15
-iphone 14 pro max,iPhone 14 Pro Max
-ip14promax,iPhone 14 Pro Max
-14 pro max,iPhone 14 Pro Max
-iphone 14 pro,iPhone 14 Pro
-ip14pro,iPhone 14 Pro
-iphone 14,iPhone 14
-ip14,iPhone 14
-iphone 13 pro max,iPhone 13 Pro Max
-ip13promax,iPhone 13 Pro Max
-13 pro max,iPhone 13 Pro Max
-iphone 13 pro,iPhone 13 Pro
-ip13pro,iPhone 13 Pro
-iphone 13,iPhone 13
-ip13,iPhone 13
-13,iPhone 13
-iphone 12,iPhone 12
-ip12,iPhone 12
-12,iPhone 12
-iphone 11,iPhone 11
-ip11,iPhone 11
-11,iPhone 11
+ip15promax,iPhone 15 Pro Max
+16,iPhone 16
+ip16,iPhone 16
+iphone 16,iPhone 16
+16 plus,iPhone 16 Plus
+ip16plus,iPhone 16 Plus
+16 pro,iPhone 16 Pro
+ip16pro,iPhone 16 Pro
+16 pro max,iPhone 16 Pro Max
+16 pm,iPhone 16 Pro Max
+ip16promax,iPhone 16 Pro Max
 17 pro max,iPhone 17 Pro Max
+17 pm,iPhone 17 Pro Max
 ip17promax,iPhone 17 Pro Max
-s25 ultra,Samsung Galaxy S25 Ultra
-galaxy s25 ultra,Samsung Galaxy S25 Ultra
-s25,Samsung Galaxy S25
-galaxy s25,Samsung Galaxy S25
-s24 ultra,Samsung Galaxy S24 Ultra
-galaxy s24 ultra,Samsung Galaxy S24 Ultra
+s21,Samsung Galaxy S21
+s21 fe,Samsung Galaxy S21 FE 5G
+s21 fe 5g,Samsung Galaxy S21 FE 5G
 s24,Samsung Galaxy S24
 galaxy s24,Samsung Galaxy S24
-samsung s24,Samsung Galaxy S24
-a56,Samsung Galaxy A56
-galaxy a56,Samsung Galaxy A56
-a55,Samsung Galaxy A55
-galaxy a55,Samsung Galaxy A55
-a35,Samsung Galaxy A35
-a25,Samsung Galaxy A25
-a36,Samsung Galaxy A36
-a 36,Samsung Galaxy A36
-a32,Samsung Galaxy A32
-a 32,Samsung Galaxy A32
-a20s,Samsung Galaxy A20s
+s24 ultra,Samsung Galaxy S24 Ultra
+s25,Samsung Galaxy S25
+s25 ultra,Samsung Galaxy S25 Ultra
+a05,Samsung Galaxy A05/A06
+a 05,Samsung Galaxy A05/A06
+a06,Samsung Galaxy A05/A06
+a 06,Samsung Galaxy A05/A06
+a05/06,Samsung Galaxy A05/A06
+a10s,Samsung Galaxy A10s
+a 10s,Samsung Galaxy A10s
 a14,Samsung Galaxy A14
 a 14,Samsung Galaxy A14
-a07,Samsung Galaxy A07
-a 07,Samsung Galaxy A07
-a05,Samsung Galaxy A05
-a 05,Samsung Galaxy A05
-moto g84,Motorola Moto G84
-moto g54,Motorola Moto G54
-moto g34,Motorola Moto G34
-moto g,Motorola Moto G
+a16,Samsung Galaxy A16
+a 16,Samsung Galaxy A16
+a20,Samsung Galaxy A20
+a 20,Samsung Galaxy A20
+a20s,Samsung Galaxy A20s
+a 20s,Samsung Galaxy A20s
+a21s,Samsung Galaxy A21s
+a 21s,Samsung Galaxy A21s
+a24,Samsung Galaxy A24
+a 24,Samsung Galaxy A24
+a25,Samsung Galaxy A25
+a 25,Samsung Galaxy A25
+a32,Samsung Galaxy A32
+a 32,Samsung Galaxy A32
+a35,Samsung Galaxy A35/A55
+a 35,Samsung Galaxy A35/A55
+a55,Samsung Galaxy A35/A55
+a 55,Samsung Galaxy A35/A55
+a35/55,Samsung Galaxy A35/A55
+a35/a55,Samsung Galaxy A35/A55
+a36,Samsung Galaxy A36/A56
+a 36,Samsung Galaxy A36/A56
+a56,Samsung Galaxy A36/A56
+a 56,Samsung Galaxy A36/A56
+a36/56,Samsung Galaxy A36/A56
+a36/a56,Samsung Galaxy A36/A56
+a52,Samsung Galaxy A52
+a 52,Samsung Galaxy A52
+a54,Samsung Galaxy A54
+a 54,Samsung Galaxy A54
+a72,Samsung Galaxy A72
+a 72,Samsung Galaxy A72
+a80,Samsung Galaxy A80
+a 80,Samsung Galaxy A80
+g60,Motorola Moto G60
+g 60,Motorola Moto G60
 g84,Motorola Moto G84
 g54,Motorola Moto G54
 g34,Motorola Moto G34
-g60,Motorola Moto G60
-g 60,Motorola Moto G60
+g14,Motorola Moto G14
 g9 play,Motorola Moto G9 Play
-g9,Motorola Moto G9 Play
+g9play,Motorola Moto G9 Play
+g9 power,Motorola Moto G9 Power
+g9power,Motorola Moto G9 Power
+g9 plus,Motorola Moto G9 Plus
+g9plus,Motorola Moto G9 Plus
+g8 power,Motorola Moto G8 Power
+g8power,Motorola Moto G8 Power
+g35,Motorola Moto G35/G75
+g75,Motorola Moto G35/G75
 g 35/75,Motorola Moto G35/G75
 g35/75,Motorola Moto G35/G75
-e30,Motorola Moto E30
-e40,Motorola Moto E40
-e 30/40,Motorola Moto E30/E40
-e30/e40,Motorola Moto E30/E40
+g35/g75,Motorola Moto G35/G75
+e30,Motorola Moto E30/E32/E40
+e40,Motorola Moto E30/E32/E40
+e 30/40,Motorola Moto E30/E32/E40
+e30/e40,Motorola Moto E30/E32/E40
+e32,Motorola Moto E30/E32/E40
+e32/e40,Motorola Moto E30/E32/E40
+e32/40,Motorola Moto E30/E32/E40
+e6i,Motorola E6i
 redmi note 14,Xiaomi Redmi Note 14
 note 14,Xiaomi Redmi Note 14
 redmi note 13,Xiaomi Redmi Note 13
 note 13,Xiaomi Redmi Note 13
 redmi note 12,Xiaomi Redmi Note 12
 note 12,Xiaomi Redmi Note 12
-redmi note 10 pro,Xiaomi Redmi Note 10 Pro
+redmi note 11,Xiaomi Redmi Note 11/10
+note 11,Xiaomi Redmi Note 11/10
+redmi note 10,Xiaomi Redmi Note 11/10
+note 10,Xiaomi Redmi Note 11/10
+note 11/10,Xiaomi Redmi Note 11/10
 note 10 pro,Xiaomi Redmi Note 10 Pro
+redmi note 10 pro,Xiaomi Redmi Note 10 Pro
+note 10 pro redmi,Xiaomi Redmi Note 10 Pro
+note 10s,Xiaomi Redmi Note 10s
+note 9,Xiaomi Redmi Note 9/Samsung A11
+a11,Xiaomi Redmi Note 9/Samsung A11
+note 9/a11,Xiaomi Redmi Note 9/Samsung A11
+note 9s,Xiaomi Redmi Note 9s
+redmi 12c,Xiaomi Redmi 12C/10C
+12c,Xiaomi Redmi 12C/10C
+redmi 10c,Xiaomi Redmi 12C/10C
+10c,Xiaomi Redmi 12C/10C
+12c/10c,Xiaomi Redmi 12C/10C
 redmi 13c,Xiaomi Redmi 13C
 13c,Xiaomi Redmi 13C
 redmi 14c,Xiaomi Redmi 14C
 14c,Xiaomi Redmi 14C
 14 c,Xiaomi Redmi 14C
-redmi 12,Xiaomi Redmi 12
+x9,Honor X9
 poco x6,Xiaomi POCO X6
-x6,Xiaomi POCO X6
 poco m6,Xiaomi POCO M6
-m6,Xiaomi POCO M6
+reno 6 lite,Reno 7 Lite
+reno 7 lite,Reno 7 Lite
+reno 7,OPPO Reno 7
+reno 10,OPPO Reno 10
 reno 11,OPPO Reno 11
 reno 13,OPPO Reno 13
 oppo a58,OPPO A58
 a58,OPPO A58
 oppo 40,OPPO A40
 oppo a40,OPPO A40
-magic 8 lite,Honor Magic8 Lite
+y9s,Huawei Y9s
+p30 lite,Huawei P30 Lite
