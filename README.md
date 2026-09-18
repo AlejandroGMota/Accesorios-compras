@@ -56,6 +56,13 @@ Accesorios-compras/
 │   ├── index.html
 │   ├── productos.json
 │   └── scraper/main.go
+├── analytics/                            # Visor de analytics (Micas · Hidrogel)
+│   ├── index.html
+│   ├── analytics.js                      # Micas: ranking, tendencia, proyecciones
+│   ├── hidrogel.js                       # Hidrogel: pedido a KASR
+│   ├── hidrogel-core.js                  # Lógica compartida con hidrogel-mcp
+│   └── aliases.csv
+├── hidrogel-mcp/                         # Conector de Claude en la VM de Oracle → ver su README
 ├── index.html                            # Aplicación principal
 ├── style.css                             # Estilos globales
 ├── app.js                                # Lógica de la aplicación

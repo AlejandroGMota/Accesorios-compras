@@ -251,6 +251,26 @@ function renderProyecciones(proyecciones) {
     `;
 }
 
+// ========== Pestañas ==========
+
+const SUBTITULOS = {
+    micas:    'Historial de compras · Micas',
+    hidrogel: 'Pedidos a KASR · Hidrogel',
+};
+
+function mostrarPestana(nombre) {
+    if (!SUBTITULOS[nombre]) nombre = 'micas';
+    document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === nombre));
+    document.querySelectorAll('.tab-panel').forEach(p => { p.hidden = p.id !== `panel-${nombre}`; });
+    document.querySelector('.header-subtitle').textContent = SUBTITULOS[nombre];
+}
+
+document.querySelectorAll('.tab[data-tab]').forEach(tab => {
+    tab.addEventListener('click', () => { location.hash = tab.dataset.tab; });
+});
+window.addEventListener('hashchange', () => mostrarPestana(location.hash.slice(1)));
+mostrarPestana(location.hash.slice(1));
+
 // ========== Init ==========
 
 window.addEventListener('DOMContentLoaded', async () => {
