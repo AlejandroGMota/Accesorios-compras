@@ -37,8 +37,9 @@
         <h2>Resumen</h2>
         <div class="stat-grid">
             <div class="stat-card">
-                <span class="stat-label">Micas registradas</span>
+                <span class="stat-label">Piezas compradas</span>
                 <span class="stat-value" id="stat-total">—</span>
+                <span class="stat-sub" id="stat-total-detalle"></span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">Total invertido</span>
@@ -53,31 +54,36 @@
                 <span class="stat-value" id="stat-tipo">—</span>
             </div>
         </div>
+        <p class="chart-note" id="nota-resumen"></p>
     </section>
 
     <!-- Ranking por modelo -->
     <section class="card">
         <h2>Ranking por modelo</h2>
+        <p class="chart-note">9D y 9H en cajas (cj) de 10 pzs · Privacidad y Total en piezas · % sobre el total de piezas.</p>
         <div class="table-wrapper">
             <table id="tabla-ranking" class="data-table">
                 <thead>
                     <tr>
                         <th class="sortable" data-col="nombre">Modelo ↕</th>
-                        <th class="sortable" data-col="9D">9D ↕</th>
-                        <th class="sortable" data-col="9H">9H ↕</th>
-                        <th class="sortable" data-col="Privacidad">Privacidad ↕</th>
-                        <th class="sortable" data-col="total">Total ↕</th>
+                        <th class="sortable" data-col="9D">9D cj ↕</th>
+                        <th class="sortable" data-col="9H">9H cj ↕</th>
+                        <th class="sortable" data-col="Privacidad">Priv pzs ↕</th>
+                        <th class="sortable" data-col="pzs">Total pzs ↕</th>
+                        <th class="sortable" data-col="invertido">Invertido ↕</th>
                         <th class="sortable" data-col="pct">% ↕</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-ranking"></tbody>
             </table>
         </div>
+        <p class="chart-note" id="nota-ranking"></p>
     </section>
 
     <!-- Distribución por tipo -->
     <section class="card">
         <h2>Distribución por tipo</h2>
+        <p class="chart-note">En piezas: cada caja de 9D o 9H cuenta como 10.</p>
         <div class="chart-container">
             <canvas id="chart-donut"></canvas>
         </div>
@@ -86,7 +92,7 @@
     <!-- Tendencia mensual -->
     <section class="card">
         <h2>Tendencia mensual</h2>
-        <p class="chart-note">Unidades compradas por mes, desglosadas por tipo de mica.</p>
+        <p class="chart-note">Piezas compradas por mes, desglosadas por tipo de mica (cajas de 9D y 9H × 10).</p>
         <div class="chart-container">
             <canvas id="chart-lineas"></canvas>
         </div>

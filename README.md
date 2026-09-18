@@ -75,10 +75,15 @@ Accesorios-compras/
 
 ### 1. **Micas**
 Opciones disponibles:
-- 9D
-- 9H
-- Privacidad
-- Hidrogel
+- 9D — por caja de 10 pzs (cantidad y precio son por caja)
+- 9H — por caja de 10 pzs (cantidad y precio son por caja)
+- Privacidad — por pieza
+
+Cómo capturar el nombre para que Analytics lo agrupe bien:
+- Un modelo por renglón (la app rechaza "17, 11, 13, 15").
+- iPhone: `13`, `ip 13` e `iphone 13` son lo mismo; `16pm` = `16 pro max`.
+- Samsung a secas: `a24`, `s23 fe`. OPPO con prefijo: `oppo a58` u `op a38`.
+- Las micas que sirven para varios modelos se agrupan en `analytics/aliases.csv` (ej. `a15`, `a24` y `a34` → "Samsung Galaxy A15/A24/A34"; `a16`, `a17` y `a26` → "Samsung Galaxy A16/A17/A26").
 
 ### 2. **Hidrogel**
 Opciones disponibles:

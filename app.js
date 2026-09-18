@@ -25,7 +25,7 @@ async function saveProducts(products) {
 
 function clearAllProductLists() {
     const lists = [
-        'micas9DList', 'micas9HList', 'micasPrivacidadList',
+        'micas9DList', 'micas9HList', 'micasPrivacidadList', 'micasSinTipoList',
         'hidrogelList', 'fundasList', 'fundasNuevasList',
         'unaHoraList', 'refaccionesList', 'otrosList'
     ];
@@ -35,6 +35,9 @@ function clearAllProductLists() {
 function renderAllProducts(products) {
     clearAllProductLists();
     products.forEach((product, index) => addProductToDOM(product, index));
+    // Micas viejas sin tipo: suman al subtotal, así que se muestran para poder borrarlas
+    document.getElementById('micasSinTipoHeader').style.display =
+        document.getElementById('micasSinTipoList').children.length ? '' : 'none';
     updateTotalPrice();
 }
 
@@ -42,7 +45,7 @@ function renderAllProducts(products) {
 function getProductList(product) {
     if (product.category === 'Micas') {
         const map = { '9D': 'micas9DList', '9H': 'micas9HList', 'Privacidad': 'micasPrivacidadList' };
-        return document.getElementById(map[product.type]);
+        return document.getElementById(map[product.type] ?? 'micasSinTipoList');
     }
     if (product.category === 'Hidrogel')      return document.getElementById('hidrogelList');
     if (product.category === 'Fundas')         return document.getElementById('fundasList');
@@ -184,6 +187,17 @@ document.getElementById('addProductBtn').onclick = async function () {
         ? document.querySelector(`input[name="${typeMap[category]}"]:checked`)
         : null;
 
+    // Analytics cuenta micas por tipo y por modelo: sin tipo o con varios
+    // modelos en un renglón ("17, 11, 13, 15") no se pueden atribuir.
+    if (category === 'Micas' && !typeInput) {
+        showToast('Selecciona el tipo de mica (9D, 9H o Privacidad).', 'error');
+        return;
+    }
+    if (category === 'Micas' && name.replace(/[\s.,;]+$/, '').includes(',')) {
+        showToast('Un modelo por renglón: agrega cada mica por separado.', 'error', 5000);
+        return;
+    }
+
     const colors = category === 'Fundas'
         ? [...document.querySelectorAll('#fundaColors input:checked')].map(c => c.value)
         : [];
@@ -255,6 +269,7 @@ async function registrarCompraMica(product) {
         });
     } catch (err) {
         console.error('Error registrando analytics de mica:', err);
+        showToast(`"${product.name}" no se registró en Analytics. Revisa tu conexión.`, 'error', 6000);
     }
 }
 

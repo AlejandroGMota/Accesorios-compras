@@ -499,6 +499,17 @@ select:focus {
     font-family: 'Playfair Display', Georgia, serif;
 }
 
+.stat-sub {
+    font-size: 0.78em;
+    color: var(--text-muted);
+}
+
+#nota-resumen:empty,
+#nota-ranking:empty { display: none; }
+
+#nota-resumen { margin: 14px 0 0; }
+#nota-ranking { margin: 12px 0 0; }
+
 /* ========== Analytics: tabla ranking ========== */
 .table-wrapper {
     overflow-x: auto;
@@ -534,6 +545,10 @@ select:focus {
 
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover td { background: var(--primary-light); }
+.data-table td.sin-alias { font-style: italic; color: var(--text-muted); }
+#tabla-ranking td:not(:first-child) { white-space: nowrap; }
+#tabla-ranking td:first-child { min-width: 140px; }
+.data-table .cero { color: var(--border); }
 
 /* ========== Analytics: gráficas ========== */
 .chart-container {
@@ -561,6 +576,27 @@ select:focus {
     margin-bottom: 10px;
     font-size: 0.93em;
     color: var(--text);
+}
+
+.recomendacion-detalle {
+    display: block;
+    font-size: 0.82em;
+    color: var(--text-muted);
+}
+
+.proyeccion-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.proyeccion-tipo {
+    font-size: 0.78em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-muted);
+    margin: 0 0 10px;
 }
 
 .recomendacion-tipo {

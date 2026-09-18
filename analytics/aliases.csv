@@ -41,6 +41,7 @@ ip14,iPhone 13/13 Pro/14
 iphone 14,iPhone 13/13 Pro/14
 13 pro max,iPhone 13 Pro Max/14 Plus
 13 pm,iPhone 13 Pro Max/14 Plus
+13pm,iPhone 13 Pro Max/14 Plus
 ip13promax,iPhone 13 Pro Max/14 Plus
 14 plus,iPhone 13 Pro Max/14 Plus
 ip14plus,iPhone 13 Pro Max/14 Plus
@@ -50,6 +51,7 @@ ip14pro,iPhone 14 Pro
 iphone 14 pro,iPhone 14 Pro
 14 pro max,iPhone 14 Pro Max
 14 pm,iPhone 14 Pro Max
+14pm,iPhone 14 Pro Max
 ip14promax,iPhone 14 Pro Max
 iphone 14 pro max,iPhone 14 Pro Max
 15,iPhone 15
@@ -62,6 +64,7 @@ ip15pro,iPhone 15 Pro
 iphone 15 pro,iPhone 15 Pro
 15 pro max,iPhone 15 Pro Max
 15 pm,iPhone 15 Pro Max
+15pm,iPhone 15 Pro Max
 ip15promax,iPhone 15 Pro Max
 16,iPhone 16
 ip16,iPhone 16
@@ -72,8 +75,13 @@ ip16plus,iPhone 16 Plus
 ip16pro,iPhone 16 Pro
 16 pro max,iPhone 16 Pro Max
 16 pm,iPhone 16 Pro Max
+16pm,iPhone 16 Pro Max
 ip16promax,iPhone 16 Pro Max
+17,iPhone 17
+ip17,iPhone 17
+iphone 17,iPhone 17
 17 pro max,iPhone 17 Pro Max
+17pm,iPhone 17 Pro Max
 17 pm,iPhone 17 Pro Max
 ip17promax,iPhone 17 Pro Max
 s21,Samsung Galaxy S21
@@ -84,29 +92,53 @@ galaxy s24,Samsung Galaxy S24
 s24 ultra,Samsung Galaxy S24 Ultra
 s25,Samsung Galaxy S25
 s25 ultra,Samsung Galaxy S25 Ultra
+s23 fe,Samsung Galaxy S23 FE
 a05,Samsung Galaxy A05/A06
 a 05,Samsung Galaxy A05/A06
 a06,Samsung Galaxy A05/A06
 a 06,Samsung Galaxy A05/A06
 a05/06,Samsung Galaxy A05/A06
+a07,Samsung Galaxy A07
+a 07,Samsung Galaxy A07
 a10s,Samsung Galaxy A10s
 a 10s,Samsung Galaxy A10s
 a14,Samsung Galaxy A14
 a 14,Samsung Galaxy A14
-a16,Samsung Galaxy A16
-a 16,Samsung Galaxy A16
+a15,Samsung Galaxy A15/A24/A34
+a 15,Samsung Galaxy A15/A24/A34
+a16,Samsung Galaxy A16/A17/A26
+a 16,Samsung Galaxy A16/A17/A26
+a17,Samsung Galaxy A16/A17/A26
+a 17,Samsung Galaxy A16/A17/A26
+a16/a17,Samsung Galaxy A16/A17/A26
+a16/17,Samsung Galaxy A16/A17/A26
+samsung galaxy a16,Samsung Galaxy A16/A17/A26
+a26,Samsung Galaxy A16/A17/A26
+a 26,Samsung Galaxy A16/A17/A26
+a16/a17/a26,Samsung Galaxy A16/A17/A26
+a16/17/26,Samsung Galaxy A16/A17/A26
+a16/a26,Samsung Galaxy A16/A17/A26
+a17/a26,Samsung Galaxy A16/A17/A26
 a20,Samsung Galaxy A20
 a 20,Samsung Galaxy A20
 a20s,Samsung Galaxy A20s
 a 20s,Samsung Galaxy A20s
 a21s,Samsung Galaxy A21s
 a 21s,Samsung Galaxy A21s
-a24,Samsung Galaxy A24
-a 24,Samsung Galaxy A24
+a24,Samsung Galaxy A15/A24/A34
+a 24,Samsung Galaxy A15/A24/A34
 a25,Samsung Galaxy A25
 a 25,Samsung Galaxy A25
 a32,Samsung Galaxy A32
 a 32,Samsung Galaxy A32
+a34,Samsung Galaxy A15/A24/A34
+a 34,Samsung Galaxy A15/A24/A34
+a15/a24/a34,Samsung Galaxy A15/A24/A34
+a15/24/34,Samsung Galaxy A15/A24/A34
+a15/a24,Samsung Galaxy A15/A24/A34
+a24/a34,Samsung Galaxy A15/A24/A34
+a15/a34,Samsung Galaxy A15/A24/A34
+samsung galaxy a24,Samsung Galaxy A15/A24/A34
 a35,Samsung Galaxy A35/A55
 a 35,Samsung Galaxy A35/A55
 a55,Samsung Galaxy A35/A55
@@ -130,9 +162,13 @@ a 80,Samsung Galaxy A80
 g60,Motorola Moto G60
 g 60,Motorola Moto G60
 g84,Motorola Moto G84
+g85,Motorola Moto G85
+moto g85,Motorola Moto G85
+moto g85 5g,Motorola Moto G85
 g54,Motorola Moto G54
 g34,Motorola Moto G34
 g14,Motorola Moto G14
+g06,Motorola Moto G06
 g9 play,Motorola Moto G9 Play
 g9play,Motorola Moto G9 Play
 g9 power,Motorola Moto G9 Power
@@ -153,11 +189,14 @@ e30/e40,Motorola Moto E30/E32/E40
 e32,Motorola Moto E30/E32/E40
 e32/e40,Motorola Moto E30/E32/E40
 e32/40,Motorola Moto E30/E32/E40
+motorola moto e40,Motorola Moto E30/E32/E40
 e6i,Motorola E6i
 redmi note 14,Xiaomi Redmi Note 14
 note 14,Xiaomi Redmi Note 14
 redmi note 13,Xiaomi Redmi Note 13
 note 13,Xiaomi Redmi Note 13
+note 13 pro,Xiaomi Redmi Note 13 Pro
+redmi note 13 pro,Xiaomi Redmi Note 13 Pro
 redmi note 12,Xiaomi Redmi Note 12
 note 12,Xiaomi Redmi Note 12
 redmi note 11,Xiaomi Redmi Note 11/10
@@ -165,6 +204,8 @@ note 11,Xiaomi Redmi Note 11/10
 redmi note 10,Xiaomi Redmi Note 11/10
 note 10,Xiaomi Redmi Note 11/10
 note 11/10,Xiaomi Redmi Note 11/10
+note 11 pro,Xiaomi Redmi Note 11 Pro
+redmi note 11 pro,Xiaomi Redmi Note 11 Pro
 note 10 pro,Xiaomi Redmi Note 10 Pro
 redmi note 10 pro,Xiaomi Redmi Note 10 Pro
 note 10 pro redmi,Xiaomi Redmi Note 10 Pro
@@ -178,23 +219,34 @@ redmi 12c,Xiaomi Redmi 12C/10C
 redmi 10c,Xiaomi Redmi 12C/10C
 10c,Xiaomi Redmi 12C/10C
 12c/10c,Xiaomi Redmi 12C/10C
+redmi 13,Xiaomi Redmi 13
 redmi 13c,Xiaomi Redmi 13C
 13c,Xiaomi Redmi 13C
 redmi 14c,Xiaomi Redmi 14C
 14c,Xiaomi Redmi 14C
 14 c,Xiaomi Redmi 14C
 x9,Honor X9
+x8b,Honor X8b
+x8d,Honor X8d
+x8d micas normal,Honor X8d
+honor 90,Honor 90
+magic 8 lite,Honor Magic 8 Lite
+magic 8 lite cristal curvo,Honor Magic 8 Lite
 poco x6,Xiaomi POCO X6
 poco m6,Xiaomi POCO M6
 reno 6 lite,Reno 7 Lite
 reno 7 lite,Reno 7 Lite
 reno 7,OPPO Reno 7
+oppo reno 7,OPPO Reno 7
 reno 10,OPPO Reno 10
+oppo reno 10,OPPO Reno 10
 reno 11,OPPO Reno 11
+oppo reno 11,OPPO Reno 11
 reno 13,OPPO Reno 13
+oppo reno 13,OPPO Reno 13
 oppo a58,OPPO A58
-a58,OPPO A58
 oppo 40,OPPO A40
 oppo a40,OPPO A40
 y9s,Huawei Y9s
+y9 prime,Huawei Y9 Prime
 p30 lite,Huawei P30 Lite
