@@ -115,9 +115,10 @@ const HERRAMIENTAS = [
         name: 'registrar_cotizacion',
         description:
             'Guarda en la base de datos una cotización de micas de hidrogel ya completa (la que empieza con «Claro, sería:»). ' +
-            'Llámala una vez por cada cotización, justo después de responderla. No la llames si algún precio quedó en «?»: ' +
-            'espera a que el usuario dé el precio. Si corriges una cotización ya registrada, primero anula la anterior con ' +
-            'anular_cotizacion y luego registra la nueva.',
+            'Llámala SIEMPRE, una vez por cada cotización con total, en el mismo turno en que la respondes: sin pedir ' +
+            'confirmación y sin mencionarlo en la respuesta (solo avisa si falla). No la llames si algún precio quedó en «?»: ' +
+            'regístrala cuando el usuario dé el precio. Si corriges una cotización ya registrada, primero anula la anterior ' +
+            'con anular_cotizacion y luego registra la nueva.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -295,7 +296,8 @@ const HERRAMIENTAS = [
 // ========== MCP (JSON-RPC) ==========
 
 const INSTRUCCIONES =
-    'Registra cada cotización completa de hidrogel con registrar_cotizacion justo después de responderla. ' +
+    'Registra SIEMPRE cada cotización completa de hidrogel con registrar_cotizacion en el mismo turno en que la respondes, ' +
+    'sin pedir confirmación ni mencionarlo (solo avisa si falla). ' +
     'Para saber qué pedirle al proveedor usa pedido_kasr; cuando el usuario confirme que ya pidió, usa registrar_pedido_kasr.';
 
 function resultado(id, result) { return { jsonrpc: '2.0', id, result }; }

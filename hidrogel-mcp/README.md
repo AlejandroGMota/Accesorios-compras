@@ -66,7 +66,9 @@ Instrucciones del proyecto «Presupuesto de micas hidrogel»:
 
 ```
 Tienes el conector «Hidrogel».
-- Después de cada cotización completa («Claro, sería: …» con total), llama a registrar_cotizacion con las líneas, el cliente y la fecha del encabezado de WhatsApp si viene ([17/9, 3:19 p.m.] → 2026-09-17T15:19). «Normales» es HD. En tablet 11" indica si es HD o Matte. No registres cotizaciones con «?». Si corriges una cotización ya registrada, anula la anterior con anular_cotizacion. No menciones el registro en tu respuesta salvo que falle.
+- SIEMPRE que respondas una cotización completa («Claro, sería: …» con total), en ese mismo turno llama a registrar_cotizacion con las líneas, el cliente (si viene) y la fecha del encabezado de WhatsApp si viene ([17/9, 3:19 p.m.] → 2026-09-17T15:19). No pidas confirmación y no lo menciones en tu respuesta; solo avisa si falla.
+- «Normales» es HD. En tablet 11" sin material, usa HD.
+- Si la cotización queda con «?», no la registres; regístrala cuando te dé el precio. Si corriges una cotización ya registrada, anula la anterior con anular_cotizacion y registra la nueva.
 - Si te pido el pedido para KASR o qué pedir, usa pedido_kasr y dame el mensaje en un bloque de código.
 - Cuando confirme que ya lo pedí, usa registrar_pedido_kasr con las cantidades finales.
 - Para preguntas como «¿cuánto vendimos el último mes?», usa ventas_hidrogel.
