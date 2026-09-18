@@ -1,13 +1,72 @@
-// ========== Carga de aliases ==========
+// ========== Unidades ==========
+// 9D y 9H se compran por caja de 10 pzs: en esos registros `cantidad` son cajas
+// y `precio` es por caja. Privacidad se compra por pieza. Todo lo que compara
+// tipos entre sí (totales, %, dona, tendencia) se cuenta en piezas.
+
+const TIPOS        = ['9D', '9H', 'Privacidad'];
+const PZS_POR_CAJA = { '9D': 10, '9H': 10, 'Privacidad': 1 };
+const COLORES      = { '9D': '#6c63ff', '9H': '#48bfe3', 'Privacidad': '#f4a261' };
+
+const esPorCaja = tipo => PZS_POR_CAJA[tipo] > 1;
+const fmtNum    = n => n.toLocaleString('es-MX', { maximumFractionDigits: 1 });
+const fmtDinero = n => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const plural    = (n, uno, varios) => `${fmtNum(n)} ${n === 1 ? uno : varios}`;
+
+// "280 pzs (28 cajas)" para 9D/9H, "25 pzs" para privacidad
+function fmtPiezas(pzs, tipo) {
+    const base = `${fmtNum(pzs)} pzs`;
+    return tipo && esPorCaja(tipo) ? `${base} (${plural(pzs / PZS_POR_CAJA[tipo], 'caja', 'cajas')})` : base;
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function sumaPor(docs, clave, valor = d => d.pzs) {
+    return docs.reduce((acc, d) => {
+        const k = clave(d);
+        acc[k] = (acc[k] || 0) + valor(d);
+        return acc;
+    }, {});
+}
+
+const mayor = obj => Object.entries(obj).sort((a, b) => b[1] - a[1])[0];
+
+// ========== Normalización de nombres ==========
+
+// Clave para comparar nombres: minúsculas, sin notas de encargo ("deja 50…",
+// "encargó…"), sin teléfonos y sin puntuación sobrante. Así "E40," y "e40",
+// o "Y9 prime" y "y9 prime", caen en el mismo modelo.
+// En iPhone se quita el prefijo: "13", "ip 13", "ip13" e "iPhone 13" dan "13",
+// y "13pm" / "ip13promax" / "iphone 13 pro max" dan "13 pro max".
+// "op a38" es OPPO: se expande a "oppo a38".
+function claveNombre(nombre) {
+    return String(nombre || '')
+        .toLowerCase()
+        .replace(/\s+(deja|dejo|dejó|encargo|encargó)(?=\s|$).*$/, '')
+        .replace(/\d{7,}/g, '')
+        .replace(/[\s.,;:]+$/, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^op /, 'oppo ')
+        .replace(/^(iphone|ip|i) ?(?=\d)/, '')
+        .replace(/^iphone ?(?=x|se\b)/, '')
+        .replace(/^(\d{1,2}) ?(pm|pro ?max)$/, '$1 pro max')
+        .replace(/^(\d{1,2}) ?(pro|plus|mini)$/, '$1 $2');
+}
 
 async function cargarAliases() {
     try {
         const resp = await fetch('./aliases.csv');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const text = await resp.text();
         const map = new Map();
         text.trim().split('\n').slice(1).forEach(linea => {
             const [alias, nombre] = linea.split(',').map(s => s.trim());
-            if (alias && nombre) map.set(alias.toLowerCase(), nombre);
+            if (!alias || !nombre) return;
+            map.set(claveNombre(alias), nombre);
+            // Registros viejos guardaron el nombre ya normalizado
+            if (!map.has(claveNombre(nombre))) map.set(claveNombre(nombre), nombre);
         });
         return map;
     } catch (e) {
@@ -16,9 +75,38 @@ async function cargarAliases() {
     }
 }
 
-function normalizarNombre(nombreOriginal, aliasMap) {
-    const clave = (nombreOriginal || '').trim().toLowerCase();
-    return aliasMap.get(clave) ?? (nombreOriginal || '').trim();
+// Convención de captura para modelos sin alias: "a24" / "s23 fe" a secas son
+// Samsung; OPPO siempre lleva prefijo ("oppo a58", "op a38").
+const PATRONES_MODELO = [
+    [/^a ?(\d{2}s?)$/,                     m => `Samsung Galaxy A${m[1]}`],
+    [/^s ?(\d{2})( ?(fe|plus|ultra))?$/,   m => `Samsung Galaxy S${m[1]}${m[3] ? ` ${m[3] === 'fe' ? 'FE' : m[3][0].toUpperCase() + m[3].slice(1)}` : ''}`],
+    [/^oppo a ?(\d{2})$/,                  m => `OPPO A${m[1]}`],
+];
+
+function modeloPorPatron(clave) {
+    for (const [re, nombre] of PATRONES_MODELO) {
+        const m = clave.match(re);
+        if (m) return nombre(m);
+    }
+    return null;
+}
+
+// Modelo de un registro: primero por lo que se escribió en la lista y luego por
+// el nombre guardado, que en registros viejos viene de otra versión de aliases
+// (así un "a58" viejo guardado como "OPPO A58" no se vuelve Samsung).
+function modeloDe(d, aliasMap) {
+    for (const n of [d.nombre_original, d.nombre]) {
+        const modelo = aliasMap.get(claveNombre(n));
+        if (modelo) return { modelo, conAlias: true };
+    }
+    const clave  = claveNombre(d.nombre_original || d.nombre);
+    const modelo = modeloPorPatron(clave);
+    return modelo ? { modelo, conAlias: true } : { modelo: clave || '(sin nombre)', conAlias: false };
+}
+
+function fechaDe(d) {
+    const fecha = d.fecha?.toDate ? d.fecha.toDate() : new Date(d.año, (d.mes || 1) - 1, 15);
+    return isNaN(fecha) ? null : fecha;
 }
 
 // ========== Carga de datos de Firestore ==========
@@ -28,59 +116,83 @@ async function cargarDatos() {
     return snap.docs.map(d => d.data());
 }
 
+function prepararDocs(crudos, aliasMap) {
+    const docs = [];
+    let sinTipo = 0;
+    for (const d of crudos) {
+        if (!PZS_POR_CAJA[d.tipo]) { sinTipo++; continue; }
+        const cantidad = Number(d.cantidad) || 0;
+        docs.push({
+            ...modeloDe(d, aliasMap),
+            tipo:      d.tipo,
+            cantidad,                                   // cajas (9D/9H) o piezas (Privacidad)
+            pzs:       cantidad * PZS_POR_CAJA[d.tipo],
+            invertido: (Number(d.precio) || 0) * cantidad,
+            fecha:     fechaDe(d),
+        });
+    }
+    return { docs, sinTipo };
+}
+
 // ========== Dashboard: resumen ==========
 
-function renderDashboard(docs) {
-    const totalUds = docs.reduce((s, d) => s + (d.cantidad || 0), 0);
-    const totalInv = docs.reduce((s, d) => s + (d.precio || 0) * (d.cantidad || 0), 0);
+function renderDashboard(docs, sinTipo) {
+    const totalPzs = docs.reduce((s, d) => s + d.pzs, 0);
+    const totalInv = docs.reduce((s, d) => s + d.invertido, 0);
+    const cantidadPorTipo = sumaPor(docs, d => d.tipo, d => d.cantidad);
+    const mejorModelo = mayor(sumaPor(docs, d => d.modelo));
+    const mejorTipo   = mayor(sumaPor(docs, d => d.tipo));
 
-    // Modelo más vendido
-    const porModelo = {};
-    docs.forEach(d => { porModelo[d.nombre] = (porModelo[d.nombre] || 0) + (d.cantidad || 0); });
-    const mejorModelo = Object.entries(porModelo).sort((a, b) => b[1] - a[1])[0];
+    document.getElementById('stat-total').textContent = `${fmtNum(totalPzs)} pzs`;
+    document.getElementById('stat-total-detalle').textContent = TIPOS
+        .map(t => esPorCaja(t)
+            ? `${plural(cantidadPorTipo[t] || 0, 'caja', 'cajas')} ${t}`
+            : `${fmtNum(cantidadPorTipo[t] || 0)} pzs ${t.toLowerCase()}`)
+        .join(' · ');
+    document.getElementById('stat-invertido').textContent = fmtDinero(totalInv);
+    document.getElementById('stat-modelo').textContent = mejorModelo ? `${mejorModelo[0]} (${fmtNum(mejorModelo[1])} pzs)` : '—';
+    document.getElementById('stat-tipo').textContent   = mejorTipo   ? `${mejorTipo[0]} (${fmtPiezas(mejorTipo[1], mejorTipo[0])})` : '—';
 
-    // Tipo más vendido
-    const porTipo = {};
-    docs.forEach(d => { porTipo[d.tipo] = (porTipo[d.tipo] || 0) + (d.cantidad || 0); });
-    const mejorTipo = Object.entries(porTipo).sort((a, b) => b[1] - a[1])[0];
-
-    document.getElementById('stat-total').textContent   = totalUds.toLocaleString('es-MX');
-    document.getElementById('stat-invertido').textContent = `$${totalInv.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-    document.getElementById('stat-modelo').textContent  = mejorModelo ? `${mejorModelo[0]} (${mejorModelo[1]} uds)` : '—';
-    document.getElementById('stat-tipo').textContent    = mejorTipo   ? `${mejorTipo[0]} (${mejorTipo[1]} uds)` : '—';
+    document.getElementById('nota-resumen').textContent = sinTipo
+        ? `${plural(sinTipo, 'registro', 'registros')} sin tipo de mica no ${sinTipo === 1 ? 'se cuenta' : 'se cuentan'} aquí.`
+        : '';
 }
 
 // ========== Ranking por modelo ==========
 
 let rankingData  = [];
-let sortCol      = 'total';
+let sortCol      = 'pzs';
 let sortDir      = -1; // -1 = desc, 1 = asc
 
 function buildRankingData(docs) {
-    const totalGlobal = docs.reduce((s, d) => s + (d.cantidad || 0), 0);
+    const totalPzs = docs.reduce((s, d) => s + d.pzs, 0);
     const map = {};
 
-    docs.forEach(d => {
-        if (!map[d.nombre]) map[d.nombre] = { nombre: d.nombre, '9D': 0, '9H': 0, Privacidad: 0 };
-        map[d.nombre][d.tipo] = (map[d.nombre][d.tipo] || 0) + (d.cantidad || 0);
-    });
+    for (const d of docs) {
+        map[d.modelo] ??= { nombre: d.modelo, conAlias: d.conAlias, '9D': 0, '9H': 0, Privacidad: 0, pzs: 0, invertido: 0 };
+        const row = map[d.modelo];
+        row[d.tipo]    += d.cantidad;
+        row.pzs        += d.pzs;
+        row.invertido  += d.invertido;
+    }
 
-    return Object.values(map).map(row => ({
-        ...row,
-        total: row['9D'] + row['9H'] + row.Privacidad,
-        pct:   totalGlobal > 0 ? ((row['9D'] + row['9H'] + row.Privacidad) / totalGlobal * 100).toFixed(1) : '0.0',
-    }));
+    return Object.values(map).map(row => ({ ...row, pct: totalPzs > 0 ? row.pzs / totalPzs * 100 : 0 }));
 }
 
 function renderRanking(docs) {
     rankingData = buildRankingData(docs);
     sortAndRenderRanking();
 
+    const sinAlias = rankingData.filter(r => !r.conAlias).length;
+    document.getElementById('nota-ranking').textContent = sinAlias
+        ? `En cursiva: ${plural(sinAlias, 'nombre que no está', 'nombres que no están')} en aliases.csv y no se agrupan con su modelo.`
+        : '';
+
     document.querySelectorAll('#tabla-ranking th.sortable').forEach(th => {
         th.addEventListener('click', () => {
             const col = th.dataset.col;
             if (sortCol === col) sortDir *= -1;
-            else { sortCol = col; sortDir = -1; }
+            else { sortCol = col; sortDir = col === 'nombre' ? 1 : -1; }
             sortAndRenderRanking();
         });
     });
@@ -88,22 +200,23 @@ function renderRanking(docs) {
 
 function sortAndRenderRanking() {
     const sorted = [...rankingData].sort((a, b) => {
-        const av = sortCol === 'nombre' ? a[sortCol] : parseFloat(a[sortCol]);
-        const bv = sortCol === 'nombre' ? b[sortCol] : parseFloat(b[sortCol]);
-        if (av < bv) return sortDir;
-        if (av > bv) return -sortDir;
-        return 0;
+        const cmp = sortCol === 'nombre'
+            ? a.nombre.localeCompare(b.nombre, 'es')
+            : a[sortCol] - b[sortCol];
+        return cmp * sortDir;
     });
 
+    const celda = n => n ? fmtNum(n) : '<span class="cero">–</span>';
     const tbody = document.getElementById('tbody-ranking');
     tbody.innerHTML = sorted.map(row => `
         <tr>
-            <td>${row.nombre}</td>
-            <td>${row['9D']}</td>
-            <td>${row['9H']}</td>
-            <td>${row['Privacidad']}</td>
-            <td><strong>${row.total}</strong></td>
-            <td>${row.pct}%</td>
+            <td${row.conAlias ? '' : ' class="sin-alias"'}>${escapeHtml(row.nombre)}</td>
+            <td>${celda(row['9D'])}</td>
+            <td>${celda(row['9H'])}</td>
+            <td>${celda(row['Privacidad'])}</td>
+            <td><strong>${fmtNum(row.pzs)}</strong></td>
+            <td>${fmtDinero(row.invertido)}</td>
+            <td>${row.pct.toFixed(1)}%</td>
         </tr>
     `).join('');
 }
@@ -111,17 +224,15 @@ function sortAndRenderRanking() {
 // ========== Gráfica de dona: distribución por tipo ==========
 
 function renderDonut(docs) {
-    const total9D        = docs.filter(d => d.tipo === '9D').reduce((s, d) => s + (d.cantidad || 0), 0);
-    const total9H        = docs.filter(d => d.tipo === '9H').reduce((s, d) => s + (d.cantidad || 0), 0);
-    const totalPrivacidad = docs.filter(d => d.tipo === 'Privacidad').reduce((s, d) => s + (d.cantidad || 0), 0);
+    const pzsPorTipo = sumaPor(docs, d => d.tipo);
 
     new Chart(document.getElementById('chart-donut'), {
         type: 'doughnut',
         data: {
-            labels: ['9D', '9H', 'Privacidad'],
+            labels: TIPOS,
             datasets: [{
-                data: [total9D, total9H, totalPrivacidad],
-                backgroundColor: ['#6c63ff', '#48bfe3', '#f4a261'],
+                data: TIPOS.map(t => pzsPorTipo[t] || 0),
+                backgroundColor: TIPOS.map(t => COLORES[t]),
                 borderWidth: 0,
             }]
         },
@@ -130,7 +241,7 @@ function renderDonut(docs) {
                 legend: { position: 'bottom' },
                 tooltip: {
                     callbacks: {
-                        label: ctx => ` ${ctx.label}: ${ctx.raw} uds`
+                        label: ctx => ` ${ctx.label}: ${fmtPiezas(ctx.raw, ctx.label)}`
                     }
                 }
             }
@@ -140,19 +251,28 @@ function renderDonut(docs) {
 
 // ========== Gráfica de líneas: tendencia mensual ==========
 
+const claveMes = f => `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}`;
+
+// Todos los meses entre la primera y la última compra, incluidos los vacíos
+function rangoMeses(docs) {
+    const fechas = docs.map(d => d.fecha).sort((a, b) => a - b);
+    const meses  = [];
+    const cursor = new Date(fechas[0].getFullYear(), fechas[0].getMonth(), 1);
+    while (cursor <= fechas[fechas.length - 1]) {
+        meses.push(claveMes(cursor));
+        cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return meses;
+}
+
 function renderTendencia(docs) {
-    // Obtener meses únicos con datos, ordenados
-    const mesesSet = new Set(docs.map(d => `${d.año}-${String(d.mes).padStart(2, '0')}`));
-    const meses = [...mesesSet].sort();
+    const conFecha = docs.filter(d => d.fecha);
+    if (!conFecha.length) return;
 
-    const serie = (tipo) => meses.map(m => {
-        const [anio, mes] = m.split('-').map(Number);
-        return docs
-            .filter(d => d.año === anio && d.mes === mes && d.tipo === tipo)
-            .reduce((s, d) => s + (d.cantidad || 0), 0);
-    });
+    const meses = rangoMeses(conFecha);
+    const pzsPorMesTipo = sumaPor(conFecha, d => `${claveMes(d.fecha)}|${d.tipo}`);
 
-    // Formato de etiquetas legible: "Apr 2026"
+    // Formato de etiquetas legible: "abr 2026"
     const labels = meses.map(m => {
         const [anio, mes] = m.split('-').map(Number);
         return new Date(anio, mes - 1).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
@@ -162,92 +282,96 @@ function renderTendencia(docs) {
         type: 'line',
         data: {
             labels,
-            datasets: [
-                {
-                    label: '9D',
-                    data: serie('9D'),
-                    borderColor: '#6c63ff',
-                    backgroundColor: 'rgba(108,99,255,0.1)',
-                    tension: 0.3,
-                    fill: true,
-                },
-                {
-                    label: '9H',
-                    data: serie('9H'),
-                    borderColor: '#48bfe3',
-                    backgroundColor: 'rgba(72,191,227,0.1)',
-                    tension: 0.3,
-                    fill: true,
-                },
-                {
-                    label: 'Privacidad',
-                    data: serie('Privacidad'),
-                    borderColor: '#f4a261',
-                    backgroundColor: 'rgba(244,162,97,0.1)',
-                    tension: 0.3,
-                    fill: true,
-                },
-            ]
+            datasets: TIPOS.map(tipo => ({
+                label: tipo,
+                data: meses.map(m => pzsPorMesTipo[`${m}|${tipo}`] || 0),
+                borderColor: COLORES[tipo],
+                backgroundColor: `${COLORES[tipo]}1a`,
+                tension: 0.3,
+                fill: true,
+            })),
         },
         options: {
-            spanGaps: false,
-            plugins: { legend: { position: 'top' } },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${fmtPiezas(ctx.raw, ctx.dataset.label)}`
+                    }
+                }
+            },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                y: { beginAtZero: true, ticks: { precision: 0 } }
             }
         }
     });
 }
 
-// ========== Proyecciones SMA(2) ==========
+// ========== Proyecciones ==========
+// Ritmo de compra (piezas por día) de los últimos 60 días, llevado a los días
+// del mes siguiente. Usar días y no meses calendario evita que el mes en curso,
+// que va a medias, jale la proyección hacia abajo.
+
+const VENTANA_DIAS = 60;
+const DIA_MS       = 24 * 60 * 60 * 1000;
+const TOP_POR_TIPO = 5;
 
 function calcularProyecciones(docs) {
-    const meses = [...new Set(docs.map(d => `${d.año}-${String(d.mes).padStart(2, '0')}`))]
-        .sort();
+    const conFecha = docs.filter(d => d.fecha);
+    if (!conFecha.length) return null;
 
-    if (meses.length < 2) return null;
+    const hoy     = new Date();
+    const primera = Math.min(...conFecha.map(d => d.fecha));
+    const dias    = Math.min(VENTANA_DIAS, (hoy - primera) / DIA_MS);
+    if (dias < 28) return null;
 
-    const ultimosDos = meses.slice(-2);
+    const proximo     = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+    const diasProximo = new Date(proximo.getFullYear(), proximo.getMonth() + 1, 0).getDate();
+    const factorEstacional = proximo.getMonth() === 11 ? 1.3 : 1.0;
 
-    // Mes siguiente (1-based): si enero actual → febrero siguiente = 2
-    const mesProximo = (new Date().getMonth() + 2) % 12 || 12;
-    const factorEstacional = mesProximo === 12 ? 1.3 : 1.0;
+    const desde  = hoy - dias * DIA_MS;
+    const pzsPor = sumaPor(conFecha.filter(d => d.fecha >= desde), d => `${d.tipo}||${d.modelo}`);
 
-    const agrupado = {};
-    for (const doc of docs) {
-        const claveMes = `${doc.año}-${String(doc.mes).padStart(2, '0')}`;
-        if (!ultimosDos.includes(claveMes)) continue;
-        const clave = `${doc.nombre}||${doc.tipo}`;
-        agrupado[clave] = (agrupado[clave] || 0) + (doc.cantidad || 0);
+    const porTipo = Object.fromEntries(TIPOS.map(t => [t, []]));
+    for (const [clave, pzs] of Object.entries(pzsPor)) {
+        const [tipo, modelo] = clave.split('||');
+        const pzsMes = pzs / dias * diasProximo * factorEstacional;
+        porTipo[tipo].push({ modelo, pzsMes, comprar: Math.ceil(pzsMes / PZS_POR_CAJA[tipo]) });
     }
+    for (const t of TIPOS) porTipo[t] = porTipo[t].sort((a, b) => b.pzsMes - a.pzsMes).slice(0, TOP_POR_TIPO);
 
-    return Object.entries(agrupado)
-        .map(([clave, suma]) => {
-            const [nombre, tipo] = clave.split('||');
-            const proyeccion = Math.ceil((suma / 2) * factorEstacional);
-            return { nombre, tipo, proyeccion };
-        })
-        .sort((a, b) => b.proyeccion - a.proyeccion)
-        .slice(0, 5);
+    return { mes: proximo, dias: Math.round(dias), porTipo };
 }
 
-function renderProyecciones(proyecciones) {
+function renderProyecciones(proy) {
     const contenedor = document.getElementById('proyecciones-contenido');
-    if (!proyecciones) {
-        contenedor.innerHTML = '<p class="muted">Acumulando datos… Las proyecciones estarán disponibles con al menos 2 meses de historial.</p>';
+    if (!proy) {
+        contenedor.innerHTML = '<p class="muted">Acumulando datos… Las proyecciones estarán disponibles con al menos un mes de historial.</p>';
         return;
     }
-    const mesProximo = new Date(new Date().getFullYear(), new Date().getMonth() + 1)
-        .toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+    const mes = proy.mes.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+
+    const tarjeta = (p, tipo) => `
+        <div class="recomendacion">
+            <span>
+                <strong>${escapeHtml(p.modelo)}</strong>
+                ${esPorCaja(tipo) ? `<span class="recomendacion-detalle">≈${fmtNum(Math.round(p.pzsMes))} pzs/mes</span>` : ''}
+            </span>
+            <span class="recomendacion-tipo">~${esPorCaja(tipo) ? plural(p.comprar, 'caja', 'cajas') : `${fmtNum(p.comprar)} pzs`}</span>
+        </div>`;
 
     contenedor.innerHTML = `
-        <p class="chart-note">Basado en el promedio de los últimos 2 meses. Proyección para <strong>${mesProximo}</strong>:</p>
-        ${proyecciones.map(p => `
-            <div class="recomendacion">
-                Comprar <strong>~${p.proyeccion} uds</strong> de <strong>${p.nombre}</strong>
-                <span class="recomendacion-tipo">${p.tipo}</span>
-            </div>
-        `).join('')}
+        <p class="chart-note">Ritmo de compra de los últimos ${proy.dias} días, llevado a <strong>${mes}</strong>. 9D y 9H en cajas de ${PZS_POR_CAJA['9D']} pzs; privacidad en piezas.</p>
+        <div class="proyeccion-grid">
+            ${TIPOS.map(t => `
+                <div>
+                    <h3 class="proyeccion-tipo">${t}</h3>
+                    ${proy.porTipo[t].length
+                        ? proy.porTipo[t].map(p => tarjeta(p, t)).join('')
+                        : '<p class="muted">Sin compras en el periodo.</p>'}
+                </div>
+            `).join('')}
+        </div>
     `;
 }
 
@@ -275,7 +399,8 @@ mostrarPestana(location.hash.slice(1));
 
 window.addEventListener('DOMContentLoaded', async () => {
     try {
-        const [docs] = await Promise.all([cargarDatos(), cargarAliases()]);
+        const [crudos, aliasMap] = await Promise.all([cargarDatos(), cargarAliases()]);
+        const { docs, sinTipo } = prepararDocs(crudos, aliasMap);
 
         if (docs.length === 0) {
             document.querySelector('.stat-grid').innerHTML =
@@ -285,7 +410,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        renderDashboard(docs);
+        renderDashboard(docs, sinTipo);
         renderRanking(docs);
         renderDonut(docs);
         renderTendencia(docs);

@@ -6,14 +6,16 @@
 
 - [ ] Analytics de Fundas (tab bloqueado en `analytics/index.html`)
 - [ ] Agregar el conector `hidrogel-mcp` en claude.ai y sus instrucciones en el proyecto (ver `hidrogel-mcp/README.md`)
-- [ ] Analytics de micas: exigir tipo (9D/9H/Privacidad) al agregar; sin tipo no aparece en la lista ni en ranking/dona/tendencia
-- [ ] Analytics de micas: aplicar `aliases.csv` al leer en el visor (hoy solo se aplica al guardar y no corrige registros viejos)
-- [ ] Analytics de micas: avisar si falla `registrarCompraMica` (hoy solo `console.error`)
+- [ ] Analytics de micas: corregir un producto (borrarlo y volver a agregarlo) lo registra dos veces en `micas_compras`
+- [ ] Analytics de micas: revisar en Firestore los registros de `a07` 9D (28 cajas = 280 pzs; ¿se capturaron piezas en vez de cajas?)
 
 ---
 
 ## Completado
 
+- [x] Analytics de micas: 9D/9H por caja de 10 pzs y Privacidad por pieza (totales, ranking, dona, tendencia y proyección)
+- [x] Analytics de micas: normalizar nombres al leer (aliases + convención iPhone/Samsung/OPPO) y ranking ordenado de mayor a menor
+- [x] Analytics de micas: exigir tipo y un modelo por renglón al agregar; avisar si falla `registrarCompraMica`; mostrar micas sin tipo en la lista
 - [x] Pestaña Hidrogel (`analytics/#hidrogel`) + conector de Claude `hidrogel-mcp`: cotizaciones a Firestore y mensaje de pedido para KASR
 - [x] `hidrogel-mcp` desplegado en la VM de Oracle: `https://hidrogel.alejandrogmota.com/mcp/<token>` (Docker + nginx + certbot)
 - [x] Analytics de micas — implementado (`analytics/index.html` + `analytics/analytics.js`)
