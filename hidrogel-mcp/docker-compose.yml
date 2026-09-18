@@ -1,0 +1,13 @@
+# En la VM: ~/hidrogel-mcp/hidrogel-mcp/docker-compose.yml (lo copia deploy.sh).
+# Los secrets viven en ~/hidrogel-mcp/.env, fuera del repo.
+services:
+  hidrogel-mcp:
+    build:
+      context: ..
+      dockerfile: hidrogel-mcp/Dockerfile
+    image: hidrogel-mcp:latest
+    container_name: hidrogel-mcp
+    restart: unless-stopped
+    env_file: ../.env
+    ports:
+      - "127.0.0.1:8030:8080"

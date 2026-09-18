@@ -25,10 +25,12 @@
 
     <!-- Tabs de categoría -->
     <div class="tab-bar">
-        <button class="tab active">Micas</button>
+        <button class="tab active" data-tab="micas">Micas</button>
         <button class="tab locked" disabled title="Próximamente">Fundas 🔒</button>
-        <button class="tab locked" disabled title="Próximamente">Hidrogel 🔒</button>
+        <button class="tab" data-tab="hidrogel">Hidrogel</button>
     </div>
+
+    <div id="panel-micas" class="tab-panel">
 
     <!-- Resumen -->
     <section class="card">
@@ -57,7 +59,7 @@
     <section class="card">
         <h2>Ranking por modelo</h2>
         <div class="table-wrapper">
-            <table id="tabla-ranking">
+            <table id="tabla-ranking" class="data-table">
                 <thead>
                     <tr>
                         <th class="sortable" data-col="nombre">Modelo ↕</th>
@@ -96,6 +98,93 @@
         <div id="proyecciones-contenido"></div>
     </section>
 
+    </div>
+
+    <div id="panel-hidrogel" class="tab-panel" hidden>
+
+    <!-- Estado del periodo desde el último pedido a KASR -->
+    <section class="card">
+        <h2>Pedido a KASR</h2>
+        <p id="hidro-aviso" class="hidro-aviso muted">Cargando…</p>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="stat-label">Último pedido</span>
+                <span class="stat-value" id="hidro-ultimo">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Días transcurridos</span>
+                <span class="stat-value" id="hidro-dias">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Piezas pedidas</span>
+                <span class="stat-value" id="hidro-pedidas">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Vendidas desde entonces</span>
+                <span class="stat-value" id="hidro-vendidas">—</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hojas: pedido, vendido y cuánto alcanza -->
+    <section class="card">
+        <h2>Hojas</h2>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Hoja</th>
+                        <th>Pedido</th>
+                        <th>Vendido</th>
+                        <th>Queda</th>
+                        <th>Alcanza</th>
+                    </tr>
+                </thead>
+                <tbody id="hidro-hojas"></tbody>
+            </table>
+        </div>
+        <p id="hidro-fuera" class="chart-note"></p>
+    </section>
+
+    <!-- Mensaje para el proveedor -->
+    <section class="card">
+        <h2>Mensaje para KASR</h2>
+        <p class="chart-note">Sugerido: reponer lo vendido desde el último pedido. Ajusta las cantidades antes de copiar.</p>
+        <div id="hidro-cantidades" class="pedido-grid"></div>
+        <pre id="hidro-mensaje" class="mensaje-kasr"></pre>
+        <p id="hidro-tarifa" class="chart-note"></p>
+        <div class="acciones">
+            <button id="hidro-copiar" class="btn-pdf">Copiar mensaje</button>
+        </div>
+
+        <label for="hidro-fecha">Fecha del pedido</label>
+        <input type="date" id="hidro-fecha">
+        <button id="hidro-registrar" class="btn-primary">Registrar como pedido enviado</button>
+        <p id="hidro-estado" class="muted"></p>
+    </section>
+
+    <!-- Cotizaciones registradas desde el chat de Claude -->
+    <section class="card">
+        <h2>Cotizaciones del periodo</h2>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Detalle</th>
+                        <th>Pzs</th>
+                        <th>Total</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="hidro-cotizaciones"></tbody>
+            </table>
+        </div>
+    </section>
+
+    </div>
+
 </div>
 
 <!-- Firebase SDK compat (mismo que app principal) -->
@@ -107,5 +196,6 @@
     const db = firebase.firestore();
 </script>
 <script src="./analytics.js"></script>
+<script type="module" src="./hidrogel.js"></script>
 </body>
 </html>
