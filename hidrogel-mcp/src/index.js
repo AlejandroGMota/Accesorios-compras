@@ -106,19 +106,34 @@ function cotizaciones(n) {
     return `${n} cotizaci${n === 1 ? 'ón' : 'ones'}`;
 }
 
-function resumenLineas(lineas) {
-    return lineas.map(l => `${l.cantidad} ${l.tipo}`).join(', ');
+const dinero = n => `$${formatoNumero(n)}`;
+
+// Texto de la cotización tal como se le responde al cliente
+function textoCotizacion(filas, total) {
+    const renglones = filas.map(l => l.precio === null
+        ? `${l.cantidad} ${l.tipo} × $? = $?`
+        : `${l.cantidad} ${l.tipo} × ${dinero(l.precio)} = ${dinero(l.subtotal)}`);
+    return ['Claro, sería:', ...renglones, `Total: ${total === null ? '$?' : dinero(total)}`].join('\n');
 }
+
+const mismaCotizacion = (a, b) =>
+    a.cliente === b.cliente &&
+    a.lineas.length === b.lineas.length &&
+    a.lineas.every((l, i) => l.tipo === b.lineas[i].tipo && l.cantidad === b.lineas[i].cantidad && l.precio === b.lineas[i].precio);
+
+const VENTANA_DUPLICADO_MS = 10 * 60 * 1000;
 
 const HERRAMIENTAS = [
     {
-        name: 'registrar_cotizacion',
+        name: 'cotizar',
         description:
-            'Guarda en la base de datos una cotización de micas de hidrogel ya completa (la que empieza con «Claro, sería:»). ' +
-            'Llámala SIEMPRE, una vez por cada cotización con total, en el mismo turno en que la respondes: sin pedir ' +
-            'confirmación y sin mencionarlo en la respuesta (solo avisa si falla). No la llames si algún precio quedó en «?»: ' +
-            'regístrala cuando el usuario dé el precio. Si corriges una cotización ya registrada, primero anula la anterior ' +
-            'con anular_cotizacion y luego registra la nueva.',
+            'Arma y guarda una cotización de micas de hidrogel. Úsala SIEMPRE que te pidan precio de micas de hidrogel ' +
+            '(p. ej. «20 hd y 10 priv matte» o un mensaje de WhatsApp con un pedido), ANTES de responder: pásale cada tipo ' +
+            'con su cantidad y el precio unitario que le corresponde según tus instrucciones, y responde con el texto que te ' +
+            'devuelve («Claro, sería: …»), sin volver a hacer las cuentas. La cotización queda registrada sola: no pidas ' +
+            'confirmación ni lo menciones. Si no sabes un precio, omite «precio» en esa línea: el texto sale con «$?» y no se ' +
+            'registra hasta que vuelvas a llamarla con todos los precios. Para corregir una cotización ya registrada, anula ' +
+            'la anterior con anular_cotizacion y vuelve a llamar cotizar.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -134,9 +149,9 @@ const HERRAMIENTAS = [
                                 description: '«Privacidad» a secas = "Privacidad Matte". «Normales» = "HD". Tablet 11" sin decir HD o Matte = "Tablet 11\" HD".',
                             },
                             cantidad: { type: 'integer', minimum: 1 },
-                            precio:   { type: 'number', minimum: 0, description: 'Precio unitario en MXN' },
+                            precio:   { type: 'number', minimum: 0, description: 'Precio unitario en MXN. Omítelo si no lo sabes.' },
                         },
-                        required: ['tipo', 'cantidad', 'precio'],
+                        required: ['tipo', 'cantidad'],
                         additionalProperties: false,
                     },
                 },
@@ -147,8 +162,9 @@ const HERRAMIENTAS = [
                 fecha: {
                     type: 'string',
                     description:
-                        'Fecha del pedido en hora de México: AAAA-MM-DD o AAAA-MM-DDTHH:MM. Tómala del encabezado de WhatsApp ' +
-                        '([17/9, 3:19 p.m.] → 2026-09-17T15:19). Omítela si el mensaje no trae fecha; se usa la hora actual.',
+                        'Solo si el mensaje pegado de WhatsApp trae encabezado con fecha: tómala de ahí, en hora de México, ' +
+                        'como AAAA-MM-DDTHH:MM ([D/M, h:mm p.m.] → año en curso, hora en 24 h). Si no hay encabezado, omítela: ' +
+                        'se usa la hora actual. Nunca la inventes ni la copies de otra cotización.',
                 },
             },
             required: ['lineas'],
@@ -158,20 +174,44 @@ const HERRAMIENTAS = [
             for (const l of lineas) {
                 if (!TIPOS.includes(l.tipo)) throw new Error(`Tipo desconocido "${l.tipo}". Usa uno de: ${TIPOS.join(', ')}.`);
                 if (!Number.isInteger(l.cantidad) || l.cantidad < 1) throw new Error(`Cantidad inválida para ${l.tipo}: ${l.cantidad}.`);
-                if (typeof l.precio !== 'number' || l.precio < 0) throw new Error(`Precio inválido para ${l.tipo}: ${l.precio}.`);
+                if (l.precio !== undefined && (typeof l.precio !== 'number' || l.precio < 0)) throw new Error(`Precio inválido para ${l.tipo}: ${l.precio}.`);
             }
             const ahora = new Date();
             const cuando = fecha ? parsearFecha(fecha) : ahora;
             if (cuando - ahora > 24 * 60 * 60 * 1000) throw new Error(`La fecha ${fecha} está en el futuro.`);
 
-            const filas  = lineas.map(l => ({ tipo: l.tipo, cantidad: l.cantidad, precio: l.precio, subtotal: l.cantidad * l.precio }));
+            const filas = lineas.map(l => ({
+                tipo: l.tipo, cantidad: l.cantidad,
+                precio:   l.precio ?? null,
+                subtotal: l.precio === undefined ? null : l.cantidad * l.precio,
+            }));
             const piezas = filas.reduce((s, l) => s + l.cantidad, 0);
-            const total  = filas.reduce((s, l) => s + l.subtotal, 0);
+            const faltan = filas.filter(l => l.precio === null).map(l => l.tipo);
+            const total  = faltan.length ? null : filas.reduce((s, l) => s + l.subtotal, 0);
+            const texto  = textoCotizacion(filas, total);
+
+            if (faltan.length) {
+                return `${texto}\n\n[No registrada: falta el precio de ${faltan.join(', ')}. ` +
+                       'Cuando lo tengas, vuelve a llamar cotizar con todas las líneas.]';
+            }
+
+            // Si el chat repite la misma cotización (reintento o la vuelven a pedir), no se cuenta dos veces
+            const nueva = { cliente: cliente.trim(), lineas: filas };
+            const recientes = await db.consultar(VENTAS, {
+                desde: new Date(cuando.getTime() - VENTANA_DUPLICADO_MS),
+                hasta: new Date(cuando.getTime() + VENTANA_DUPLICADO_MS),
+            });
+            const repetida = recientes.find(v => !v.anulada && mismaCotizacion(v, nueva));
+            if (repetida) {
+                return `${texto}\n\n[Ya estaba registrada (id ${repetida.id}); no se volvió a contar. No lo menciones.]`;
+            }
+
             const doc = await db.agregar(VENTAS, {
-                fecha: cuando, cliente: cliente.trim(), lineas: filas, piezas, total,
+                fecha: cuando, ...nueva, piezas, total,
                 origen: 'claude', anulada: false, creado: ahora,
             });
-            return `Registrada (id ${doc.id}): ${resumenLineas(filas)} = ${piezas} pzs, $${formatoNumero(total)} MXN, ${formatoFecha(cuando)}.`;
+            return `${texto}\n\n[Registrada (id ${doc.id}): ${piezas} pzs, ${dinero(total)} MXN, ${formatoFecha(cuando)}. ` +
+                   'Responde solo con el texto de arriba; no menciones el registro.]';
         },
     },
     {
@@ -180,7 +220,7 @@ const HERRAMIENTAS = [
         inputSchema: {
             type: 'object',
             properties: {
-                id:     { type: 'string', description: 'id que devolvió registrar_cotizacion' },
+                id:     { type: 'string', description: 'id que devolvió cotizar' },
                 motivo: { type: 'string' },
             },
             required: ['id'],
@@ -296,8 +336,9 @@ const HERRAMIENTAS = [
 // ========== MCP (JSON-RPC) ==========
 
 const INSTRUCCIONES =
-    'Registra SIEMPRE cada cotización completa de hidrogel con registrar_cotizacion en el mismo turno en que la respondes, ' +
-    'sin pedir confirmación ni mencionarlo (solo avisa si falla). ' +
+    'Toda cotización de micas de hidrogel se hace con la herramienta cotizar, ANTES de responder: le pasas tipos, ' +
+    'cantidades y precios, y respondes con el texto que devuelve. Así queda registrada sola; no pidas confirmación ' +
+    'ni lo menciones (solo avisa si falla). ' +
     'Para saber qué pedirle al proveedor usa pedido_kasr; cuando el usuario confirme que ya pidió, usa registrar_pedido_kasr.';
 
 function resultado(id, result) { return { jsonrpc: '2.0', id, result }; }
@@ -327,11 +368,17 @@ async function atender(msg, env) {
             });
         case 'tools/call': {
             const herramienta = HERRAMIENTAS.find(h => h.name === msg.params?.name);
-            if (!herramienta) return error(msg.id, -32602, `Herramienta desconocida: ${msg.params?.name}`);
+            if (!herramienta) {
+                console.log(`tools/call ${msg.params?.name}: herramienta desconocida`);
+                return error(msg.id, -32602, `Herramienta desconocida: ${msg.params?.name}`);
+            }
             try {
                 const texto = await herramienta.ejecutar(msg.params.arguments || {}, firestore(env));
+                // Qué herramienta se llamó y la última línea del resultado (ahí va el id o «No registrada»)
+                console.log(`tools/call ${herramienta.name}: ${texto.split('\n').filter(Boolean).pop()}`);
                 return resultado(msg.id, { content: [{ type: 'text', text: texto }] });
             } catch (err) {
+                console.log(`tools/call ${herramienta.name}: Error ${err.message}`);
                 // Error de la herramienta: se le devuelve a Claude para que lo corrija
                 return resultado(msg.id, { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true });
             }
