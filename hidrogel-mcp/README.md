@@ -12,7 +12,7 @@ Chat de Claude ──(MCP)──▶ hidrogel.alejandrogmota.com ──▶ nginx 
 
 | Herramienta | Qué hace |
 |---|---|
-| `registrar_cotizacion` | Guarda una cotización completa («Claro, sería: …») en `hidrogel_ventas` |
+| `cotizar` | Arma el texto de la cotización («Claro, sería: …») con las cuentas hechas y la guarda en `hidrogel_ventas`. El chat la llama **antes** de responder, así ninguna cotización se queda sin registrar. Si falta un precio sale «$?» y no se guarda; la misma cotización repetida en 10 min no se cuenta dos veces |
 | `anular_cotizacion` | Marca una cotización como anulada (corrección o error) |
 | `ventas_hidrogel` | Suma lo cotizado en un periodo, por tipo (por defecto, desde el último pedido) |
 | `pedido_kasr` | Mensaje «Can you create a link for…» con lo vendido de cada hoja, costo y tarifa DDP |
@@ -60,18 +60,25 @@ Settings → Connectors → **Add custom connector**:
 - Nombre: `Hidrogel`
 - URL: `https://hidrogel.alejandrogmota.com/mcp/<MCP_TOKEN>`
 
-En el chat del proyecto, activa el conector desde el menú de herramientas. Con «Always allow» en sus herramientas no te pide permiso en cada cotización.
+En el chat del proyecto, activa el conector desde el menú de herramientas. Con «Always allow» en sus herramientas (en especial `cotizar`) no te pide permiso en cada cotización.
 
-Instrucciones del proyecto «Presupuesto de micas hidrogel»:
+Instrucciones del proyecto «Presupuesto de micas hidrogel» (van **al principio**, antes de los precios):
 
 ```
-Tienes el conector «Hidrogel».
-- SIEMPRE que respondas una cotización completa («Claro, sería: …» con total), en ese mismo turno llama a registrar_cotizacion con las líneas, el cliente (si viene) y la fecha del encabezado de WhatsApp si viene ([17/9, 3:19 p.m.] → 2026-09-17T15:19). No pidas confirmación y no lo menciones en tu respuesta; solo avisa si falla.
-- «Normales» es HD. En tablet 11" sin material, usa HD.
-- Si la cotización queda con «?», no la registres; regístrala cuando te dé el precio. Si corriges una cotización ya registrada, anula la anterior con anular_cotizacion y registra la nueva.
-- Si te pido el pedido para KASR o qué pedir, usa pedido_kasr y dame el mensaje en un bloque de código.
-- Cuando confirme que ya lo pedí, usa registrar_pedido_kasr con las cantidades finales.
+Tienes el conector «Hidrogel». Regla principal:
+- Para CUALQUIER cotización de micas de hidrogel, primero llama a la herramienta cotizar con cada tipo, su cantidad y su precio unitario (según los precios de estas instrucciones), y responde SOLO con el texto que te devuelve. Nunca escribas una cotización sin llamar a cotizar: es lo que la guarda. No pidas confirmación ni menciones el registro; solo avisa si falla.
+- Si el mensaje de WhatsApp trae encabezado con fecha ([D/M, h:mm p.m.]), pásale a cotizar esa fecha y el nombre del cliente. Si no trae encabezado, no pongas fecha.
+- «Normales» es HD. «Privacidad» a secas es Privacidad Matte. En tablet 11" sin material, usa HD.
+- Si no sabes un precio, llama a cotizar sin ese precio (sale «$?») y vuelve a llamarla cuando te lo den.
+- Si corriges una cotización, anula la anterior con anular_cotizacion (el id que devolvió cotizar) y vuelve a llamar a cotizar.
+- Si te pido el pedido para KASR o qué pedir, usa pedido_kasr y dame el mensaje en un bloque de código. Cuando confirme que ya lo pedí, usa registrar_pedido_kasr con las cantidades finales.
 - Para preguntas como «¿cuánto vendimos el último mes?», usa ventas_hidrogel.
+```
+
+Para comprobar que registra: el log del contenedor dice qué herramienta se llamó y con qué resultado.
+
+```bash
+ssh -i ~/.ssh/oracle_chavarria_vm ubuntu@160.34.222.215 'docker logs --timestamps --since 1h hidrogel-mcp | grep tools/call'
 ```
 
 ## Desarrollo local
