@@ -501,6 +501,9 @@ async function cargarPendientes(aliasMap) {
         const items = doc.exists ? (doc.data().items || []) : [];
         for (const p of items) {
             if (p.category !== 'Micas' || !PZS_POR_CAJA[p.type]) continue;
+            // Las ya palomeadas cuentan como compra hecha; descontarlas otra vez
+            // haría que la previsión pidiera de menos
+            if (p.comprada) continue;
             const { modelo } = modeloDe({ nombre_original: p.name, nombre: p.name }, aliasMap);
             const clave = `${p.type}||${modelo}`;
             pendientes.set(clave, (pendientes.get(clave) || 0) + (Number(p.quantity) || 0));
