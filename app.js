@@ -118,7 +118,7 @@ async function borrarCompradas() {
 
     currentProducts = currentProducts.filter(p => !(p.category === 'Micas' && p.comprada));
     await saveProducts(currentProducts);
-    showToast(`${compradas.length} de la lista`, 'success');
+    showToast(`${compradas.length} mica${compradas.length === 1 ? '' : 's'} fuera de la lista`, 'success');
 }
 
 // ========== Marcar una mica como comprada ==========
