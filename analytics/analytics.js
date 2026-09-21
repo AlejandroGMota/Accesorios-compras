@@ -307,71 +307,144 @@ function renderTendencia(docs) {
     });
 }
 
-// ========== Proyecciones ==========
-// Ritmo de compra (piezas por día) de los últimos 60 días, llevado a los días
-// del mes siguiente. Usar días y no meses calendario evita que el mes en curso,
-// que va a medias, jale la proyección hacia abajo.
+// ========== Previsión de compra ==========
+// Promedio mensual ponderado de los últimos 6 meses: cada mes que pasa pesa la
+// mitad cada 3 meses, así manda la tendencia actual y no la de hace años. El mes
+// en curso se lleva a mes completo (si ya lleva al menos una semana), y diciembre
+// sube 30% por temporada.
 
-const VENTANA_DIAS = 60;
-const DIA_MS       = 24 * 60 * 60 * 1000;
-const TOP_POR_TIPO = 5;
+const MESES_HISTORIAL   = 6;
+const VIDA_MEDIA_MESES  = 3;
+const MESES_A_PROYECTAR = 3;
+const DIAS_MINIMOS_MES  = 7;
+const TOP_POR_TIPO      = 8;
+const FACTOR_DICIEMBRE  = 1.3;
 
-function calcularProyecciones(docs) {
+const diasDelMes = (anio, mes) => new Date(anio, mes + 1, 0).getDate();
+
+// Meses del historial que se pueden usar, del más viejo al actual
+function mesesDeHistorial(hoy, primera) {
+    const meses = [];
+    for (let i = MESES_HISTORIAL - 1; i >= 0; i--) {
+        const f = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+        if (f < new Date(primera.getFullYear(), primera.getMonth(), 1)) continue;
+        const dias   = diasDelMes(f.getFullYear(), f.getMonth());
+        const enCurso = i === 0;
+        // El mes en curso va a medias: se proyecta a mes completo, salvo que apenas empiece
+        const escala = !enCurso ? 1
+            : hoy.getDate() >= DIAS_MINIMOS_MES ? dias / hoy.getDate()
+            : 0;
+        meses.push({ clave: claveMes(f), peso: Math.pow(0.5, i / VIDA_MEDIA_MESES), escala });
+    }
+    return meses.filter(m => m.escala > 0);
+}
+
+function calcularPrevision(docs) {
     const conFecha = docs.filter(d => d.fecha);
     if (!conFecha.length) return null;
 
     const hoy     = new Date();
-    const primera = Math.min(...conFecha.map(d => d.fecha));
-    const dias    = Math.min(VENTANA_DIAS, (hoy - primera) / DIA_MS);
-    if (dias < 28) return null;
+    const primera = new Date(Math.min(...conFecha.map(d => d.fecha)));
+    const meses   = mesesDeHistorial(hoy, primera);
+    if (!meses.length) return null;
 
-    const proximo     = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
-    const diasProximo = new Date(proximo.getFullYear(), proximo.getMonth() + 1, 0).getDate();
-    const factorEstacional = proximo.getMonth() === 11 ? 1.3 : 1.0;
+    const pesoTotal = meses.reduce((s, m) => s + m.peso, 0);
+    const enHistorial = new Map(meses.map(m => [m.clave, m]));
 
-    const desde  = hoy - dias * DIA_MS;
-    const pzsPor = sumaPor(conFecha.filter(d => d.fecha >= desde), d => `${d.tipo}||${d.modelo}`);
+    // Piezas por modelo y tipo en cada mes del historial
+    const porMes = {};
+    for (const d of conFecha) {
+        if (!enHistorial.has(claveMes(d.fecha))) continue;
+        const clave = `${d.tipo}||${d.modelo}`;
+        (porMes[clave] ??= {});
+        porMes[clave][claveMes(d.fecha)] = (porMes[clave][claveMes(d.fecha)] || 0) + d.pzs;
+    }
+
+    // Meses que se proyectan
+    const futuros = [];
+    for (let k = 1; k <= MESES_A_PROYECTAR; k++) {
+        const f = new Date(hoy.getFullYear(), hoy.getMonth() + k, 1);
+        futuros.push({
+            etiqueta: f.toLocaleDateString('es-MX', { month: 'short' }).replace('.', ''),
+            factor:   f.getMonth() === 11 ? FACTOR_DICIEMBRE : 1,
+        });
+    }
+
+    // Reparte la compra mes a mes sobre la demanda acumulada: un modelo que gasta
+    // media caja al mes pide una caja cada dos meses, no una cada mes.
+    const repartir = (pzsMes, tipo) => {
+        let pzs = 0, comprado = 0;
+        return futuros.map(f => {
+            pzs += pzsMes * f.factor;
+            const acumulado = Math.round(pzs / PZS_POR_CAJA[tipo]);
+            const compra = Math.max(0, acumulado - comprado);
+            comprado = acumulado;
+            return compra;
+        });
+    };
 
     const porTipo = Object.fromEntries(TIPOS.map(t => [t, []]));
-    for (const [clave, pzs] of Object.entries(pzsPor)) {
+    for (const [clave, porClaveMes] of Object.entries(porMes)) {
         const [tipo, modelo] = clave.split('||');
-        const pzsMes = pzs / dias * diasProximo * factorEstacional;
-        porTipo[tipo].push({ modelo, pzsMes, comprar: Math.ceil(pzsMes / PZS_POR_CAJA[tipo]) });
+        const pzsMes = meses.reduce((s, m) => s + (porClaveMes[m.clave] || 0) * m.escala * m.peso, 0) / pesoTotal;
+        const compras = repartir(pzsMes, tipo);
+        if (!compras.some(c => c > 0)) continue;
+        porTipo[tipo].push({ modelo, pzsMes, compras, total: compras.reduce((a, b) => a + b, 0) });
     }
-    for (const t of TIPOS) porTipo[t] = porTipo[t].sort((a, b) => b.pzsMes - a.pzsMes).slice(0, TOP_POR_TIPO);
+    for (const t of TIPOS) porTipo[t].sort((a, b) => b.pzsMes - a.pzsMes);
 
-    return { mes: proximo, dias: Math.round(dias), porTipo };
+    return { meses: meses.length, futuros, porTipo };
 }
 
-function renderProyecciones(proy) {
+function renderPrevision(prev) {
     const contenedor = document.getElementById('proyecciones-contenido');
-    if (!proy) {
-        contenedor.innerHTML = '<p class="muted">Acumulando datos… Las proyecciones estarán disponibles con al menos un mes de historial.</p>';
+    if (!prev) {
+        contenedor.innerHTML = '<p class="muted">Acumulando datos… La previsión necesita al menos un mes de historial.</p>';
         return;
     }
-    const mes = proy.mes.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
 
-    const tarjeta = (p, tipo) => `
-        <div class="recomendacion">
-            <span>
-                <strong>${escapeHtml(p.modelo)}</strong>
-                ${esPorCaja(tipo) ? `<span class="recomendacion-detalle">≈${fmtNum(Math.round(p.pzsMes))} pzs/mes</span>` : ''}
-            </span>
-            <span class="recomendacion-tipo">~${esPorCaja(tipo) ? plural(p.comprar, 'caja', 'cajas') : `${fmtNum(p.comprar)} pzs`}</span>
-        </div>`;
+    const tabla = (tipo) => {
+        const filas = prev.porTipo[tipo];
+        if (!filas.length) return '<p class="muted">Sin compras en el periodo.</p>';
+
+        const unidad  = esPorCaja(tipo) ? 'cajas' : 'pzs';
+        const visibles = filas.slice(0, TOP_POR_TIPO);
+        const resto    = filas.slice(TOP_POR_TIPO);
+        const suma     = (lista, i) => lista.reduce((s, f) => s + f.compras[i], 0);
+
+        const renglon = (nombre, compras, total, clase = '') => `
+            <tr${clase}>
+                <td>${escapeHtml(nombre)}</td>
+                ${compras.map(c => `<td>${c ? fmtNum(c) : '<span class="cero">–</span>'}</td>`).join('')}
+                <td><strong>${fmtNum(total)}</strong></td>
+            </tr>`;
+
+        return `
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>${tipo} · ${unidad}</th>
+                            ${prev.futuros.map(f => `<th>${f.etiqueta}</th>`).join('')}
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${visibles.map(f => renglon(f.modelo, f.compras, f.total)).join('')}
+                        ${resto.length ? renglon(`Otros ${resto.length} modelos`, prev.futuros.map((_, i) => suma(resto, i)), resto.reduce((s, f) => s + f.total, 0)) : ''}
+                        ${renglon('Total', prev.futuros.map((_, i) => suma(filas, i)), filas.reduce((s, f) => s + f.total, 0), ' class="fila-total"')}
+                    </tbody>
+                </table>
+            </div>`;
+    };
 
     contenedor.innerHTML = `
-        <p class="chart-note">Ritmo de compra de los últimos ${proy.dias} días, llevado a <strong>${mes}</strong>. 9D y 9H en cajas de ${PZS_POR_CAJA['9D']} pzs; privacidad en piezas.</p>
-        <div class="proyeccion-grid">
-            ${TIPOS.map(t => `
-                <div>
-                    <h3 class="proyeccion-tipo">${t}</h3>
-                    ${proy.porTipo[t].length
-                        ? proy.porTipo[t].map(p => tarjeta(p, t)).join('')
-                        : '<p class="muted">Sin compras en el periodo.</p>'}
-                </div>
-            `).join('')}
-        </div>
+        <p class="chart-note">
+            Cuánto comprar en los próximos ${MESES_A_PROYECTAR} meses, según los últimos ${prev.meses} meses de compras
+            (los meses recientes pesan más: a los ${VIDA_MEDIA_MESES} meses, la mitad). 9D y 9H en cajas de ${PZS_POR_CAJA['9D']} pzs;
+            privacidad en piezas. Diciembre sube ${Math.round((FACTOR_DICIEMBRE - 1) * 100)}% por temporada.
+        </p>
+        ${TIPOS.map(t => `<div class="prevision-tipo">${tabla(t)}</div>`).join('')}
     `;
 }
 
@@ -414,7 +487,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         renderRanking(docs);
         renderDonut(docs);
         renderTendencia(docs);
-        renderProyecciones(calcularProyecciones(docs));
+        renderPrevision(calcularPrevision(docs));
     } catch (err) {
         console.error('Error cargando analytics:', err);
     }

@@ -584,6 +584,10 @@ select:focus {
     color: var(--text-muted);
 }
 
+.prevision-tipo { margin-bottom: 22px; }
+.prevision-tipo:last-child { margin-bottom: 0; }
+.data-table tr.fila-total td { border-top: 2px solid var(--border); font-weight: 600; }
+
 .proyeccion-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
