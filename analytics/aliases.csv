@@ -129,6 +129,12 @@ a24,Samsung Galaxy A15/A24/A34
 a 24,Samsung Galaxy A15/A24/A34
 a25,Samsung Galaxy A25
 a 25,Samsung Galaxy A25
+a30,Samsung Galaxy A30
+a 30,Samsung Galaxy A30
+a37,Samsung Galaxy A37
+a 37,Samsung Galaxy A37
+a57,Samsung Galaxy A57
+a 57,Samsung Galaxy A57
 a32,Samsung Galaxy A32
 a 32,Samsung Galaxy A32
 a34,Samsung Galaxy A15/A24/A34
@@ -226,6 +232,7 @@ redmi 14c,Xiaomi Redmi 14C
 14c,Xiaomi Redmi 14C
 14 c,Xiaomi Redmi 14C
 x9,Honor X9
+x3,Honor X3
 x8b,Honor X8b
 x8d,Honor X8d
 x8d micas normal,Honor X8d
@@ -245,8 +252,12 @@ oppo reno 11,OPPO Reno 11
 reno 13,OPPO Reno 13
 oppo reno 13,OPPO Reno 13
 oppo a58,OPPO A58
+a58,OPPO A58
+a 58,OPPO A58
 oppo 40,OPPO A40
 oppo a40,OPPO A40
+a40,OPPO A40
+a 40,OPPO A40
 y9s,Huawei Y9s
 y9 prime,Huawei Y9 Prime
 p30 lite,Huawei P30 Lite
