@@ -71,13 +71,23 @@ function addProductToDOM(product, index) {
     const list = getProductList(product);
     if (!list) return;
 
+    // En micas se puede marcar la compra: esa fecha es la que usa Analytics
+    const esMica = product.category === 'Micas';
+    const fechaCompra = product.comprada
+        ? new Date(product.comprada).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+        : '';
+
     const div = document.createElement('div');
-    div.className = 'product';
+    div.className = `product${esMica ? ' con-compra' : ''}${product.comprada ? ' comprada' : ''}`;
     div.innerHTML = `
         <h3>${product.name}</h3>
         <p><span>Precio:</span> $${product.price.toFixed(2)}</p>
         <p><span>Cantidad:</span> ${product.quantity}</p>
         ${buildProductDetails(product)}
+        ${product.comprada ? `<p class="compra-nota">Comprada el ${fechaCompra}</p>` : ''}
+        ${esMica ? `<button class="buyBtn" onclick="toggleComprada(${index})"
+            aria-label="${product.comprada ? 'Quitar la marca de comprada' : 'Marcar como comprada'}"
+            title="${product.comprada ? 'Comprada: clic para quitar la marca' : 'Marcar como comprada'}">✓</button>` : ''}
         <button class="deleteBtn" onclick="deleteProduct(${index})" aria-label="Eliminar producto">✕</button>
     `;
     list.appendChild(div);
@@ -85,9 +95,31 @@ function addProductToDOM(product, index) {
 
 // ========== Eliminar ==========
 async function deleteProduct(index) {
+    const product = currentProducts[index];
     currentProducts.splice(index, 1);
     await saveProducts(currentProducts);
     showToast('Producto eliminado', 'error');
+
+    // Las micas se borran de la lista cuando ya se compraron: esa es la fecha real
+    if (product?.category === 'Micas' && !product.comprada) marcarComprada(product, true);
+}
+
+// ========== Marcar una mica como comprada ==========
+async function toggleComprada(index) {
+    const product = currentProducts[index];
+    if (!product) return;
+
+    const comprada = !product.comprada;
+    product.comprada = comprada ? Date.now() : null;
+    await saveProducts(currentProducts);
+
+    if (!comprada) {
+        showToast('Ya no está marcada como comprada');
+        await marcarComprada(product, false);
+        return;
+    }
+    const ok = await marcarComprada(product, true);
+    showToast(ok ? 'Marcada como comprada' : 'Marcada en la lista, pero Analytics no se actualizó', ok ? 'success' : 'error');
 }
 
 // ========== Totales ==========
@@ -257,7 +289,7 @@ async function registrarCompraMica(product) {
         const aliasMap = await cargarAliases();
         const nombre   = normalizarNombre(product.name, aliasMap);
         const ahora    = new Date();
-        await db.collection('micas_compras').add({
+        const doc = await db.collection('micas_compras').add({
             nombre,
             nombre_original: product.name,
             tipo:     product.type,
@@ -267,9 +299,52 @@ async function registrarCompraMica(product) {
             mes:      ahora.getMonth() + 1,
             año:      ahora.getFullYear(),
         });
+        // Se guarda el id en el producto para poder marcar después cuándo se compró
+        const enLista = currentProducts.find(p =>
+            !p.analyticsId && p.category === 'Micas' && p.name === product.name &&
+            p.type === product.type && p.quantity === product.quantity && p.price === product.price);
+        if (enLista) {
+            enLista.analyticsId = doc.id;
+            await saveProducts(currentProducts);
+        }
     } catch (err) {
         console.error('Error registrando analytics de mica:', err);
         showToast(`"${product.name}" no se registró en Analytics. Revisa tu conexión.`, 'error', 6000);
+    }
+}
+
+// El registro de Analytics de una mica de la lista. Los productos agregados antes
+// de que se guardara el id se buscan por nombre, tipo y cantidad.
+async function buscarRegistroMica(product) {
+    if (product.analyticsId) return db.collection('micas_compras').doc(product.analyticsId);
+    try {
+        const snap = await db.collection('micas_compras')
+            .where('nombre_original', '==', product.name)
+            .where('tipo', '==', product.type)
+            .get();
+        const candidatos = snap.docs
+            .filter(d => d.data().cantidad === product.quantity && !d.data().comprado)
+            .sort((a, b) => (b.data().fecha?.toMillis() ?? 0) - (a.data().fecha?.toMillis() ?? 0));
+        return candidatos[0]?.ref ?? null;
+    } catch (err) {
+        console.error('No se pudo buscar el registro de la mica:', err);
+        return null;
+    }
+}
+
+// `comprado` es la fecha en que se compró de verdad; Analytics la prefiere sobre
+// `fecha`, que es cuando se anotó en la lista.
+async function marcarComprada(product, comprada) {
+    try {
+        const ref = await buscarRegistroMica(product);
+        if (!ref) return false;
+        await ref.update({
+            comprado: comprada ? firebase.firestore.FieldValue.serverTimestamp() : firebase.firestore.FieldValue.delete(),
+        });
+        return true;
+    } catch (err) {
+        console.error('No se pudo marcar la compra en Analytics:', err);
+        return false;
     }
 }
 

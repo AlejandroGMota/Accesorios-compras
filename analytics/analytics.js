@@ -104,8 +104,12 @@ function modeloDe(d, aliasMap) {
     return modelo ? { modelo, conAlias: true } : { modelo: clave || '(sin nombre)', conAlias: false };
 }
 
+// Cuándo se compró de verdad: `comprado` lo pone la lista al marcar la mica o al
+// borrarla. Si no está (registros viejos), queda `fecha`, que es cuando se anotó.
 function fechaDe(d) {
-    const fecha = d.fecha?.toDate ? d.fecha.toDate() : new Date(d.año, (d.mes || 1) - 1, 15);
+    const fecha = d.comprado?.toDate ? d.comprado.toDate()
+        : d.fecha?.toDate ? d.fecha.toDate()
+        : new Date(d.año, (d.mes || 1) - 1, 15);
     return isNaN(fecha) ? null : fecha;
 }
 
