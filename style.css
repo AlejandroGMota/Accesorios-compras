@@ -287,6 +287,21 @@ select:focus {
     color: var(--text);
 }
 
+.btn-header {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50px;
+    padding: 5px 14px;
+    font-size: 0.78em;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-header:hover { background: rgba(255, 255, 255, 0.3); }
+
 /* ========== Botón comprada (micas) ========== */
 .product.con-compra { padding-right: 112px; }
 

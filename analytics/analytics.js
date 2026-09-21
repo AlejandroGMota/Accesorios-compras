@@ -122,8 +122,12 @@ async function cargarDatos() {
 
 function prepararDocs(crudos, aliasMap) {
     const docs = [];
-    let sinTipo = 0;
+    let sinTipo = 0, pendientes = 0;
     for (const d of crudos) {
+        // Solo cuentan las compras confirmadas con la paloma en la lista. Los
+        // registros viejos no traen `estado` y se siguen contando como antes.
+        if (d.anulado || d.estado === 'anulado') continue;
+        if (d.estado === 'pendiente') { pendientes++; continue; }
         if (!PZS_POR_CAJA[d.tipo]) { sinTipo++; continue; }
         const cantidad = Number(d.cantidad) || 0;
         docs.push({
@@ -135,12 +139,12 @@ function prepararDocs(crudos, aliasMap) {
             fecha:     fechaDe(d),
         });
     }
-    return { docs, sinTipo };
+    return { docs, sinTipo, pendientes };
 }
 
 // ========== Dashboard: resumen ==========
 
-function renderDashboard(docs, sinTipo) {
+function renderDashboard(docs, sinTipo, pendientes = 0) {
     const totalPzs = docs.reduce((s, d) => s + d.pzs, 0);
     const totalInv = docs.reduce((s, d) => s + d.invertido, 0);
     const cantidadPorTipo = sumaPor(docs, d => d.tipo, d => d.cantidad);
@@ -157,8 +161,11 @@ function renderDashboard(docs, sinTipo) {
     document.getElementById('stat-modelo').textContent = mejorModelo ? `${mejorModelo[0]} (${fmtNum(mejorModelo[1])} pzs)` : '—';
     document.getElementById('stat-tipo').textContent   = mejorTipo   ? `${mejorTipo[0]} (${fmtPiezas(mejorTipo[1], mejorTipo[0])})` : '—';
 
-    document.getElementById('nota-resumen').textContent = sinTipo
-        ? `${plural(sinTipo, 'registro', 'registros')} sin tipo de mica no ${sinTipo === 1 ? 'se cuenta' : 'se cuentan'} aquí.`
+    const avisos = [];
+    if (sinTipo)    avisos.push(`${plural(sinTipo, 'registro', 'registros')} sin tipo de mica`);
+    if (pendientes) avisos.push(`${plural(pendientes, 'mica anotada', 'micas anotadas')} en la lista sin palomear como comprada${pendientes === 1 ? '' : 's'}`);
+    document.getElementById('nota-resumen').textContent = avisos.length
+        ? `No se ${avisos.length === 1 && !sinTipo && pendientes === 1 ? 'cuenta' : 'cuentan'} aquí: ${avisos.join(' · ')}.`
         : '';
 }
 
@@ -606,7 +613,7 @@ mostrarPestana(location.hash.slice(1));
 window.addEventListener('DOMContentLoaded', async () => {
     try {
         const [crudos, aliasMap] = await Promise.all([cargarDatos(), cargarAliases()]);
-        const { docs, sinTipo } = prepararDocs(crudos, aliasMap);
+        const { docs, sinTipo, pendientes: sinPalomear } = prepararDocs(crudos, aliasMap);
 
         if (docs.length === 0) {
             document.querySelector('.stat-grid').innerHTML =
@@ -618,7 +625,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         const pendientes = await cargarPendientes(aliasMap);
 
-        renderDashboard(docs, sinTipo);
+        renderDashboard(docs, sinTipo, sinPalomear);
         renderRanking(docs);
         renderDonut(docs);
         renderTendencia(docs);
