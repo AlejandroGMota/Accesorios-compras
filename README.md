@@ -192,9 +192,12 @@ La `apiKey` de Firebase viaja en el HTML y es pública por diseño: lo que prote
 
 El código ya está puesto (`firebase.appCheck().activate(...)` en `index.html` y `analytics/index.html`) y no hace nada mientras no exista el secret. **El orden importa**: si se publican las reglas antes de los pasos 1 a 5, el sitio y el conector dejan de escribir.
 
-1. **Crear las llaves en [google.com/recaptcha/admin/create](https://www.google.com/recaptcha/admin/create):** tipo **reCAPTCHA v3**, dominio `accesories.alejandrogmota.com`. Salen dos llaves: *site key* (pública, va en el sitio) y *clave secreta* (va en Firebase).
-2. **Firebase Console → App Check → Apps:** registrar la app web cuyo App ID coincida con el del sitio (`1:341527541112:web:b095…`), proveedor **reCAPTCHA** (no Enterprise, que pide plan de pago), y pegar ahí la **clave secreta**.
-3. **GitHub → Settings → Secrets → Actions:** crear `APPCHECK_SITE_KEY` con la *site key* y volver a desplegar.
+1. **Crear la llave en Google Cloud Console → Seguridad → reCAPTCHA** (el panel clásico `google.com/recaptcha/admin` ya no permite crear llaves nuevas desde 2024; las viejas siguen sirviendo):
+   - Tipo **sitio web**, con **puntuación** (dejar sin marcar la casilla de verificación).
+   - Dominio: `accesories.alejandrogmota.com`.
+   - Copiar el **ID de la llave**, que es la *site key* pública.
+2. **Firebase Console → App Check → Apps:** registrar la app web cuyo App ID coincida con el del sitio (`1:341527541112:web:b095…`), proveedor **reCAPTCHA Enterprise**, y pegar ahí el **ID de la llave**. Si no se distingue cuál de las dos apps es, registrar las dos con la misma llave.
+3. **GitHub → Settings → Secrets → Actions:** `APPCHECK_SITE_KEY` con el ID de la llave y `APPCHECK_PROVIDER` con el valor `enterprise`. Volver a desplegar.
 4. **Comprobar** en App Check → Cloud Firestore que aparezcan peticiones *verificadas* al usar el sitio.
 5. **Cuenta de servicio para el conector**, que no pasa por App Check:
    - Console → Configuración del proyecto → Cuentas de servicio → Generar nueva clave privada.
@@ -220,9 +223,11 @@ service cloud.firestore {
 
 Si algo falla, quitar el secret `APPCHECK_SITE_KEY`, volver a desplegar y regresar las reglas a `if true` deja todo como antes.
 
-**Sobre reCAPTCHA Enterprise:** la consola lo recomienda y marca reCAPTCHA v3 como obsoleto, pero Enterprise es un producto de Google Cloud y pide cuenta de facturación, es decir pasar de Spark a Blaze (la cuota gratis es de 10,000 verificaciones al mes).
+**Por qué Enterprise y no reCAPTCHA v3:** desde el tercer trimestre de 2024 Google ya no deja crear llaves clásicas nuevas, y en el primer trimestre de 2026 terminó de migrar las existentes a Google Cloud ([migración de reCAPTCHA](https://docs.cloud.google.com/recaptcha/docs/migration-overview)). El proveedor «reCAPTCHA» del panel de App Check solo sirve para llaves viejas; para una configuración nueva hay que usar Enterprise.
 
-El sitio soporta los dos proveedores, así que migrar después no toca código: se crea la llave Enterprise, se actualiza el secret `APPCHECK_SITE_KEY` y se agrega `APPCHECK_PROVIDER` con el valor `enterprise`. Sin ese segundo secret se usa reCAPTCHA v3.
+La cuota gratis es de **10,000 evaluaciones al mes**; pasando de ahí hay que habilitar facturación en el proyecto de Cloud. Sin cuenta de facturación, reCAPTCHA entrega 4 niveles de puntuación en vez de 11, suficiente para App Check.
+
+El sitio soporta los dos proveedores: con `APPCHECK_PROVIDER=enterprise` usa Enterprise y sin ese secret usa el reCAPTCHA clásico, por si algún día se reutiliza una llave vieja.
 
 ## Diseño y Estilos
 
