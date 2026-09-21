@@ -218,6 +218,9 @@
                 ? new firebase.appCheck.ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY)
                 : APPCHECK_SITE_KEY,
             true);
+        console.info('App Check activo (%s)', APPCHECK_PROVIDER === 'enterprise' ? 'reCAPTCHA Enterprise' : 'reCAPTCHA');
+    } else {
+        console.info('App Check sin configurar: falta el secret APPCHECK_SITE_KEY.');
     }
     const db = firebase.firestore();
     db.enablePersistence().catch(err => console.warn('Persistencia offline no disponible:', err.code));

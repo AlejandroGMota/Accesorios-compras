@@ -21,6 +21,9 @@ on:
       - 'analytics/aliases.csv'
       - 'analytics/hidrogel.js'
       - 'analytics/hidrogel-core.js'
+  # Permite relanzar el deploy a mano desde la pestaña Actions
+  workflow_dispatch:
+
   # Se dispara también cuando algún workflow de catálogo termina
   workflow_run:
     workflows: ["Actualizar catálogo BuyTiti", "Actualizar catálogo my-shop.mx"]
