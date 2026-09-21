@@ -220,7 +220,9 @@ service cloud.firestore {
 
 Si algo falla, quitar el secret `APPCHECK_SITE_KEY`, volver a desplegar y regresar las reglas a `if true` deja todo como antes.
 
-**Sobre reCAPTCHA Enterprise:** la consola lo recomienda y marca reCAPTCHA v3 como obsoleto, pero Enterprise necesita el plan Blaze (con facturación). En el plan Spark, v3 sigue funcionando; migrar queda pendiente para cuando el proyecto pase a Blaze.
+**Sobre reCAPTCHA Enterprise:** la consola lo recomienda y marca reCAPTCHA v3 como obsoleto, pero Enterprise es un producto de Google Cloud y pide cuenta de facturación, es decir pasar de Spark a Blaze (la cuota gratis es de 10,000 verificaciones al mes).
+
+El sitio soporta los dos proveedores, así que migrar después no toca código: se crea la llave Enterprise, se actualiza el secret `APPCHECK_SITE_KEY` y se agrega `APPCHECK_PROVIDER` con el valor `enterprise`. Sin ese segundo secret se usa reCAPTCHA v3.
 
 ## Diseño y Estilos
 

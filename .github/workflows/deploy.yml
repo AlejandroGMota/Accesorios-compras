@@ -61,6 +61,7 @@ jobs:
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
           APPCHECK_SITE_KEY: ${{ secrets.APPCHECK_SITE_KEY }}
+          APPCHECK_PROVIDER: ${{ secrets.APPCHECK_PROVIDER }}
         run: |
           python3 -c "
           import os
@@ -74,6 +75,8 @@ jobs:
               content = content.replace('%%FIREBASE_CONFIG%%', config)
               if clave:
                   content = content.replace('%%APPCHECK_SITE_KEY%%', clave)
+                  # Vacío o 'v3' = reCAPTCHA v3; 'enterprise' = reCAPTCHA Enterprise (plan Blaze)
+                  content = content.replace('%%APPCHECK_PROVIDER%%', os.environ.get('APPCHECK_PROVIDER', '').strip())
               with open(path, 'w') as f:
                   f.write(content)
           "

@@ -214,8 +214,13 @@
     // App Check: la base solo acepta peticiones que vengan de este sitio.
     // Mientras no haya llave (placeholder sin reemplazar), no se activa y todo sigue igual.
     const APPCHECK_SITE_KEY = '%%APPCHECK_SITE_KEY%%';
+    const APPCHECK_PROVIDER = '%%APPCHECK_PROVIDER%%';   // 'enterprise' o vacío (reCAPTCHA v3)
     if (!APPCHECK_SITE_KEY.startsWith('%%')) {
-        firebase.appCheck().activate(APPCHECK_SITE_KEY, true);
+        firebase.appCheck().activate(
+            APPCHECK_PROVIDER === 'enterprise'
+                ? new firebase.appCheck.ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY)
+                : APPCHECK_SITE_KEY,
+            true);
     }
     const db = firebase.firestore();
 </script>
