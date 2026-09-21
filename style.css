@@ -300,7 +300,12 @@ select:focus {
     transition: background 0.2s;
 }
 
-.btn-header:hover { background: rgba(255, 255, 255, 0.3); }
+.btn-header:hover:not(:disabled) { background: rgba(255, 255, 255, 0.3); }
+
+.btn-header:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
 
 /* ========== Botón comprada (micas) ========== */
 .product.con-compra { padding-right: 112px; }

@@ -41,7 +41,7 @@ function renderAllProducts(products) {
 
     const compradas = products.filter(p => p.category === 'Micas' && p.comprada).length;
     const boton = document.getElementById('borrarCompradasBtn');
-    boton.hidden = compradas === 0;
+    boton.disabled = compradas === 0;
     boton.textContent = `Borrar compradas (${compradas})`;
 
     updateTotalPrice();
@@ -342,12 +342,29 @@ async function buscarRegistroMica(product) {
             .where('tipo', '==', product.type)
             .get();
         const candidatos = snap.docs
-            .filter(d => d.data().cantidad === product.quantity && !d.data().comprado)
+            .filter(d => d.data().cantidad === product.quantity && !d.data().anulado)
             .sort((a, b) => (b.data().fecha?.toMillis() ?? 0) - (a.data().fecha?.toMillis() ?? 0));
-        return candidatos[0]?.ref ?? null;
+        const doc = candidatos[0];
+        if (!doc) return null;
+        // Se guarda cuál es, para que marcar y desmarcar caigan siempre en el mismo
+        await recordarIdRegistro(product, doc.id);
+        return doc.ref;
     } catch (err) {
         console.error('No se pudo buscar el registro de la mica:', err);
         return null;
+    }
+}
+
+// Deja el id del registro en el producto de la lista
+async function recordarIdRegistro(product, id) {
+    if (!id || product.analyticsId === id) return;
+    product.analyticsId = id;
+    const enLista = currentProducts.find(p =>
+        !p.analyticsId && p.category === 'Micas' && p.name === product.name &&
+        p.type === product.type && p.quantity === product.quantity && p.price === product.price);
+    if (enLista) {
+        enLista.analyticsId = id;
+        await saveProducts(currentProducts);
     }
 }
 
