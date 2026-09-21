@@ -190,16 +190,17 @@ Los datos se sincronizan en tiempo real con **Firebase Firestore**, lo que permi
 
 La `apiKey` de Firebase viaja en el HTML y es pública por diseño: lo que protege los datos son las reglas de Firestore. Con App Check, Firestore solo acepta peticiones que vengan de este sitio, sin que haya que iniciar sesión.
 
-El código ya está puesto (`firebase.appCheck().activate(...)` en `index.html` y `analytics/index.html`) y no hace nada mientras no exista el secret. **El orden importa**: si se publican las reglas antes de los pasos 1 a 4, el sitio y el conector dejan de escribir.
+El código ya está puesto (`firebase.appCheck().activate(...)` en `index.html` y `analytics/index.html`) y no hace nada mientras no exista el secret. **El orden importa**: si se publican las reglas antes de los pasos 1 a 5, el sitio y el conector dejan de escribir.
 
-1. **Firebase Console → App Check → Apps → app web → reCAPTCHA v3.** Registrar y copiar la *site key*.
-2. **GitHub → Settings → Secrets → Actions:** crear `APPCHECK_SITE_KEY` con esa llave y volver a desplegar.
-3. **Comprobar** en App Check → Cloud Firestore que aparezcan peticiones *verificadas* al usar el sitio.
-4. **Cuenta de servicio para el conector**, que no pasa por App Check:
+1. **Crear las llaves en [google.com/recaptcha/admin/create](https://www.google.com/recaptcha/admin/create):** tipo **reCAPTCHA v3**, dominio `accesories.alejandrogmota.com`. Salen dos llaves: *site key* (pública, va en el sitio) y *clave secreta* (va en Firebase).
+2. **Firebase Console → App Check → Apps:** registrar la app web cuyo App ID coincida con el del sitio (`1:341527541112:web:b095…`), proveedor **reCAPTCHA** (no Enterprise, que pide plan de pago), y pegar ahí la **clave secreta**.
+3. **GitHub → Settings → Secrets → Actions:** crear `APPCHECK_SITE_KEY` con la *site key* y volver a desplegar.
+4. **Comprobar** en App Check → Cloud Firestore que aparezcan peticiones *verificadas* al usar el sitio.
+5. **Cuenta de servicio para el conector**, que no pasa por App Check:
    - Console → Configuración del proyecto → Cuentas de servicio → Generar nueva clave privada.
    - En la VM, en `~/hidrogel-mcp/.env`: `FIREBASE_SERVICE_ACCOUNT='{"type":"service_account",...}'` (el JSON completo en una línea).
    - `hidrogel-mcp/deploy.sh` y probar una cotización.
-5. **Publicar las reglas** (Firestore → Reglas):
+6. **Publicar las reglas** (Firestore → Reglas):
 
 ```
 rules_version = '2';
@@ -215,9 +216,11 @@ service cloud.firestore {
 }
 ```
 
-6. **Activar la restricción** en App Check → Cloud Firestore → *Enforce*, una vez que el paso 3 muestre tráfico verificado.
+7. **Activar la restricción** en App Check → Cloud Firestore → *Enforce*, una vez que el paso 4 muestre tráfico verificado.
 
 Si algo falla, quitar el secret `APPCHECK_SITE_KEY`, volver a desplegar y regresar las reglas a `if true` deja todo como antes.
+
+**Sobre reCAPTCHA Enterprise:** la consola lo recomienda y marca reCAPTCHA v3 como obsoleto, pero Enterprise necesita el plan Blaze (con facturación). En el plan Spark, v3 sigue funcionando; migrar queda pendiente para cuando el proyecto pase a Blaze.
 
 ## Diseño y Estilos
 
