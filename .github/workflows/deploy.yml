@@ -73,6 +73,36 @@ jobs:
                   f.write(content)
           "
 
+      # Cada deploy cambia la versión de los .js y .css del propio sitio, para que
+      # el navegador no siga usando los que tiene guardados (Pages los cachea 10 min).
+      - name: Version assets
+        run: |
+          python3 -c "
+          import os, re, glob
+          sha = os.environ.get('GITHUB_SHA', 'dev')[:7]
+          patron = re.compile(r'(src|href)=\"(?!https?:|//)([^\"?#]+\.(?:js|css))\"')
+          for path in glob.glob('*.html') + glob.glob('*/index.html'):
+              with open(path) as f:
+                  content = f.read()
+              nuevo = patron.sub(lambda m: f'{m.group(1)}=\"{m.group(2)}?v={sha}\"', content)
+              if nuevo != content:
+                  with open(path, 'w') as f:
+                      f.write(nuevo)
+                  print(path, 'versionado a', sha)
+          # Lo que un .js pide por su cuenta: el import de hidrogel-core y aliases.csv
+          import functools
+          sufijo = lambda m: m.group(1) + m.group(2) + '?v=' + sha + m.group(3)
+          for path in glob.glob('*.js') + glob.glob('*/*.js'):
+              with open(path) as f:
+                  content = f.read()
+              nuevo = re.sub(r'(from .)(\./[^\']+\.js)(.)', sufijo, content)
+              nuevo = re.sub(r'(fetch\(.)(\./[^\']+\.csv)(.)', sufijo, nuevo)
+              if nuevo != content:
+                  with open(path, 'w') as f:
+                      f.write(nuevo)
+                  print(path, 'versionado a', sha)
+          "
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
