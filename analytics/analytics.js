@@ -319,6 +319,7 @@ const MESES_A_PROYECTAR = 3;
 const DIAS_MINIMOS_MES  = 7;
 const TOP_POR_TIPO      = 8;
 const FACTOR_DICIEMBRE  = 1.3;
+const DIA_MS            = 24 * 60 * 60 * 1000;
 
 const diasDelMes = (anio, mes) => new Date(anio, mes + 1, 0).getDate();
 
@@ -339,7 +340,7 @@ function mesesDeHistorial(hoy, primera) {
     return meses.filter(m => m.escala > 0);
 }
 
-function calcularPrevision(docs) {
+function calcularPrevision(docs, pendientes = new Map()) {
     const conFecha = docs.filter(d => d.fecha);
     if (!conFecha.length) return null;
 
@@ -372,14 +373,17 @@ function calcularPrevision(docs) {
 
     // Reparte la compra mes a mes sobre la demanda acumulada: un modelo que gasta
     // media caja al mes pide una caja cada dos meses, no una cada mes.
-    const repartir = (pzsMes, tipo) => {
-        let pzs = 0, comprado = 0;
+    // Lo que ya está en la lista de compras se descuenta de los primeros meses.
+    const repartir = (pzsMes, tipo, enLista) => {
+        let pzs = 0, comprado = 0, cubierto = enLista;
         return futuros.map(f => {
             pzs += pzsMes * f.factor;
             const acumulado = Math.round(pzs / PZS_POR_CAJA[tipo]);
             const compra = Math.max(0, acumulado - comprado);
             comprado = acumulado;
-            return compra;
+            const yaTengo = Math.min(cubierto, compra);
+            cubierto -= yaTengo;
+            return compra - yaTengo;
         });
     };
 
@@ -387,7 +391,7 @@ function calcularPrevision(docs) {
     for (const [clave, porClaveMes] of Object.entries(porMes)) {
         const [tipo, modelo] = clave.split('||');
         const pzsMes = meses.reduce((s, m) => s + (porClaveMes[m.clave] || 0) * m.escala * m.peso, 0) / pesoTotal;
-        const compras = repartir(pzsMes, tipo);
+        const compras = repartir(pzsMes, tipo, pendientes.get(clave) || 0);
         if (!compras.some(c => c > 0)) continue;
         porTipo[tipo].push({ modelo, pzsMes, compras, total: compras.reduce((a, b) => a + b, 0) });
     }
@@ -443,9 +447,134 @@ function renderPrevision(prev) {
             Cuánto comprar en los próximos ${MESES_A_PROYECTAR} meses, según los últimos ${prev.meses} meses de compras
             (los meses recientes pesan más: a los ${VIDA_MEDIA_MESES} meses, la mitad). 9D y 9H en cajas de ${PZS_POR_CAJA['9D']} pzs;
             privacidad en piezas. Diciembre sube ${Math.round((FACTOR_DICIEMBRE - 1) * 100)}% por temporada.
+            Ya se descontó lo que tienes en la lista de compras.
         </p>
         ${TIPOS.map(t => `<div class="prevision-tipo">${tabla(t)}</div>`).join('')}
     `;
+}
+
+
+// ========== Qué falta comprar ==========
+// Cada modelo tiene su ritmo: cada cuántos días se vuelve a comprar. Con la
+// última compra y esa cadencia (de los últimos 6 meses) se ve qué ya toca
+// reponer. Lo que ya esté en la lista de compras se descuenta.
+
+const UMBRAL_AVISO     = 0.8;   // desde el 80% de la cadencia ya aparece
+const DIAS_MINIMO_RITMO = 21;   // dos compras muy juntas no dicen nada del ritmo
+const CADENCIA_MINIMA   = 15;   // piso, para que un par de compras seguidas no dé «cada 2 días»
+const MAX_FILAS_FALTA   = 12;
+
+const claveDia = f => `${f.getFullYear()}-${f.getMonth()}-${f.getDate()}`;
+
+function mediana(nums) {
+    const orden = [...nums].sort((a, b) => a - b);
+    return orden[Math.floor(orden.length / 2)];
+}
+
+// Varias capturas del mismo día son una sola compra
+function comprasPorDia(compras) {
+    const dias = new Map();
+    for (const c of compras) {
+        const dia = claveDia(c.fecha);
+        if (dias.has(dia)) dias.get(dia).cantidad += c.cantidad;
+        else dias.set(dia, { fecha: c.fecha, cantidad: c.cantidad });
+    }
+    return [...dias.values()].sort((a, b) => a.fecha - b.fecha);
+}
+
+// Lo que hay ahora en la lista de compras, por modelo y tipo
+async function cargarPendientes(aliasMap) {
+    const pendientes = new Map();
+    try {
+        const doc   = await db.collection('app').doc('productos').get();
+        const items = doc.exists ? (doc.data().items || []) : [];
+        for (const p of items) {
+            if (p.category !== 'Micas' || !PZS_POR_CAJA[p.type]) continue;
+            const { modelo } = modeloDe({ nombre_original: p.name, nombre: p.name }, aliasMap);
+            const clave = `${p.type}||${modelo}`;
+            pendientes.set(clave, (pendientes.get(clave) || 0) + (Number(p.quantity) || 0));
+        }
+    } catch (e) {
+        console.warn('No se pudo leer la lista de compras:', e);
+    }
+    return pendientes;
+}
+
+function calcularReposicion(docs, pendientes) {
+    const hoy   = new Date();
+    const desde = new Date(hoy.getFullYear(), hoy.getMonth() - MESES_HISTORIAL, hoy.getDate());
+
+    const grupos = {};
+    for (const d of docs) {
+        if (!d.fecha || d.fecha < desde) continue;
+        (grupos[`${d.tipo}||${d.modelo}`] ??= []).push(d);
+    }
+
+    const filas = [];
+    for (const [clave, compras] of Object.entries(grupos)) {
+        const [tipo, modelo] = clave.split('||');
+        const dias = comprasPorDia(compras);
+        if (dias.length < 2) continue;   // con una sola compra no se sabe cada cuánto
+
+        const ultima   = dias[dias.length - 1].fecha;
+        const periodo  = (ultima - dias[0].fecha) / DIA_MS;
+        if (periodo < DIAS_MINIMO_RITMO) continue;   // todas las compras casi el mismo día
+
+        const cadencia = Math.max(CADENCIA_MINIMA, Math.round(periodo / (dias.length - 1)));
+        const diasSin  = Math.floor((hoy - ultima) / DIA_MS);
+        const urgencia = diasSin / cadencia;
+        if (urgencia < UMBRAL_AVISO) continue;
+
+        const tipica  = mediana(dias.map(d => d.cantidad));
+        const enLista = pendientes.get(clave) || 0;
+        filas.push({ modelo, tipo, ultima, cadencia, diasSin, urgencia, tipica, enLista, comprar: Math.max(0, tipica - enLista) });
+    }
+    return filas.sort((a, b) => b.urgencia - a.urgencia);
+}
+
+function renderReposicion(todas) {
+    const contenedor = document.getElementById('reponer-contenido');
+    const filas = todas.slice(0, MAX_FILAS_FALTA);
+    const ocultas = todas.length - filas.length;
+    if (!filas.length) {
+        contenedor.innerHTML = '<p class="muted">Ningún modelo pasó de su ritmo de compra. No falta nada por ahora.</p>';
+        return;
+    }
+
+    const cantidad = (n, tipo) => esPorCaja(tipo) ? plural(n, 'caja', 'cajas') : `${fmtNum(n)} pzs`;
+
+    contenedor.innerHTML = `
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Modelo</th>
+                        <th>Tipo</th>
+                        <th>Última</th>
+                        <th>Cada</th>
+                        <th>Sin comprar</th>
+                        <th>En lista</th>
+                        <th>Comprar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filas.map(f => `
+                        <tr${f.urgencia >= 1 ? ' class="alerta"' : ''}>
+                            <td>${escapeHtml(f.modelo)}</td>
+                            <td>${f.tipo}</td>
+                            <td>${f.ultima.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</td>
+                            <td>${f.cadencia} d</td>
+                            <td>${f.diasSin} d</td>
+                            <td>${f.enLista ? cantidad(f.enLista, f.tipo) : '<span class="cero">–</span>'}</td>
+                            <td><strong>${f.comprar ? cantidad(f.comprar, f.tipo) : 'ya en la lista'}</strong></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        <p class="chart-note">
+            En rojo, los que ya pasaron su ritmo de compra. «Comprar» es lo que sueles llevar de ese modelo,
+            menos lo que ya tienes en la lista.${ocultas ? ` Hay ${ocultas} más con menos urgencia.` : ''}
+        </p>`;
 }
 
 // ========== Pestañas ==========
@@ -483,11 +612,23 @@ window.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const pendientes = await cargarPendientes(aliasMap);
+
         renderDashboard(docs, sinTipo);
         renderRanking(docs);
         renderDonut(docs);
         renderTendencia(docs);
-        renderPrevision(calcularPrevision(docs));
+        renderPrevision(calcularPrevision(docs, pendientes));
+
+        // El botón vuelve a leer la lista de compras, que cambia mientras se arma el pedido
+        const boton = document.getElementById('btn-reponer');
+        boton.addEventListener('click', async () => {
+            boton.disabled = true;
+            boton.textContent = 'Calculando…';
+            renderReposicion(calcularReposicion(docs, await cargarPendientes(aliasMap)));
+            boton.disabled = false;
+            boton.textContent = 'Actualizar';
+        });
     } catch (err) {
         console.error('Error cargando analytics:', err);
     }
