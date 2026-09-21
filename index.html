@@ -202,11 +202,18 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
 
 <!-- Firebase init — config inyectada por GitHub Actions -->
 <script>
     const firebaseConfig = %%FIREBASE_CONFIG%%;
     firebase.initializeApp(firebaseConfig);
+    // App Check: la base solo acepta peticiones que vengan de este sitio.
+    // Mientras no haya llave (placeholder sin reemplazar), no se activa y todo sigue igual.
+    const APPCHECK_SITE_KEY = '%%APPCHECK_SITE_KEY%%';
+    if (!APPCHECK_SITE_KEY.startsWith('%%')) {
+        firebase.appCheck().activate(APPCHECK_SITE_KEY, true);
+    }
     const db = firebase.firestore();
     db.enablePersistence().catch(err => console.warn('Persistencia offline no disponible:', err.code));
 </script>

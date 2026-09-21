@@ -186,6 +186,39 @@ Los datos se sincronizan en tiempo real con **Firebase Firestore**, lo que permi
 
 **Nota:** La configuración de Firebase nunca se almacena en el repositorio; se inyecta durante el deploy a través de GitHub Secrets.
 
+### Cerrar el acceso a la base con App Check
+
+La `apiKey` de Firebase viaja en el HTML y es pública por diseño: lo que protege los datos son las reglas de Firestore. Con App Check, Firestore solo acepta peticiones que vengan de este sitio, sin que haya que iniciar sesión.
+
+El código ya está puesto (`firebase.appCheck().activate(...)` en `index.html` y `analytics/index.html`) y no hace nada mientras no exista el secret. **El orden importa**: si se publican las reglas antes de los pasos 1 a 4, el sitio y el conector dejan de escribir.
+
+1. **Firebase Console → App Check → Apps → app web → reCAPTCHA v3.** Registrar y copiar la *site key*.
+2. **GitHub → Settings → Secrets → Actions:** crear `APPCHECK_SITE_KEY` con esa llave y volver a desplegar.
+3. **Comprobar** en App Check → Cloud Firestore que aparezcan peticiones *verificadas* al usar el sitio.
+4. **Cuenta de servicio para el conector**, que no pasa por App Check:
+   - Console → Configuración del proyecto → Cuentas de servicio → Generar nueva clave privada.
+   - En la VM, en `~/hidrogel-mcp/.env`: `FIREBASE_SERVICE_ACCOUNT='{"type":"service_account",...}'` (el JSON completo en una línea).
+   - `hidrogel-mcp/deploy.sh` y probar una cotización.
+5. **Publicar las reglas** (Firestore → Reglas):
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Solo peticiones verificadas por App Check. El conector entra con cuenta de
+    // servicio, que no pasa por las reglas.
+    match /app/{documento}       { allow read, write: if request.app != null; }
+    match /micas_compras/{id}    { allow read, write: if request.app != null; }
+    match /hidrogel_ventas/{id}  { allow read, write: if request.app != null; }
+    match /hidrogel_pedidos/{id} { allow read, write: if request.app != null; }
+  }
+}
+```
+
+6. **Activar la restricción** en App Check → Cloud Firestore → *Enforce*, una vez que el paso 3 muestre tráfico verificado.
+
+Si algo falla, quitar el secret `APPCHECK_SITE_KEY`, volver a desplegar y regresar las reglas a `if true` deja todo como antes.
+
 ## Diseño y Estilos
 
 ### Paleta de Colores

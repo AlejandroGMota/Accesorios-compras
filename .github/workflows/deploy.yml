@@ -60,15 +60,20 @@ jobs:
       - name: Inject Firebase config
         env:
           FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
+          APPCHECK_SITE_KEY: ${{ secrets.APPCHECK_SITE_KEY }}
         run: |
           python3 -c "
           import os
           config = os.environ['FIREBASE_CONFIG'].strip()
+          # Sin el secret APPCHECK_SITE_KEY el placeholder se queda y App Check no se activa
+          clave = os.environ.get('APPCHECK_SITE_KEY', '').strip()
           targets = ['index.html', 'analytics/index.html']
           for path in targets:
               with open(path, 'r') as f:
                   content = f.read()
               content = content.replace('%%FIREBASE_CONFIG%%', config)
+              if clave:
+                  content = content.replace('%%APPCHECK_SITE_KEY%%', clave)
               with open(path, 'w') as f:
                   f.write(content)
           "

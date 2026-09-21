@@ -9,6 +9,8 @@ const env = {
     MCP_TOKEN:           process.env.MCP_TOKEN,
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
     FIREBASE_API_KEY:    process.env.FIREBASE_API_KEY,
+    // Opcional: JSON de la cuenta de servicio, necesario cuando App Check está activo
+    FIREBASE_SERVICE_ACCOUNT: process.env.FIREBASE_SERVICE_ACCOUNT,
 };
 
 http.createServer(async (req, res) => {

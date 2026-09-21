@@ -12,6 +12,59 @@ const VENTAS   = 'hidrogel_ventas';
 const PEDIDOS  = 'hidrogel_pedidos';
 const PROTOCOLOS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
 
+// ========== Credencial de servidor (opcional) ==========
+// Con App Check activo, la llave pública del sitio ya no sirve para escribir. Si hay
+// una cuenta de servicio en el entorno, el conector entra como servidor: no pasa por
+// App Check ni por las reglas. Sin ella, sigue usando la llave pública como antes.
+
+let credencial = { token: null, expira: 0 };
+
+function base64url(bytes) {
+    let binario = '';
+    for (const b of new Uint8Array(bytes)) binario += String.fromCharCode(b);
+    return btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function pemABytes(pem) {
+    const cuerpo = pem.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+    return Uint8Array.from(atob(cuerpo), c => c.charCodeAt(0));
+}
+
+async function tokenServicio(env) {
+    if (!env.FIREBASE_SERVICE_ACCOUNT) return null;
+    if (credencial.token && Date.now() < credencial.expira) return credencial.token;
+
+    const cuenta = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+    const ahora  = Math.floor(Date.now() / 1000);
+    const texto  = (obj) => base64url(new TextEncoder().encode(JSON.stringify(obj)));
+
+    const sinFirma = `${texto({ alg: 'RS256', typ: 'JWT' })}.${texto({
+        iss:   cuenta.client_email,
+        scope: 'https://www.googleapis.com/auth/datastore',
+        aud:   'https://oauth2.googleapis.com/token',
+        iat:   ahora,
+        exp:   ahora + 3600,
+    })}`;
+
+    const llave = await crypto.subtle.importKey('pkcs8', pemABytes(cuenta.private_key),
+        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+    const firma = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', llave, new TextEncoder().encode(sinFirma));
+
+    const resp = await fetch('https://oauth2.googleapis.com/token', {
+        method:  'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body:    new URLSearchParams({
+            grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            assertion:  `${sinFirma}.${base64url(firma)}`,
+        }),
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(`La cuenta de servicio no pudo autenticarse: ${json.error_description || resp.status}`);
+
+    credencial = { token: json.access_token, expira: Date.now() + (json.expires_in - 60) * 1000 };
+    return credencial.token;
+}
+
 // ========== Firestore (REST, mismas reglas que el sitio) ==========
 
 function encode(v) {
@@ -51,17 +104,22 @@ function firestore(env) {
     const base = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
     async function llamar(ruta, init = {}) {
-        const sep  = ruta.includes('?') ? '&' : '?';
-        const resp = await fetch(`${base}${ruta}${sep}key=${env.FIREBASE_API_KEY}`, {
+        const token = await tokenServicio(env);
+        const sep   = ruta.includes('?') ? '&' : '?';
+        const url   = token ? `${base}${ruta}` : `${base}${ruta}${sep}key=${env.FIREBASE_API_KEY}`;
+        const resp  = await fetch(url, {
             ...init,
-            headers: { 'content-type': 'application/json' },
+            headers: {
+                'content-type': 'application/json',
+                ...(token && { authorization: `Bearer ${token}` }),
+            },
         });
         const json = await resp.json();
         if (!resp.ok) {
             // runQuery devuelve los errores dentro de un arreglo
             const msg = (Array.isArray(json) ? json[0] : json)?.error?.message || resp.statusText;
             throw new Error(resp.status === 403
-                ? `Firestore negó el acceso (${msg}). Revisa que las reglas permitan ${VENTAS} y ${PEDIDOS}.`
+                ? `Firestore negó el acceso (${msg}). Con App Check activo el conector necesita FIREBASE_SERVICE_ACCOUNT; si no, revisa que las reglas permitan ${VENTAS} y ${PEDIDOS}.`
                 : `Firestore ${resp.status}: ${msg}`);
         }
         return json;
