@@ -198,6 +198,15 @@ El código ya está puesto (`firebase.appCheck().activate(...)` en `index.html` 
    - Copiar el **ID de la llave**, que es la *site key* pública.
 2. **Firebase Console → App Check → Apps:** registrar la app web cuyo App ID coincida con el del sitio (`1:341527541112:web:b095…`), proveedor **reCAPTCHA Enterprise**, y pegar ahí el **ID de la llave**. Si no se distingue cuál de las dos apps es, registrar las dos con la misma llave.
 3. **GitHub → Settings → Secrets → Actions:** `APPCHECK_SITE_KEY` con el ID de la llave y `APPCHECK_PROVIDER` con el valor `enterprise`. Volver a desplegar.
+
+   Según el tipo de llave que se tenga a la mano, los valores cambian de lugar:
+
+   | Lo que muestra la llave | Proveedor en App Check | Se pega en App Check | `APPCHECK_SITE_KEY` | `APPCHECK_PROVIDER` |
+   |---|---|---|---|---|
+   | ID de la clave (sin secreta) | reCAPTCHA Enterprise | ID de la clave | ID de la clave | `enterprise` |
+   | Clave de sitio + clave secreta | reCAPTCHA (clásico) | Clave **secreta** | Clave **de sitio** | *(sin secret)* |
+
+   Las dos empiezan con `6L…` y se parecen; lo que distingue a la clásica es que trae una clave secreta aparte.
 4. **Comprobar** en App Check → Cloud Firestore que aparezcan peticiones *verificadas* al usar el sitio.
 5. **Cuenta de servicio para el conector**, que no pasa por App Check:
    - Console → Configuración del proyecto → Cuentas de servicio → Generar nueva clave privada.
