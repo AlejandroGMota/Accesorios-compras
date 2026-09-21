@@ -38,6 +38,12 @@ function renderAllProducts(products) {
     // Micas viejas sin tipo: suman al subtotal, así que se muestran para poder borrarlas
     document.getElementById('micasSinTipoHeader').style.display =
         document.getElementById('micasSinTipoList').children.length ? '' : 'none';
+
+    const compradas = products.filter(p => p.category === 'Micas' && p.comprada).length;
+    const boton = document.getElementById('borrarCompradasBtn');
+    boton.hidden = compradas === 0;
+    boton.textContent = `Borrar compradas (${compradas})`;
+
     updateTotalPrice();
 }
 
@@ -100,8 +106,19 @@ async function deleteProduct(index) {
     await saveProducts(currentProducts);
     showToast('Producto eliminado', 'error');
 
-    // Las micas se borran de la lista cuando ya se compraron: esa es la fecha real
-    if (product?.category === 'Micas' && !product.comprada) marcarComprada(product, true);
+    // Una mica que se borra sin palomear nunca se compró: su registro se anula
+    if (product?.category === 'Micas' && !product.comprada) anularRegistroMica(product);
+}
+
+// ========== Borrar las micas ya compradas ==========
+async function borrarCompradas() {
+    const compradas = currentProducts.filter(p => p.category === 'Micas' && p.comprada);
+    if (!compradas.length) return;
+    if (!confirm(`¿Quitar de la lista ${compradas.length} mica${compradas.length === 1 ? '' : 's'} ya comprada${compradas.length === 1 ? '' : 's'}? Siguen contando en Analytics.`)) return;
+
+    currentProducts = currentProducts.filter(p => !(p.category === 'Micas' && p.comprada));
+    await saveProducts(currentProducts);
+    showToast(`${compradas.length} de la lista`, 'success');
 }
 
 // ========== Marcar una mica como comprada ==========
@@ -298,6 +315,8 @@ async function registrarCompraMica(product) {
             fecha:    firebase.firestore.FieldValue.serverTimestamp(),
             mes:      ahora.getMonth() + 1,
             año:      ahora.getFullYear(),
+            // Hasta que se palomee en la lista no cuenta como compra
+            estado:   'pendiente',
         });
         // Se guarda el id en el producto para poder marcar después cuándo se compró
         const enLista = currentProducts.find(p =>
@@ -338,13 +357,24 @@ async function marcarComprada(product, comprada) {
     try {
         const ref = await buscarRegistroMica(product);
         if (!ref) return false;
-        await ref.update({
-            comprado: comprada ? firebase.firestore.FieldValue.serverTimestamp() : firebase.firestore.FieldValue.delete(),
-        });
+        await ref.update(comprada
+            ? { comprado: firebase.firestore.FieldValue.serverTimestamp(), estado: 'comprado' }
+            : { comprado: firebase.firestore.FieldValue.delete(), estado: 'pendiente' });
         return true;
     } catch (err) {
         console.error('No se pudo marcar la compra en Analytics:', err);
         return false;
+    }
+}
+
+// Se borró de la lista sin haberla comprado: el registro deja de contar
+async function anularRegistroMica(product) {
+    try {
+        const ref = await buscarRegistroMica(product);
+        if (!ref) return;
+        await ref.update({ anulado: true, estado: 'anulado' });
+    } catch (err) {
+        console.error('No se pudo anular el registro de la mica:', err);
     }
 }
 
