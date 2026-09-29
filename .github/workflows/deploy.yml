@@ -21,6 +21,8 @@ on:
       - 'global.js'
       - 'migrar.html'
       - 'migrar.js'
+      - 'venta.html'
+      - 'venta.js'
       - 'secondary-styles.css'
       - 'fundas-lanzadas.html'
       - 'catalogo-buytiti/index.html'
