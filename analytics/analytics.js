@@ -248,10 +248,19 @@ function sortAndRenderRanking() {
 
 // ========== Gráfica de dona: distribución por tipo ==========
 
+// Chart.js no deja reusar un canvas que ya tiene una gráfica encima: al cambiar
+// de local o de periodo hay que tirar la anterior antes de dibujar.
+function pintarChart(id, config) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return null;
+    Chart.getChart(canvas)?.destroy();
+    return new Chart(canvas, config);
+}
+
 function renderDonut(docs) {
     const pzsPorTipo = sumaPor(docs, d => d.tipo);
 
-    new Chart(document.getElementById('chart-donut'), {
+    pintarChart('chart-donut', {
         type: 'doughnut',
         data: {
             labels: TIPOS,
@@ -303,7 +312,7 @@ function renderTendencia(docs) {
         return new Date(anio, mes - 1).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
     });
 
-    new Chart(document.getElementById('chart-lineas'), {
+    pintarChart('chart-lineas', {
         type: 'line',
         data: {
             labels,
@@ -608,10 +617,669 @@ function renderReposicion(todas) {
         </p>`;
 }
 
+// ========== Fundas ==========
+// Dos preguntas: qué modelos piden más funda (ranking de ventas) y qué tipo rota
+// más rápido (días entre comprar y vender). Las compras las escribe la lista al
+// palomear (`fundas_compras`) y las ventas la pantalla de ventas
+// (`fundas_ventas`), así que todo aquí tiene que aguantar que vengan vacías.
+
+const TIPOS_FUNDA = ['Magsafe', 'Transparente', '3 piezas', 'Diseño hombre', 'Diseño mujer', 'Uso rudo', 'Color'];
+// Los 7 tipos de arriba en orden; de ahí se repite, para que un tipo nuevo que
+// alguien agregue al formulario no se quede sin color.
+const PALETA_FUNDA = ['#6c63ff', '#48bfe3', '#f4a261', '#2a9d8f', '#e76f51', '#9d4edd', '#ff70a6', '#8d99ae'];
+
+const PISO_ROTACION   = 10;   // piezas emparejadas mínimas para dar un número de días
+const PISO_MODELO     = 10;   // unidades vendidas mínimas para no marcar el renglón como poco dato
+const DIAS_PARADO     = 60;   // desde cuándo un lote sin vender es dinero parado
+const MAX_FILAS_FUNDA = 15;
+
+const fmtPct = n => `${Math.round(n * 100)}%`;
+const fmtDia = f => f.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+const pzs    = n => plural(n, 'pieza', 'piezas');
+
+// Los 7 tipos conocidos primero y en su orden; lo que llegue de más, alfabético.
+function ordenarTipos(tipos) {
+    const lista = [...tipos];
+    return [
+        ...TIPOS_FUNDA.filter(t => lista.includes(t)),
+        ...lista.filter(t => !TIPOS_FUNDA.includes(t)).sort((a, b) => a.localeCompare(b, 'es')),
+    ];
+}
+
+const colorTipo = (tipo, orden) => PALETA_FUNDA[orden.indexOf(tipo) % PALETA_FUNDA.length];
+
+// ---------- Lectura y limpieza ----------
+
+async function cargarColeccionFundas(nombre) {
+    try {
+        const snap = await db.collection(nombre).get();
+        return { docs: snap.docs.map(d => d.data()), error: null };
+    } catch (e) {
+        console.warn(`No se pudo leer ${nombre}:`, e);
+        return { docs: [], error: e.code === 'permission-denied' ? 'permiso' : 'error' };
+    }
+}
+
+// Una pieza es de un solo tipo: la rotación se calcula por tipo y una compra con
+// varios tipos marcados no se puede repartir entre ellos sin inventar cómo. Se
+// tolera `tipos[]` (los checkboxes de la lista) mientras traiga uno solo.
+function tipoDeFunda(d) {
+    if (typeof d.tipo === 'string' && d.tipo.trim()) return { tipo: d.tipo.trim(), mixto: false };
+    const tipos = (Array.isArray(d.tipos) ? d.tipos : Array.isArray(d.tipo) ? d.tipo : [])
+        .filter(t => typeof t === 'string' && t.trim());
+    if (tipos.length === 1) return { tipo: tipos[0].trim(), mixto: false };
+    return { tipo: null, mixto: tipos.length > 1 };
+}
+
+// Piezas enteras: media funda no existe, y un `cantidad` raro (texto, 0, negativo)
+// no debe entrar al FIFO como si fuera una pieza.
+function piezasDe(d) {
+    const n = Math.round(Number(d.cantidad));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+const modeloDeFunda = (d, aliasMap) =>
+    modeloDe({ nombre_original: d.modelo_original, nombre: d.modelo }, aliasMap);
+
+function prepararComprasFundas(crudos, aliasMap) {
+    const lotes = [];
+    const diag  = { pendientes: 0, mixtas: 0, sinTipo: 0, invalidas: 0 };
+    for (const d of crudos) {
+        if (d.anulado === true || d.estado === 'anulado') continue;   // dedazo borrado de la lista
+        // Solo lo palomeado. Si la lista todavía no escribiera `estado`, la fecha
+        // de palomeo alcanza para saber que la compra se hizo de verdad.
+        if (d.estado !== 'comprado' && !(d.estado === undefined && d.comprado)) { diag.pendientes++; continue; }
+        const { tipo, mixto } = tipoDeFunda(d);
+        if (mixto) { diag.mixtas++;  continue; }
+        if (!tipo) { diag.sinTipo++; continue; }
+        const piezas = piezasDe(d);
+        const fecha  = fechaDe(d);
+        if (!piezas || !fecha) { diag.invalidas++; continue; }
+        lotes.push({
+            ...modeloDeFunda(d, aliasMap),
+            tipo, piezas, fecha,
+            local:     localDe(d),
+            invertido: (Number(d.precio) || 0) * piezas,
+        });
+    }
+    return { lotes, diag };
+}
+
+function prepararVentasFundas(crudos, aliasMap) {
+    const ventas = [];
+    const diag   = { anuladas: 0, sinTipo: 0, invalidas: 0 };
+    for (const d of crudos) {
+        // Una venta mal capturada se marca, no se borra: es el único historial de
+        // ventas que hay.
+        if (d.anulada === true || d.anulado === true || d.estado === 'anulado') { diag.anuladas++; continue; }
+        const { tipo } = tipoDeFunda(d);
+        if (!tipo) { diag.sinTipo++; continue; }
+        const piezas = piezasDe(d);
+        const fecha  = fechaDe(d);
+        if (!piezas || !fecha) { diag.invalidas++; continue; }
+        ventas.push({ ...modeloDeFunda(d, aliasMap), tipo, piezas, fecha, local: localDe(d) });
+    }
+    return { ventas, diag };
+}
+
+// ---------- FIFO ----------
+// No se sabe qué pieza física se vendió, así que se supone que se vende primero
+// lo que se compró primero. `clave` decide el grano: por tipo (juntando modelos)
+// para la rotación, y por modelo+tipo para saber qué lote lleva parado.
+//
+// A igual fecha entra primero la compra: no se puede vender lo que no ha llegado,
+// y una funda comprada y vendida el mismo día son 0 días de verdad. Como los
+// eventos se procesan en orden, cualquier lote que esté en la cola se compró
+// antes o el mismo día que la venta, así que los días nunca salen negativos.
+function correrFifo(lotes, ventas, clave) {
+    const grupos = new Map();
+    const eventosDe = k => {
+        if (!grupos.has(k)) grupos.set(k, []);
+        return grupos.get(k);
+    };
+    lotes.forEach((l, i)  => eventosDe(clave(l)).push({ orden: 0, i, fecha: l.fecha, lote: l }));
+    ventas.forEach((v, i) => eventosDe(clave(v)).push({ orden: 1, i, fecha: v.fecha, venta: v }));
+
+    const resultado = new Map();
+    for (const [k, eventos] of grupos) {
+        eventos.sort((a, b) => a.fecha - b.fecha || a.orden - b.orden || a.i - b.i);
+
+        const cola      = [];   // lotes con piezas sin vender, en orden de compra
+        const pares     = [];   // { dias, piezas, fechaVenta } de cada emparejamiento
+        const huerfanas = [];   // { piezas, fechaVenta } de ventas sin compra que las respalde
+
+        for (const ev of eventos) {
+            if (ev.lote) { cola.push({ fecha: ev.fecha, restantes: ev.lote.piezas, lote: ev.lote }); continue; }
+            let porAsignar = ev.venta.piezas;
+            while (porAsignar > 0) {
+                if (!cola.length) {                        // se vendió algo que nunca se compró aquí
+                    huerfanas.push({ piezas: porAsignar, fechaVenta: ev.fecha });
+                    break;
+                }
+                const lote    = cola[0];
+                const tomadas = Math.min(porAsignar, lote.restantes);
+                pares.push({
+                    dias:       Math.round((ev.fecha - lote.fecha) / DIA_MS),
+                    piezas:     tomadas,
+                    fechaVenta: ev.fecha,
+                });
+                lote.restantes -= tomadas;
+                porAsignar     -= tomadas;
+                if (lote.restantes === 0) cola.shift();
+            }
+        }
+        resultado.set(k, { pares, huerfanas, cola });
+    }
+    return resultado;
+}
+
+// Mediana ponderada por piezas, no por emparejamiento: la población son las
+// fundas, así que un lote de 30 pesa 30 veces más que una pieza suelta. Se usa
+// mediana y no promedio porque una sola venta de un lote viejo arrastraría el
+// promedio de todo el tipo.
+function medianaPonderada(pares) {
+    const orden = [...pares].sort((a, b) => a.dias - b.dias);
+    const total = orden.reduce((s, p) => s + p.piezas, 0);
+    if (!total) return null;
+    const mitad = total / 2;
+    let acc = 0;
+    for (let i = 0; i < orden.length; i++) {
+        acc += orden[i].piezas;
+        if (acc > mitad) return orden[i].dias;
+        // Frontera exacta: la mediana queda entre esta observación y la siguiente
+        if (acc === mitad) {
+            const sig = orden[i + 1];
+            return sig ? (orden[i].dias + sig.dias) / 2 : orden[i].dias;
+        }
+    }
+    return orden[orden.length - 1].dias;
+}
+
+// ---------- Cálculos por vista ----------
+
+// El FIFO corre sobre todo el historial (la cola de un tipo depende de todas las
+// ventas anteriores), y la ventana solo decide qué emparejamientos se reportan.
+function calcularRotacion(fifoPorTipo, tipos, desde) {
+    const enVentana = f => !desde || f >= desde;
+
+    const filas = tipos.map(tipo => {
+        const r           = fifoPorTipo.get(tipo) || { pares: [], huerfanas: [] };
+        const pares       = r.pares.filter(p => enVentana(p.fechaVenta));
+        const huerfanas   = r.huerfanas.filter(h => enVentana(h.fechaVenta));
+        const emparejadas = pares.reduce((s, p) => s + p.piezas, 0);
+        const sinRespaldo = huerfanas.reduce((s, h) => s + h.piezas, 0);
+        const vendidas    = emparejadas + sinRespaldo;
+        return {
+            tipo, emparejadas, sinRespaldo, vendidas,
+            cobertura:  vendidas ? emparejadas / vendidas : null,
+            dias:       emparejadas ? medianaPonderada(pares) : null,
+            suficiente: emparejadas >= PISO_ROTACION,
+        };
+    });
+
+    // Rota más rápido primero. Los que no llegan al piso van al final: su mediana
+    // no es comparable y no debe mezclarse con las que sí lo son.
+    const solidas = filas.filter(f => f.suficiente).sort((a, b) => a.dias - b.dias || b.emparejadas - a.emparejadas);
+    const flojas  = filas.filter(f => !f.suficiente).sort((a, b) => b.vendidas - a.vendidas || b.emparejadas - a.emparejadas);
+
+    return {
+        filas:       [...solidas, ...flojas],
+        solidas,
+        masRapido:   solidas[0] || null,
+        emparejadas: filas.reduce((s, f) => s + f.emparejadas, 0),
+        sinRespaldo: filas.reduce((s, f) => s + f.sinRespaldo, 0),
+    };
+}
+
+// Lo que quedó sin emparejar, por modelo+tipo. Este FIFO va con otra clave a
+// propósito: el de la rotación junta modelos, así que una venta de un modelo
+// podría consumir el lote de otro y el sobrante no diría nada del modelo.
+function calcularParado(fifoPorModeloTipo, hoy) {
+    const filas = [];
+    for (const [clave, r] of fifoPorModeloTipo) {
+        const vivos = r.cola.filter(l => l.restantes > 0);   // ya vienen en orden de compra
+        if (!vivos.length) continue;
+        const viejo = vivos[0];
+        const dias  = Math.round((hoy - viejo.fecha) / DIA_MS);
+        if (dias < DIAS_PARADO) continue;
+        filas.push({
+            modelo:   viejo.lote.modelo,
+            conAlias: viejo.lote.conAlias,
+            tipo:     viejo.lote.tipo,
+            piezas:   viejo.restantes,
+            total:    vivos.reduce((s, l) => s + l.restantes, 0),
+            desde:    viejo.fecha,
+            dias,
+        });
+    }
+    return filas.sort((a, b) => b.dias - a.dias || b.total - a.total);
+}
+
+function calcularRankingFundas(lotesVentana, ventasVentana) {
+    const total = ventasVentana.reduce((s, v) => s + v.piezas, 0);
+    const map   = new Map();
+    const fila  = d => {
+        if (!map.has(d.modelo)) {
+            map.set(d.modelo, { modelo: d.modelo, conAlias: d.conAlias, vendidas: 0, compradas: 0, porTipo: {}, ultima: null });
+        }
+        const f = map.get(d.modelo);
+        f.conAlias = f.conAlias || d.conAlias;
+        return f;
+    };
+
+    for (const l of lotesVentana) fila(l).compradas += l.piezas;
+    for (const v of ventasVentana) {
+        const f = fila(v);
+        f.vendidas       += v.piezas;
+        f.porTipo[v.tipo] = (f.porTipo[v.tipo] || 0) + v.piezas;
+        if (!f.ultima || v.fecha > f.ultima) f.ultima = v.fecha;
+    }
+
+    const filas = [...map.values()].map(f => ({ ...f, pct: total ? f.vendidas / total * 100 : 0 }));
+    return { filas, total, conPocoDato: filas.filter(f => f.vendidas && f.vendidas < PISO_MODELO).length };
+}
+
+function calcularFundas(lotes, ventas, desde, hoy) {
+    const enVentana = f => !desde || f >= desde;
+    const tipos     = ordenarTipos(new Set([...lotes, ...ventas].map(d => d.tipo)));
+    return {
+        tipos, lotes, ventas,
+        lotesVentana:  lotes.filter(l => enVentana(l.fecha)),
+        ventasVentana: ventas.filter(v => enVentana(v.fecha)),
+        rotacion: calcularRotacion(correrFifo(lotes, ventas, d => d.tipo), tipos, desde),
+        parado:   calcularParado(correrFifo(lotes, ventas, d => `${d.modelo}||${d.tipo}`), hoy),
+        ranking:  calcularRankingFundas(lotes.filter(l => enVentana(l.fecha)), ventas.filter(v => enVentana(v.fecha))),
+    };
+}
+
+// ---------- Vistas ----------
+
+const celdaModelo = f => `<td${f.conAlias ? '' : ' class="sin-alias"'}>${escapeHtml(f.modelo)}</td>`;
+
+// A · Resumen
+function renderResumenFundas(vista, diag, etiquetaPeriodo) {
+    const vendidas  = vista.ventasVentana.reduce((s, v) => s + v.piezas, 0);
+    const compradas = vista.lotesVentana.reduce((s, l) => s + l.piezas, 0);
+    const invertido = vista.lotesVentana.reduce((s, l) => s + l.invertido, 0);
+    const mejor     = [...vista.ranking.filas].sort((a, b) => b.vendidas - a.vendidas)[0];
+    const rapido    = vista.rotacion.masRapido;
+    const sinRespaldo = vista.rotacion.sinRespaldo;
+
+    const poner = (id, valor, sub = '') => {
+        document.getElementById(`f-stat-${id}`).textContent     = valor;
+        document.getElementById(`f-stat-${id}-sub`).textContent = sub;
+    };
+
+    poner('vendidas', vendidas ? pzs(vendidas) : '—',
+        sinRespaldo ? `${fmtNum(sinRespaldo)} sin compra que las respalde` : etiquetaPeriodo);
+    poner('compradas', compradas ? pzs(compradas) : '—',
+        compradas ? fmtDinero(invertido) : etiquetaPeriodo);
+    poner('modelo', mejor && mejor.vendidas ? mejor.modelo : '—',
+        mejor && mejor.vendidas
+            ? `${pzs(mejor.vendidas)}${mejor.vendidas < PISO_MODELO ? ' · todavía es poco dato' : ''}`
+            : 'sin ventas registradas');
+    poner('tipo', rapido ? rapido.tipo : 'Acumulando datos',
+        rapido
+            ? `mediana de ${fmtNum(rapido.dias)} días · ${pzs(rapido.emparejadas)} emparejadas`
+            : `ningún tipo llega a ${PISO_ROTACION} piezas emparejadas`);
+
+    const avisos = [];
+    if (diag.compras.pendientes) avisos.push(`${plural(diag.compras.pendientes, 'funda anotada', 'fundas anotadas')} en la lista sin palomear`);
+    if (diag.compras.mixtas)     avisos.push(`${plural(diag.compras.mixtas, 'compra', 'compras')} con más de un tipo marcado, que no se pueden repartir por tipo`);
+    if (diag.compras.sinTipo)    avisos.push(`${plural(diag.compras.sinTipo, 'compra', 'compras')} sin tipo de funda`);
+    if (diag.ventas.sinTipo)     avisos.push(`${plural(diag.ventas.sinTipo, 'venta', 'ventas')} sin tipo de funda`);
+    if (diag.ventas.anuladas)    avisos.push(`${plural(diag.ventas.anuladas, 'venta anulada', 'ventas anuladas')}`);
+    const invalidas = diag.compras.invalidas + diag.ventas.invalidas;
+    if (invalidas)               avisos.push(`${plural(invalidas, 'registro', 'registros')} sin cantidad o sin fecha usable`);
+
+    document.getElementById('f-nota-resumen').textContent = avisos.length
+        ? `Fuera de la cuenta: ${avisos.join(' · ')}.`
+        : '';
+}
+
+// B · Ranking de modelos
+let fundasRanking = [];
+let fSortCol      = 'vendidas';
+let fSortDir      = -1;
+
+const F_COLUMNAS = [
+    { col: 'modelo',    titulo: 'Modelo' },
+    { col: 'vendidas',  titulo: 'Vendidas' },
+    { col: 'compradas', titulo: 'Compradas' },
+    { col: 'pct',       titulo: '% vendido' },
+    { col: 'ultima',    titulo: 'Última venta' },
+];
+
+function renderRankingFundas(vista) {
+    fundasRanking = vista.ranking.filas;
+    const contenedor = document.getElementById('f-ranking-contenido');
+
+    if (!vista.ventas.length) {
+        contenedor.innerHTML = `<p class="muted">Todavía no hay ventas registradas${
+            vista.lotes.length ? `, pero ya hay ${pzs(vista.lotes.reduce((s, l) => s + l.piezas, 0))} compradas. Registra las ventas y este ranking se llena solo.` : '.'}</p>`;
+        return;
+    }
+    if (!fundasRanking.some(f => f.vendidas)) {
+        contenedor.innerHTML = '<p class="muted">Ninguna venta cae en el periodo elegido. Prueba con un periodo más amplio.</p>';
+        return;
+    }
+
+    contenedor.innerHTML = `
+        <div class="table-wrapper">
+            <table class="data-table" id="f-tabla-ranking">
+                <thead>
+                    <tr>
+                        ${F_COLUMNAS.map(c => `<th class="sortable" data-col="${c.col}">${c.titulo} ↕</th>`).join('')}
+                        <th>Tipos vendidos</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <p class="chart-note">
+            ${vista.ranking.conPocoDato
+                ? `Con * los modelos de menos de ${PISO_MODELO} unidades vendidas: son el primer dato que llegó, no una tendencia. `
+                : ''}«Compradas» cuenta solo lo comprado dentro del periodo, así que un modelo puede tener ventas y 0 compras si lo surtiste antes.
+        </p>`;
+    ordenarRankingFundas();
+}
+
+function ordenarRankingFundas() {
+    const tbody = document.querySelector('#f-tabla-ranking tbody');
+    if (!tbody) return;
+
+    const valor = (f, col) => col === 'ultima' ? (f.ultima ? f.ultima.getTime() : 0) : f[col];
+    const filas = [...fundasRanking].sort((a, b) => {
+        const cmp = fSortCol === 'modelo'
+            ? a.modelo.localeCompare(b.modelo, 'es')
+            : valor(a, fSortCol) - valor(b, fSortCol);
+        return cmp * fSortDir;
+    });
+
+    const desglose = porTipo => Object.entries(porTipo)
+        .sort((a, b) => b[1] - a[1])
+        .map(([t, n]) => `${escapeHtml(t)} ${fmtNum(n)}`)
+        .join(' · ') || '<span class="cero">–</span>';
+
+    tbody.innerHTML = filas.map(f => `
+        <tr>
+            <td${f.conAlias ? '' : ' class="sin-alias"'}>${escapeHtml(f.modelo)}${f.vendidas && f.vendidas < PISO_MODELO ? ' *' : ''}</td>
+            <td><strong>${f.vendidas ? fmtNum(f.vendidas) : '<span class="cero">–</span>'}</strong></td>
+            <td>${f.compradas ? fmtNum(f.compradas) : '<span class="cero">–</span>'}</td>
+            <td>${f.pct.toFixed(1)}%</td>
+            <td>${f.ultima ? fmtDia(f.ultima) : '<span class="cero">–</span>'}</td>
+            <td>${desglose(f.porTipo)}</td>
+        </tr>`).join('');
+}
+
+// C · Rotación por tipo
+function renderRotacionFundas(vista) {
+    const contenedor = document.getElementById('f-rotacion-contenido');
+    const grafica    = document.getElementById('f-rotacion-grafica');
+    const { filas, solidas } = vista.rotacion;
+
+    if (!filas.length || !filas.some(f => f.vendidas)) {
+        contenedor.innerHTML = `<p class="muted">${vista.lotes.length
+            ? 'Sin ventas en el periodo no hay nada que emparejar: la rotación necesita los dos eventos, comprar y vender.'
+            : 'Todavía no hay compras ni ventas de fundas registradas.'}</p>`;
+        grafica.hidden = true;
+        return;
+    }
+
+    const primeraFloja = filas.findIndex(f => !f.suficiente);
+
+    const dias = f => f.suficiente ? `<strong>${fmtNum(f.dias)} d</strong>`
+        : f.vendidas ? `<span class="cero">insuficiente (${fmtNum(f.emparejadas)} pzs)</span>`
+        : '<span class="cero">sin ventas</span>';   // comprado y nunca vendido
+
+    const renglon = f => `
+        <tr>
+            <td>${escapeHtml(f.tipo)}</td>
+            <td>${dias(f)}</td>
+            <td>${fmtNum(f.emparejadas)}</td>
+            <td>${f.cobertura === null
+                    ? '<span class="cero">–</span>'
+                    : `${fmtNum(f.emparejadas)} de ${fmtNum(f.vendidas)} (${fmtPct(f.cobertura)})`}</td>
+            <td>${f.sinRespaldo ? fmtNum(f.sinRespaldo) : '<span class="cero">–</span>'}</td>
+        </tr>`;
+
+    contenedor.innerHTML = `
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Días para venderse</th>
+                        <th>Pzs emparejadas</th>
+                        <th>Cobertura</th>
+                        <th>Sin respaldo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filas.map((f, i) => (i === primeraFloja && primeraFloja > 0
+                        ? `<tr class="fila-total"><td colspan="5">Debajo de ${PISO_ROTACION} piezas emparejadas · no son comparables entre sí</td></tr>`
+                        : '') + renglon(f)).join('')}
+                </tbody>
+            </table>
+        </div>
+        <p class="chart-note">
+            Mediana de días, ponderada por piezas, suponiendo que se vende primero lo que se compró
+            primero (FIFO). No es un rastreo pieza por pieza: no se sabe qué funda física se vendió.
+            Con menos de ${PISO_ROTACION} piezas emparejadas el número es ruido, no rotación, y por eso
+            esas filas no pueden ganar el destacado del resumen.
+        </p>
+        <p class="chart-note">
+            «Sin respaldo» son ventas que ninguna compra del historial explica: stock de antes de este
+            sistema, una compra que no se anotó, un nombre que no se reconoció como el mismo modelo, o una
+            compra con varios tipos marcados. Si crece para un tipo, algo se está anotando distinto entre
+            compra y venta.
+        </p>`;
+
+    // Solo las que cruzan el piso: meter las flojas en la misma gráfica las haría
+    // ver comparables cuando no lo son.
+    grafica.hidden = solidas.length < 2;
+    if (!grafica.hidden) {
+        pintarChart('f-chart-rotacion', {
+            type: 'bar',
+            data: {
+                labels: solidas.map(f => f.tipo),
+                datasets: [{
+                    label: 'Días para venderse (mediana)',
+                    data: solidas.map(f => f.dias),
+                    backgroundColor: solidas.map(f => colorTipo(f.tipo, vista.tipos)),
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ` ${fmtNum(ctx.raw)} días · ${pzs(solidas[ctx.dataIndex].emparejadas)} emparejadas` } },
+                },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+            },
+        });
+    }
+}
+
+// D · Qué lleva mucho sin venderse
+function renderParadoFundas(vista) {
+    const contenedor = document.getElementById('f-parado-contenido');
+
+    if (!vista.lotes.length) {
+        contenedor.innerHTML = '<p class="muted">Todavía no hay compras de fundas registradas.</p>';
+        return;
+    }
+
+    const todas   = vista.parado;
+    const filas   = todas.slice(0, MAX_FILAS_FUNDA);
+    const ocultas = todas.length - filas.length;
+
+    if (!filas.length) {
+        contenedor.innerHTML = `<p class="muted">Ningún lote lleva más de ${DIAS_PARADO} días esperando venta.</p>`;
+        return;
+    }
+
+    contenedor.innerHTML = `
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Modelo</th>
+                        <th>Tipo</th>
+                        <th>Esperando</th>
+                        <th>Pzs del lote</th>
+                        <th>Pzs sin vender</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filas.map(f => `
+                        <tr${f.dias >= DIAS_PARADO * 2 ? ' class="alerta"' : ''}>
+                            ${celdaModelo(f)}
+                            <td>${escapeHtml(f.tipo)}</td>
+                            <td><strong>${fmtNum(f.dias)} d</strong></td>
+                            <td>${fmtNum(f.piezas)}</td>
+                            <td>${fmtNum(f.total)}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        <p class="chart-note">
+            El lote más viejo de cada modelo y tipo que el FIFO no pudo emparejar con ninguna venta,
+            con más de ${DIAS_PARADO} días desde que se compró. En rojo, los de más de ${DIAS_PARADO * 2} días.
+            «Pzs del lote» son las de ese lote; «Pzs sin vender», todas las de ese modelo y tipo.
+            ${ocultas ? `Hay ${ocultas} más con menos días. ` : ''}
+            No usa el filtro de periodo: cualquier venta, de cuando sea, descuenta stock.
+        </p>
+        <p class="chart-note">
+            Un modelo aquí puede querer decir que de verdad no se vende, o que se vendió y nadie lo anotó.
+            Con estos datos no se puede distinguir un caso del otro.
+        </p>`;
+}
+
+// E · Tendencia mensual
+function renderTendenciaFundas(vista) {
+    const aviso   = document.getElementById('f-tendencia-aviso');
+    const grafica = document.getElementById('f-tendencia-grafica');
+    const ventas  = vista.ventas;
+
+    const meses = ventas.length ? rangoMeses(ventas) : [];
+    if (meses.length < 2) {
+        aviso.innerHTML = `<p class="muted">${ventas.length
+            ? 'Acumulando datos: con un solo mes de ventas no hay tendencia que dibujar, y menos estacionalidad.'
+            : 'Todavía no hay ventas registradas.'}</p>`;
+        grafica.hidden = true;
+        return;
+    }
+
+    aviso.innerHTML = '';
+    grafica.hidden  = false;
+
+    const porMesTipo = sumaPor(ventas, v => `${claveMes(v.fecha)}|${v.tipo}`, v => v.piezas);
+    const conVentas  = vista.tipos.filter(t => ventas.some(v => v.tipo === t));
+    const labels     = meses.map(m => {
+        const [anio, mes] = m.split('-').map(Number);
+        return new Date(anio, mes - 1).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
+    });
+
+    pintarChart('f-chart-tendencia', {
+        type: 'line',
+        data: {
+            labels,
+            datasets: conVentas.map(tipo => ({
+                label: tipo,
+                data: meses.map(m => porMesTipo[`${m}|${tipo}`] || 0),
+                borderColor: colorTipo(tipo, vista.tipos),
+                backgroundColor: `${colorTipo(tipo, vista.tipos)}1a`,
+                tension: 0.3,
+                fill: true,
+            })),
+        },
+        options: {
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${pzs(ctx.raw)}` } },
+            },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        },
+    });
+}
+
+// ---------- Init ----------
+
+const ETIQUETAS_PERIODO = { 30: 'últimos 30 días', 90: 'últimos 90 días', 365: 'último año', 0: 'todo el historial' };
+
+async function initFundas(aliasMap, locales) {
+    const selLocal   = document.getElementById('filtro-local-fundas');
+    const selPeriodo = document.getElementById('filtro-periodo-fundas');
+
+    locales.forEach(l => {
+        const op = document.createElement('option');
+        op.value = l.id;
+        op.textContent = l.nombre;
+        selLocal.appendChild(op);
+    });
+    // Con un solo local no hay nada que separar
+    document.getElementById('f-campo-local').hidden = locales.length < 2;
+
+    const [compras, ventasCrudas] = await Promise.all([
+        cargarColeccionFundas('fundas_compras'),
+        cargarColeccionFundas('fundas_ventas'),
+    ]);
+
+    const error = compras.error || ventasCrudas.error;
+    if (error) {
+        const aviso = document.getElementById('f-aviso');
+        aviso.textContent = error === 'permiso'
+            ? 'Firestore no deja leer fundas_compras / fundas_ventas. Faltan las reglas de esas dos colecciones: hay que publicarlas en la consola de Firebase.'
+            : 'No se pudieron leer las fundas de Firestore. Revisa la consola del navegador.';
+        aviso.hidden = false;
+    }
+
+    function pintar() {
+        const local = selLocal.value;
+        const dias  = Number(selPeriodo.value) || 0;
+        const hoy   = new Date();
+        const desde = dias > 0 ? new Date(hoy.getTime() - dias * DIA_MS) : null;
+
+        // Se filtra antes de limpiar, para que los contadores de lo que quedó
+        // fuera sean también los de ese local y no los de todos
+        const filtrar = docs => local ? docs.filter(d => localDe(d) === local) : docs;
+        const { lotes,  diag: diagCompras } = prepararComprasFundas(filtrar(compras.docs), aliasMap);
+        const { ventas, diag: diagVentas }  = prepararVentasFundas(filtrar(ventasCrudas.docs), aliasMap);
+
+        const vista = calcularFundas(lotes, ventas, desde, hoy);
+
+        renderResumenFundas(vista, { compras: diagCompras, ventas: diagVentas }, ETIQUETAS_PERIODO[dias] || '');
+        renderRankingFundas(vista);
+        renderRotacionFundas(vista);
+        renderParadoFundas(vista);
+        renderTendenciaFundas(vista);
+    }
+
+    selLocal.addEventListener('change', pintar);
+    selPeriodo.addEventListener('change', pintar);
+
+    // Un solo listener para ordenar: volver a colgarlo en cada pintada acabaría
+    // invirtiendo el orden varias veces por clic.
+    document.getElementById('f-ranking-contenido').addEventListener('click', e => {
+        const th = e.target.closest('th.sortable');
+        if (!th) return;
+        const col = th.dataset.col;
+        if (fSortCol === col) fSortDir *= -1;
+        else { fSortCol = col; fSortDir = col === 'modelo' ? 1 : -1; }
+        ordenarRankingFundas();
+    });
+
+    pintar();
+}
+
+
 // ========== Pestañas ==========
 
 const SUBTITULOS = {
     micas:    'Historial de compras · Micas',
+    fundas:   'Compras y ventas · Fundas',
     hidrogel: 'Pedidos a KASR · Hidrogel',
 };
 
@@ -630,69 +1298,71 @@ mostrarPestana(location.hash.slice(1));
 
 // ========== Init ==========
 
-window.addEventListener('DOMContentLoaded', async () => {
-    try {
-        const [crudos, aliasMap, locales] = await Promise.all([
-            cargarDatos(), cargarAliases(), cargarLocales(),
-        ]);
+async function initMicas(aliasMap, locales) {
+    const crudos = await cargarDatos();
 
-        const selector = document.getElementById('filtro-local');
-        locales.forEach(l => {
-            const op = document.createElement('option');
-            op.value = l.id;
-            op.textContent = l.nombre;
-            selector.appendChild(op);
-        });
-        // Con un solo local no hay nada que separar
-        selector.closest('.filtro-local').hidden = locales.length < 2;
+    const selector = document.getElementById('filtro-local');
+    locales.forEach(l => {
+        const op = document.createElement('option');
+        op.value = l.id;
+        op.textContent = l.nombre;
+        selector.appendChild(op);
+    });
+    // Con un solo local no hay nada que separar
+    selector.closest('.filtro-local').hidden = locales.length < 2;
 
-        const vacio = mensaje => {
-            document.querySelector('.stat-grid').innerHTML =
-                `<p class="muted" style="grid-column:1/-1">${mensaje}</p>`;
-            document.getElementById('proyecciones-contenido').innerHTML = '<p class="muted">Sin datos aún.</p>';
-        };
+    const vacio = mensaje => {
+        document.querySelector('.stat-grid').innerHTML =
+            `<p class="muted" style="grid-column:1/-1">${mensaje}</p>`;
+        document.getElementById('proyecciones-contenido').innerHTML = '<p class="muted">Sin datos aún.</p>';
+    };
 
-        let docsActuales = [];
+    let docsActuales = [];
 
-        async function pintar(local) {
-            const filtrados = local ? crudos.filter(d => localDe(d) === local) : crudos;
-            const { docs, sinTipo, pendientes: sinPalomear } = prepararDocs(filtrados, aliasMap);
-            docsActuales = docs;
+    async function pintar(local) {
+        const filtrados = local ? crudos.filter(d => localDe(d) === local) : crudos;
+        const { docs, sinTipo, pendientes: sinPalomear } = prepararDocs(filtrados, aliasMap);
+        docsActuales = docs;
 
-            if (docs.length === 0) {
-                vacio(local
-                    ? 'Este local todavía no tiene compras registradas.'
-                    : 'Aún no hay compras registradas. Agrega micas desde la lista principal.');
-                document.getElementById('reponer-contenido').innerHTML = '';
-                return;
-            }
-
-            const pendientes = await cargarPendientes(aliasMap, local);
-            renderDashboard(docs, sinTipo, sinPalomear);
-            renderRanking(docs);
-            renderDonut(docs);
-            renderTendencia(docs);
-            renderPrevision(calcularPrevision(docs, pendientes));
+        if (docs.length === 0) {
+            vacio(local
+                ? 'Este local todavía no tiene compras registradas.'
+                : 'Aún no hay compras registradas. Agrega micas desde la lista principal.');
+            document.getElementById('reponer-contenido').innerHTML = '';
+            return;
         }
 
-        await pintar('');
-
-        selector.addEventListener('change', async () => {
-            document.getElementById('reponer-contenido').innerHTML = '';
-            await pintar(selector.value);
-        });
-
-        // El botón vuelve a leer la lista de compras, que cambia mientras se arma el pedido
-        const boton = document.getElementById('btn-reponer');
-        boton.addEventListener('click', async () => {
-            boton.disabled = true;
-            boton.textContent = 'Calculando…';
-            const pendientes = await cargarPendientes(aliasMap, selector.value);
-            renderReposicion(calcularReposicion(docsActuales, pendientes));
-            boton.disabled = false;
-            boton.textContent = 'Actualizar';
-        });
-    } catch (err) {
-        console.error('Error cargando analytics:', err);
+        const pendientes = await cargarPendientes(aliasMap, local);
+        renderDashboard(docs, sinTipo, sinPalomear);
+        renderRanking(docs);
+        renderDonut(docs);
+        renderTendencia(docs);
+        renderPrevision(calcularPrevision(docs, pendientes));
     }
+
+    await pintar('');
+
+    selector.addEventListener('change', async () => {
+        document.getElementById('reponer-contenido').innerHTML = '';
+        await pintar(selector.value);
+    });
+
+    // El botón vuelve a leer la lista de compras, que cambia mientras se arma el pedido
+    const boton = document.getElementById('btn-reponer');
+    boton.addEventListener('click', async () => {
+        boton.disabled = true;
+        boton.textContent = 'Calculando…';
+        const pendientes = await cargarPendientes(aliasMap, selector.value);
+        renderReposicion(calcularReposicion(docsActuales, pendientes));
+        boton.disabled = false;
+        boton.textContent = 'Actualizar';
+    });
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+    // Los alias y los locales los ocupan las dos pestañas. De ahí cada una va
+    // por su lado: si la de fundas truena, micas sigue pintando igual.
+    const [aliasMap, locales] = await Promise.all([cargarAliases(), cargarLocales()]);
+    initMicas(aliasMap, locales).catch(err => console.error('Error cargando micas:', err));
+    initFundas(aliasMap, locales).catch(err => console.error('Error cargando fundas:', err));
 });

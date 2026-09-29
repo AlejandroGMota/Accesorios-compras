@@ -12,7 +12,8 @@ const PLANTILLA_LOGIN = `
         <p class="chart-note">Esta pantalla es solo para ti. Las listas de los locales no piden cuenta.</p>
 
         <label for="authEmail">Correo</label>
-        <input type="email" id="authEmail" autocomplete="username" required>
+        <input type="email" id="authEmail" autocomplete="username" required
+               inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false">
 
         <label for="authPass">Contraseña</label>
         <input type="password" id="authPass" autocomplete="current-password" required>
@@ -37,7 +38,10 @@ function mensajeDeError(codigo = '') {
     // Sale al abrir desde localhost: la llave de API solo acepta el dominio real.
     if (codigo.startsWith('auth/requests-from-referer'))
         return 'Este dominio no está autorizado para iniciar sesión. Pruébalo en accesories.alejandrogmota.com, o agrega localhost a los dominios permitidos de la llave de API.';
-    return ERRORES[codigo] ?? 'No se pudo entrar. Intenta de nuevo.';
+    if (codigo === 'auth/unauthorized-domain')
+        return 'Este dominio no está en «Authorized domains» de Firebase → Authentication → Settings.';
+    // Se enseña el código porque en el teléfono no se puede abrir la consola
+    return (ERRORES[codigo] ?? 'No se pudo entrar.') + ` (${codigo || 'sin código'})`;
 }
 
 // Deja la página tapada hasta que haya sesión. Devuelve el usuario.
@@ -61,7 +65,7 @@ function protegerPagina() {
             boton.textContent = 'Entrando…';
             try {
                 await firebase.auth().signInWithEmailAndPassword(
-                    document.getElementById('authEmail').value.trim(),
+                    document.getElementById('authEmail').value.trim().toLowerCase(),
                     document.getElementById('authPass').value);
             } catch (err) {
                 console.error('Login fallido:', err.code, err.message);
@@ -81,7 +85,7 @@ function protegerPagina() {
             // en vez de dejar que fallen los guardados uno por uno.
             if (!await esAdmin(user)) {
                 overlay.hidden = false;
-                fallar('Esta cuenta no tiene permiso de administrador. Falta el documento admins/' + user.uid + ' en Firestore.');
+                fallar(motivoNoAdmin);
                 await firebase.auth().signOut();
                 return;
             }
@@ -92,11 +96,17 @@ function protegerPagina() {
     });
 }
 
+let motivoNoAdmin = '';
+
 async function esAdmin(user) {
     try {
-        return (await firebase.firestore().collection('admins').doc(user.uid).get()).exists;
+        const doc = await firebase.firestore().collection('admins').doc(user.uid).get();
+        if (doc.exists) return true;
+        motivoNoAdmin = `Falta el documento admins/${user.uid} en Firestore.`;
+        return false;
     } catch (err) {
         console.error('No se pudo comprobar si la cuenta es admin:', err);
+        motivoNoAdmin = `No se pudo leer admins/${user.uid} (${err.code ?? err.message}). Revisa tu conexión.`;
         return false;
     }
 }
