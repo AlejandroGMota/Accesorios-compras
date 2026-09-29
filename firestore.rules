@@ -1,5 +1,25 @@
 rules_version = '2';
 
+// ===========================================================================
+// VERSIÓN DEL ARCHIVO: 2  ·  2026-09-29
+//
+// ⚠️ El `rules_version = '2'` de arriba NO es esta versión. Esa es la del
+// lenguaje de reglas de Firestore y solo acepta '1' o '2': si se cambia por
+// un 2.1 o parecido, la consola rechaza el archivo entero al publicarlo.
+// El seguimiento de nuestros cambios vive aquí abajo.
+//
+//   2 · 2026-09-29 (e89d1f7) — se agregan `fundas_compras`, `compras` (el
+//       resto de categorías, con campo `categoria`) y `fundas_ventas`. En
+//       ventas el borrado queda prohibido: una venta mal capturada se marca
+//       `anulada`, que es reversible; borrarla no lo es.
+//   1 · 2026-09-28 (fb719b1) — primera versión versionada en el repo. Quién
+//       es admin pasa a decidirse por la colección `admins/{uid}` en vez de
+//       un correo escrito aquí dentro, y entran `items` y `locales`.
+//
+// Al cambiar algo: subir el número, anotar qué y por qué, y **volver a
+// publicar en la consola**. Editar el archivo no surte ningún efecto solo.
+// ===========================================================================
+
 // Reglas de Firestore de accesories.alejandrogmota.com
 //
 // Hasta ahora vivían solo en la consola de Firebase y estaban en

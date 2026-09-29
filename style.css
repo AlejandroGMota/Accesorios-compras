@@ -468,6 +468,36 @@ select:focus {
     color: white;
 }
 
+/* Variantes de funda: cada chip es una funda concreta, y se marcan las que sí
+   se consiguieron. Los tipos se distinguen de los colores con un punto, para
+   poder leer de un vistazo qué es qué sin depender del nombre. */
+.parcial-chip.variante[aria-pressed="true"] {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.parcial-chip.variante.tipo::before {
+    content: '•';
+    margin-right: 6px;
+    opacity: 0.55;
+}
+
+.parcial-chip.aceptar {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.parcial-chip.aceptar:disabled {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.parcial-chip.aceptar:disabled:hover { background: var(--surface); }
+
 .parcial-chip.otra,
 .parcial-chip.cancelar {
     font-size: 0.82em;
@@ -759,6 +789,10 @@ select:focus {
 
 .prevision-tipo { margin-bottom: 22px; }
 .prevision-tipo:last-child { margin-bottom: 0; }
+/* Una fila sin datos suficientes no debe competir visualmente con las que sí
+   los tienen: se apaga, pero se sigue viendo para saber que existe. */
+.data-table tr.insuficiente td { opacity: 0.5; }
+
 .data-table tr.fila-total td { border-top: 2px solid var(--border); font-weight: 600; }
 
 .proyeccion-grid {

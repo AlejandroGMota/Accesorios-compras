@@ -623,8 +623,8 @@ function renderReposicion(todas) {
 // palomear (`fundas_compras`) y las ventas la pantalla de ventas
 // (`fundas_ventas`), así que todo aquí tiene que aguantar que vengan vacías.
 
-const TIPOS_FUNDA = ['Magsafe', 'Transparente', '3 piezas', 'Diseño hombre', 'Diseño mujer', 'Uso rudo', 'Color'];
-// Los 7 tipos de arriba en orden; de ahí se repite, para que un tipo nuevo que
+const TIPOS_FUNDA = ['Magsafe', 'Transparente', '3 piezas', 'Diseño hombre', 'Diseño mujer', 'Uso rudo', 'Color', 'Para personalizar'];
+// Los 8 tipos de arriba en orden; de ahí se repite, para que un tipo nuevo que
 // alguien agregue al formulario no se quede sin color.
 const PALETA_FUNDA = ['#6c63ff', '#48bfe3', '#f4a261', '#2a9d8f', '#e76f51', '#9d4edd', '#ff70a6', '#8d99ae'];
 
@@ -690,17 +690,31 @@ function prepararComprasFundas(crudos, aliasMap) {
         // de palomeo alcanza para saber que la compra se hizo de verdad.
         if (d.estado !== 'comprado' && !(d.estado === undefined && d.comprado)) { diag.pendientes++; continue; }
         const { tipo, mixto } = tipoDeFunda(d);
-        if (mixto) { diag.mixtas++;  continue; }
-        if (!tipo) { diag.sinTipo++; continue; }
         const piezas = piezasDe(d);
         const fecha  = fechaDe(d);
         if (!piezas || !fecha) { diag.invalidas++; continue; }
-        lotes.push({
+
+        // Color y tipo son la MISMA dimensión: «Azul» es una variante y «Magsafe»
+        // es otra, no un color y un tipo de la misma funda. Que en la pantalla
+        // estén en dos grupos de casillas es un accidente de cómo quedó, no una
+        // diferencia real. Así que cada variante marcada es una funda distinta y
+        // el lote se expande en uno por variante, con una pieza cada uno.
+        const variantes = [
+            ...(Array.isArray(d.colores) ? d.colores : []),
+            ...(Array.isArray(d.tipos)   ? d.tipos   : (tipo ? [tipo] : [])),
+        ];
+        const base = {
             ...modeloDeFunda(d, aliasMap),
-            tipo, piezas, fecha,
+            fecha,
             local:     localDe(d),
             invertido: (Number(d.precio) || 0) * piezas,
-        });
+        };
+        if (!variantes.length) { diag.sinTipo++; lotes.push({ ...base, tipo: tipo || '(sin variante)', piezas }); continue; }
+
+        // El importe se reparte entre las variantes para que el total invertido
+        // siga cuadrando aunque el lote se haya partido
+        const porPieza = base.invertido / variantes.length;
+        variantes.forEach(v => lotes.push({ ...base, tipo: v, piezas: 1, invertido: porPieza }));
     }
     return { lotes, diag };
 }
@@ -889,7 +903,101 @@ function calcularFundas(lotes, ventas, desde, hoy) {
         rotacion: calcularRotacion(correrFifo(lotes, ventas, d => d.tipo), tipos, desde),
         parado:   calcularParado(correrFifo(lotes, ventas, d => `${d.modelo}||${d.tipo}`), hoy),
         ranking:  calcularRankingFundas(lotes.filter(l => enVentana(l.fecha)), ventas.filter(v => enVentana(v.fecha))),
+        tendenciaModelos: calcularTendenciaModelos(ventas, desde, hoy),
     };
+}
+
+// Cada variante marcada en el renglón es una funda, así que se cuenta una por
+// una. Un renglón de «Azul, Rojo + Transparente» aporta 2 al conteo de colores
+// y 1 al de tipos: son tres fundas distintas, no tres etiquetas de la misma.
+function contarVariantes(lotes) {
+    const por = {};
+    for (const l of lotes) por[l.tipo] = (por[l.tipo] || 0) + l.piezas;
+    return Object.entries(por)
+        .map(([nombre, piezas]) => ({ nombre, piezas }))
+        .sort((a, b) => b.piezas - a.piezas || a.nombre.localeCompare(b.nombre));
+}
+
+function renderVariantesFundas(vista) {
+    const cont = document.getElementById('f-variantes-contenido');
+    if (!cont) return;
+    const filas = contarVariantes(vista.lotesVentana);
+
+    if (!filas.length) {
+        cont.innerHTML = '<p class="muted">Todavía no hay compras de fundas registradas en el periodo.</p>';
+        return;
+    }
+
+    const total = filas.reduce((s, f) => s + f.piezas, 0);
+    cont.innerHTML = `
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead><tr><th>Variante</th><th>Piezas</th><th>%</th></tr></thead>
+                <tbody>
+                    ${filas.map(f => `
+                        <tr>
+                            <td>${escapeHtml(f.nombre)}</td>
+                            <td>${fmtNum(f.piezas)}</td>
+                            <td>${(f.piezas / total * 100).toFixed(0)}%</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+// El peso del negocio no está en el total vendido, sino en **hacia dónde va**:
+// un modelo que se empieza a pedir hay que surtirlo, y uno que se apaga hay que
+// dejar de comprarlo antes de llenarse de fundas que nadie quiere. El ranking
+// no distingue las dos cosas: un iPhone 13 que se muere puede seguir arriba por
+// lo que vendió hace meses.
+//
+// Se parte el periodo a la mitad y se compara. Con poco volumen cualquier
+// comparación es ruido, así que por debajo del piso no se clasifica: se dice
+// que no alcanza, igual que en la rotación.
+const PISO_TENDENCIA = 6;   // piezas en todo el periodo para poder opinar
+
+function clasificarTendencia(reciente, anterior) {
+    if (!anterior && reciente)  return { estado: 'nuevo',    etiqueta: 'Nuevo' };
+    if (anterior && !reciente)  return { estado: 'apagado',  etiqueta: 'Se apagó' };
+    const r = reciente / anterior;
+    if (r >= 1.5)  return { estado: 'sube-fuerte', etiqueta: 'Subiendo fuerte' };
+    if (r >= 1.15) return { estado: 'sube',        etiqueta: 'Subiendo' };
+    if (r <= 0.5)  return { estado: 'cae-fuerte',  etiqueta: 'Cayendo fuerte' };
+    if (r <= 0.85) return { estado: 'cae',         etiqueta: 'Bajando' };
+    return { estado: 'estable', etiqueta: 'Estable' };
+}
+
+function calcularTendenciaModelos(ventas, desde, hoy) {
+    // Sin periodo elegido se miran los últimos 180 días, para tener dos mitades
+    // comparables en vez de arrastrar todo el historial contra nada.
+    const inicio = desde ?? new Date(hoy.getTime() - 180 * DIA_MS);
+    const corte  = new Date((inicio.getTime() + hoy.getTime()) / 2);
+    const dias   = Math.round((hoy - corte) / DIA_MS);
+
+    const por = new Map();
+    for (const v of ventas) {
+        if (v.fecha < inicio) continue;
+        const k = v.modelo;
+        if (!por.has(k)) por.set(k, { modelo: k, conAlias: v.conAlias, reciente: 0, anterior: 0 });
+        por.get(k)[v.fecha >= corte ? 'reciente' : 'anterior'] += v.piezas;
+    }
+
+    const filas = [...por.values()].map(f => {
+        const total = f.reciente + f.anterior;
+        const suficiente = total >= PISO_TENDENCIA;
+        const cambio = f.anterior ? (f.reciente - f.anterior) / f.anterior : null;
+        return { ...f, total, suficiente, cambio, ...clasificarTendencia(f.reciente, f.anterior) };
+    });
+
+    // Primero lo accionable: lo que más cae y lo que más sube. Lo estable y lo
+    // que no alcanza piso van al final, que es donde no hay que mirar.
+    const peso = { 'cae-fuerte': 0, 'cae': 1, 'sube-fuerte': 2, 'sube': 3, 'nuevo': 4, 'apagado': 5, 'estable': 6 };
+    filas.sort((a, b) =>
+        (a.suficiente === b.suficiente ? 0 : a.suficiente ? -1 : 1)
+        || peso[a.estado] - peso[b.estado]
+        || b.total - a.total);
+
+    return { filas, dias };
 }
 
 // ---------- Vistas ----------
@@ -1158,6 +1266,53 @@ function renderParadoFundas(vista) {
 }
 
 // E · Tendencia mensual
+function renderTendenciaModelos(vista) {
+    const cont = document.getElementById('f-tendencia-modelos-contenido');
+    if (!cont) return;
+    const { filas, dias } = vista.tendenciaModelos;
+
+    if (!filas.length) {
+        cont.innerHTML = '<p class="muted">Todavía no hay ventas registradas. Esta tabla es la que dice qué empezar a surtir y qué dejar de comprar, así que es la que más gana con cada venta que anotes.</p>';
+        return;
+    }
+
+    const flecha = { 'sube-fuerte': '▲▲', 'sube': '▲', 'estable': '=', 'cae': '▼', 'cae-fuerte': '▼▼', 'nuevo': '★', 'apagado': '—' };
+    const pct = f => f.cambio === null ? '—'
+        : `${f.cambio > 0 ? '+' : ''}${Math.round(f.cambio * 100)}%`;
+
+    cont.innerHTML = `
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Modelo</th>
+                        <th>Últimos ${dias} días</th>
+                        <th>${dias} días antes</th>
+                        <th>Cambio</th>
+                        <th>Va</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${filas.map(f => `
+                        <tr${!f.suficiente ? ' class="insuficiente"' : f.estado.startsWith('cae') ? ' class="alerta"' : ''}>
+                            ${celdaModelo(f)}
+                            <td>${fmtNum(f.reciente)}</td>
+                            <td>${fmtNum(f.anterior)}</td>
+                            <td>${f.suficiente ? pct(f) : '—'}</td>
+                            <td>${f.suficiente
+                                ? `${flecha[f.estado]} ${f.etiqueta}`
+                                : `<span class="muted">Insuficiente (${f.total} pz)</span>`}</td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>
+        <p class="chart-note">
+            Se parte el periodo a la mitad y se compara. Con menos de ${PISO_TENDENCIA} piezas en
+            todo el periodo no se opina: dos ventas de diferencia no son una tendencia.
+            <strong>Lo que cae va primero</strong>, porque es dinero a punto de quedarse parado.
+        </p>`;
+}
+
 function renderTendenciaFundas(vista) {
     const aviso   = document.getElementById('f-tendencia-aviso');
     const grafica = document.getElementById('f-tendencia-grafica');
@@ -1175,8 +1330,15 @@ function renderTendenciaFundas(vista) {
     aviso.innerHTML = '';
     grafica.hidden  = false;
 
-    const porMesTipo = sumaPor(ventas, v => `${claveMes(v.fecha)}|${v.tipo}`, v => v.piezas);
-    const conVentas  = vista.tipos.filter(t => ventas.some(v => v.tipo === t));
+    const porMesTipo = sumaPor(ventas, v => `${claveMes(v.fecha)}|${v.modelo}`, v => v.piezas);
+    // Por modelo de teléfono, no por variante: lo que decide qué comprar es que
+    // el iPhone 13 se esté apagando y el 16 despegando, no que el azul suba.
+    // Solo los 6 con más ventas, o la gráfica se vuelve ilegible.
+    const conVentas = [...new Set(ventas.map(v => v.modelo))]
+        .map(m => ({ m, piezas: ventas.filter(v => v.modelo === m).reduce((s, v) => s + v.piezas, 0) }))
+        .sort((a, b) => b.piezas - a.piezas)
+        .slice(0, 6)
+        .map(x => x.m);
     const labels     = meses.map(m => {
         const [anio, mes] = m.split('-').map(Number);
         return new Date(anio, mes - 1).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
@@ -1252,8 +1414,10 @@ async function initFundas(aliasMap, locales) {
 
         renderResumenFundas(vista, { compras: diagCompras, ventas: diagVentas }, ETIQUETAS_PERIODO[dias] || '');
         renderRankingFundas(vista);
+        renderVariantesFundas(vista);
         renderRotacionFundas(vista);
         renderParadoFundas(vista);
+        renderTendenciaModelos(vista);
         renderTendenciaFundas(vista);
     }
 

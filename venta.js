@@ -14,12 +14,18 @@
 // Caso normal: 3 toques (modelo → tipo → Registrar venta).
 
 // ========== Catálogos fijos ==========
-// Los mismos siete tipos y seis colores del formulario de la lista
+// Los mismos ocho tipos y seis colores del formulario de la lista
 // (`local.html`), para que compra y venta hablen del mismo vocabulario.
-const TIPOS_FUNDA = ['Magsafe', 'Transparente', '3 piezas', 'Diseño hombre',
-                     'Diseño mujer', 'Uso rudo', 'Color'];
-const COLORES_FUNDA = ['Rojo', 'Azul', 'Menta', 'Lila', 'Negro', 'Rosa'];
-const SIN_COLOR = 'Sin especificar';
+// Color y tipo son la MISMA dimensión: «Azul» es una variante y «Magsafe» es
+// otra, no un color y un tipo de la misma funda. En la lista están en dos
+// grupos de casillas por cómo quedó la pantalla, pero una funda es una sola
+// variante, y así se registra la venta.
+const VARIANTES_FUNDA = [
+    'Magsafe', 'Transparente', '3 piezas', 'Diseño hombre', 'Diseño mujer',
+    'Uso rudo', 'Color', 'Para personalizar',
+    'Rojo', 'Azul', 'Menta', 'Lila', 'Negro', 'Rosa',
+];
+
 
 const TIANGUIS_ID = 'tianguis';
 const MAX_VENTAS_HOY = 12;      // cuántas se listan abajo
@@ -33,7 +39,7 @@ let ventasHoy = [];
 let modelosEscritos = [];       // modelos usados «tal cual» en este teléfono
 const escritasAqui = new Map(); // id → hora en que se registró aquí, para ordenar
 
-const estado = { modelo: null, modeloOriginal: null, delCatalogo: false, tipo: null, color: SIN_COLOR, cantidad: 1 };
+const estado = { modelo: null, modeloOriginal: null, delCatalogo: false, variante: null, cantidad: 1 };
 
 const $ = id => document.getElementById(id);
 
@@ -204,16 +210,11 @@ function chip(texto, valor, activo, nota) {
         + '</button>';
 }
 
-function pintarTipos() {
-    // Orden fijo, siempre el mismo: la posición de cada tipo se aprende con el
-    // dedo y eso vale más que ordenarlos por frecuencia.
-    $('tiposGrid').innerHTML = TIPOS_FUNDA
-        .map(t => chip(t, t, estado.tipo === t)).join('');
-}
-
-function pintarColores() {
-    $('coloresGrid').innerHTML = [SIN_COLOR, ...COLORES_FUNDA]
-        .map(c => chip(c, c, estado.color === c)).join('');
+function pintarVariantes() {
+    // Orden fijo, siempre el mismo: la posición de cada variante se aprende con
+    // el dedo y eso vale más que ordenarlas por frecuencia.
+    $('variantesGrid').innerHTML = VARIANTES_FUNDA
+        .map(v => chip(v, v, estado.variante === v)).join('');
 }
 
 function pintarModelos() {
@@ -257,30 +258,26 @@ function pintarSeleccion() {
     $('modeloPicker').hidden      =  hayModelo;
     $('modeloElegidoTexto').textContent = estado.modelo ?? '';
     $('pasoTipo').hidden          = !hayModelo;
-    $('pasoColor').hidden         = !(hayModelo && estado.tipo);
 
-    const listo = hayModelo && Boolean(estado.tipo);
+    const listo = hayModelo && Boolean(estado.variante);
     $('registrarBtn').disabled = !listo;
     $('menosBtn').disabled     = estado.cantidad <= 1;
     $('cantidadValor').textContent = estado.cantidad;
 
     $('barraResumen').innerHTML = !hayModelo
         ? 'Elige el modelo'
-        : (!estado.tipo
-            ? `<strong>${escapeHtml(estado.modelo)}</strong> · elige el tipo`
-            : `<strong>${escapeHtml(estado.modelo)}</strong> · ${escapeHtml(estado.tipo)}`
-              + (estado.color !== SIN_COLOR ? ` · ${escapeHtml(estado.color)}` : ''));
+        : (!estado.variante
+            ? `<strong>${escapeHtml(estado.modelo)}</strong> · elige la variante`
+            : `<strong>${escapeHtml(estado.modelo)}</strong> · ${escapeHtml(estado.variante)}`);
 }
 
 function reiniciarSeleccion() {
-    estado.modelo = estado.modeloOriginal = estado.tipo = null;
+    estado.modelo = estado.modeloOriginal = estado.variante = null;
     estado.delCatalogo = false;
-    estado.color = SIN_COLOR;
     estado.cantidad = 1;
     $('buscarModelo').value = '';
     pintarModelos();
-    pintarTipos();
-    pintarColores();
+    pintarVariantes();
     pintarSeleccion();
     window.scrollTo({ top: 0 });
 }
@@ -308,21 +305,24 @@ function mostrarAviso(texto, tipo = 'success', accion = null) {
 
 // ========== Registrar y deshacer ==========
 function registrarVenta() {
-    if (!estado.modelo || !estado.tipo) return;
+    if (!estado.modelo || !estado.variante) return;
 
     const ahora = new Date();
     const venta = {
         modelo:          estado.modelo,
         modelo_original: estado.modeloOriginal ?? estado.modelo,
-        tipo:            estado.tipo,
-        color:           estado.color,
+        // Se guarda en `tipo` porque es la clave por la que Analytics agrupa y
+        // corre el FIFO; el nombre viene de cuando color y tipo eran cosas
+        // distintas. El valor es la variante: «Azul» o «Magsafe», una sola.
+        tipo:            estado.variante,
+        variante:        estado.variante,
         cantidad:        estado.cantidad,
         local:           LOCAL_ID,
         fecha:           firebase.firestore.FieldValue.serverTimestamp(),
         mes:             ahora.getMonth() + 1,
         año:             ahora.getFullYear(),
     };
-    const resumen = `${estado.modelo} · ${estado.tipo}`;
+    const resumen = `${estado.modelo} · ${estado.variante}`;
     const ref = db.collection('fundas_ventas').doc();
     escritasAqui.set(ref.id, Date.now());
 
@@ -404,7 +404,6 @@ function pintarVentasHoy() {
             ? v.fecha.toDate().toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' })
             : 'ahora';
         const detalle = [
-            v.color && v.color !== SIN_COLOR ? v.color : null,
             (Number(v.cantidad) || 1) > 1 ? `${v.cantidad} pz` : null,
             hora,
             v.pendiente ? 'sin subir' : null,
@@ -466,29 +465,11 @@ function conectarToques() {
 
     $('buscarModelo').addEventListener('input', pintarModelos);
 
-    $('tiposGrid').addEventListener('click', e => {
+    $('variantesGrid').addEventListener('click', e => {
         const boton = e.target.closest('.chip');
         if (!boton) return;
-        estado.tipo = boton.dataset.valor;
-        pintarTipos();
-        pintarSeleccion();
-    });
-
-    $('coloresGrid').addEventListener('click', e => {
-        const boton = e.target.closest('.chip');
-        if (!boton) return;
-        estado.color = boton.dataset.valor;
-        pintarColores();
-        pintarSeleccion();
-    });
-
-    $('masBtn').addEventListener('click', () => {
-        estado.cantidad = Math.min(estado.cantidad + 1, 99);
-        pintarSeleccion();
-    });
-
-    $('menosBtn').addEventListener('click', () => {
-        estado.cantidad = Math.max(estado.cantidad - 1, 1);
+        estado.variante = boton.dataset.valor;
+        pintarVariantes();
         pintarSeleccion();
     });
 
@@ -565,8 +546,7 @@ async function refrescarCatalogo() {
 window.addEventListener('DOMContentLoaded', async () => {
     LOCAL_ID = new URLSearchParams(location.search).get('id');
     conectarToques();
-    pintarTipos();
-    pintarColores();
+    pintarVariantes();
 
     await firebaseListo;
 

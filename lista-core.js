@@ -235,42 +235,85 @@ async function toggleComprada(id) {
 // eso está el ✓; y se topan en 12 para no llenar la pantalla en un renglón de 40.
 const MAX_CHIPS_PARCIAL = 12;
 
+// En fundas cada casilla marcada es una funda concreta, así que la pregunta no
+// es «cuántas compraste» sino «cuáles». En las demás categorías la cantidad es
+// un número suelto y da igual qué pieza: ahí siguen los chips de números.
+const variantesDe = p => [
+    ...(p.colors ?? []).map(v => ({ v, clase: 'color' })),
+    ...(p.fundaTypes ?? []).map(v => ({ v, clase: 'tipo' })),
+];
+
 function abrirPanelParcial(card, product) {
-    // Segundo toque en «compré menos»: se cierra
+    // Segundo toque en la cantidad: se cierra
     const abierto = card.querySelector('.parcial-panel');
     if (abierto) { cerrarPanelParcial(card); return; }
 
-    const max   = product.quantity - 1;
-    const chips = Array.from({ length: Math.min(max, MAX_CHIPS_PARCIAL) }, (_, i) => i + 1);
-
+    const variantes = product.category === 'Fundas' ? variantesDe(product) : [];
     const panel = document.createElement('div');
     panel.className = 'parcial-panel';
-    panel.innerHTML = `
-        <p class="parcial-titulo">¿Cuántas compraste?</p>
-        <div class="parcial-chips">
-            ${chips.map(n => `<button class="parcial-chip" type="button" data-n="${n}">${n}</button>`).join('')}
-            ${max > MAX_CHIPS_PARCIAL
-                ? '<button class="parcial-chip otra" type="button" data-n="otra">Otra…</button>' : ''}
-            <button class="parcial-chip cancelar" type="button" data-n="cancelar">Cancelar</button>
-        </div>
-        <p class="parcial-nota">Lo que falte se queda pendiente en la lista.</p>
-    `;
 
-    panel.querySelectorAll('.parcial-chip').forEach(btn =>
-        btn.addEventListener('click', async () => {
-            const valor = btn.dataset.n;
+    if (variantes.length > 1) {
+        panel.innerHTML = `
+            <p class="parcial-titulo">¿Cuáles compraste?</p>
+            <div class="parcial-chips">
+                ${variantes.map(({ v, clase }) =>
+                    `<button class="parcial-chip variante ${clase}" type="button" data-v="${escapeHtml(v)}" aria-pressed="false">${escapeHtml(v)}</button>`).join('')}
+            </div>
+            <div class="parcial-chips">
+                <button class="parcial-chip aceptar" type="button" data-n="aceptar" disabled>Listo</button>
+                <button class="parcial-chip cancelar" type="button" data-n="cancelar">Cancelar</button>
+            </div>
+            <p class="parcial-nota">Lo que no marques se queda pendiente en la lista.</p>
+        `;
+
+        const elegidas = new Set();
+        const aceptar  = panel.querySelector('.aceptar');
+        panel.querySelectorAll('.variante').forEach(btn =>
+            btn.addEventListener('click', () => {
+                const v = btn.dataset.v;
+                elegidas.has(v) ? elegidas.delete(v) : elegidas.add(v);
+                btn.setAttribute('aria-pressed', String(elegidas.has(v)));
+                aceptar.disabled = elegidas.size === 0;
+                aceptar.textContent = elegidas.size ? `Listo · ${elegidas.size}` : 'Listo';
+            }));
+
+        panel.querySelector('.cancelar').addEventListener('click', () => cerrarPanelParcial(card));
+        aceptar.addEventListener('click', async () => {
             cerrarPanelParcial(card);
-            if (valor === 'cancelar') return;
-
-            const n = valor === 'otra'
-                ? parseInt(prompt(`De ${product.quantity}, ¿cuántas compraste?`) ?? '', 10)
-                : parseInt(valor, 10);
-
-            if (!Number.isFinite(n) || n < 1) return;
-            // Se compró todo (o más de lo pedido): es el camino normal del ✓
-            if (n >= product.quantity) { await toggleComprada(product.id); return; }
-            await comprarParcial(product, n);
-        }));
+            if (!elegidas.size) return;
+            // Se marcaron todas: es el camino normal del ✓
+            if (elegidas.size >= variantes.length) { await toggleComprada(product.id); return; }
+            await comprarParcial(product, {
+                colores: (product.colors ?? []).filter(c => elegidas.has(c)),
+                tipos:   (product.fundaTypes ?? []).filter(t => elegidas.has(t)),
+            });
+        });
+    } else {
+        const max   = product.quantity - 1;
+        const chips = Array.from({ length: Math.min(max, MAX_CHIPS_PARCIAL) }, (_, i) => i + 1);
+        panel.innerHTML = `
+            <p class="parcial-titulo">¿Cuántas compraste?</p>
+            <div class="parcial-chips">
+                ${chips.map(n => `<button class="parcial-chip" type="button" data-n="${n}">${n}</button>`).join('')}
+                ${max > MAX_CHIPS_PARCIAL
+                    ? '<button class="parcial-chip otra" type="button" data-n="otra">Otra…</button>' : ''}
+                <button class="parcial-chip cancelar" type="button" data-n="cancelar">Cancelar</button>
+            </div>
+            <p class="parcial-nota">Lo que falte se queda pendiente en la lista.</p>
+        `;
+        panel.querySelectorAll('.parcial-chip').forEach(btn =>
+            btn.addEventListener('click', async () => {
+                const valor = btn.dataset.n;
+                cerrarPanelParcial(card);
+                if (valor === 'cancelar') return;
+                const n = valor === 'otra'
+                    ? parseInt(prompt(`De ${product.quantity}, ¿cuántas compraste?`) ?? '', 10)
+                    : parseInt(valor, 10);
+                if (!Number.isFinite(n) || n < 1) return;
+                if (n >= product.quantity) { await toggleComprada(product.id); return; }
+                await comprarParcial(product, n);
+            }));
+    }
 
     card.classList.add('parcial-abierto');
     card.appendChild(panel);
@@ -284,41 +327,72 @@ function cerrarPanelParcial(card) {
 // Se compró parte del renglón. Lo comprado queda como una compra cerrada y lo
 // que faltó sigue pendiente, con la cantidad ya bajada, para poder palomearlo
 // en la siguiente vuelta. El renglón no se cierra ni se borra.
-async function comprarParcial(product, cantidad) {
-    const restante = product.quantity - cantidad;
-    const spec     = specRegistro(product.category);
+async function comprarParcial(product, elegido) {
+    const spec = specRegistro(product.category);
 
-    // Los dos movimientos de historial van juntos o no van: bajar el pendiente
-    // sin escribir lo comprado perdería esas piezas, y al revés las contaría dos veces.
-    let registrado = false;
+    // `elegido` es un número en las categorías normales, o `{colores, tipos}`
+    // en fundas, donde cada variante marcada es una funda concreta.
+    const porVariante = typeof elegido === 'object' && elegido !== null;
+    const compradas   = porVariante
+        ? { colores: elegido.colores ?? [], tipos: elegido.tipos ?? [] }
+        : null;
+    const cantidad = porVariante
+        ? compradas.colores.length + compradas.tipos.length
+        : elegido;
+
+    const quedan = porVariante ? {
+        colors:     (product.colors ?? []).filter(c => !compradas.colores.includes(c)),
+        fundaTypes: (product.fundaTypes ?? []).filter(t => !compradas.tipos.includes(t)),
+    } : null;
+    const restante = porVariante
+        ? quedan.colors.length + quedan.fundaTypes.length
+        : product.quantity - cantidad;
+
+    // Los tres movimientos van en un solo lote, incluido el del renglón.
+    //
+    // Antes el renglón se actualizaba aparte, para que la lista siguiera
+    // sirviendo aunque Analytics fallara. El problema era la dirección
+    // contraria: si el historial se escribía y el renglón no, el renglón
+    // conservaba su cantidad vieja, y al palomearlo después `marcarComprada`
+    // reescribía el pendiente con esa cantidad. Comprar 6 de 10 y que fallara
+    // esa segunda escritura acababa registrando 6 + 10 = 16 piezas. Nada lo
+    // avisaba y la inflación entraba directo a la previsión de compra.
+    //
+    // Con todo en el mismo lote, o pasa entero o no pasa nada: si falla, el
+    // usuario ve el error y lo vuelve a intentar sobre un estado íntegro.
     try {
-        const datos     = await datosRegistro(product, cantidad);
+        const datos     = await datosRegistro(product, cantidad, compradas);
         const pendiente = await buscarRegistro(product);
         const lote      = db.batch();
+
         // El pendiente del renglón pasa a valer solo lo que falta
-        if (pendiente) lote.update(pendiente, { cantidad: restante });
+        if (pendiente) lote.update(pendiente, {
+            cantidad: restante,
+            ...(quedan ? { colores: quedan.colors, tipos: quedan.fundaTypes } : {}),
+        });
         lote.set(db.collection(spec.col).doc(), {
             ...datos,
             estado:   'comprado',
             comprado: firebase.firestore.FieldValue.serverTimestamp(),
         });
+        lote.update(ITEMS_REF.doc(product.id), {
+            quantity: restante,
+            ...(quedan ? { colors: quedan.colors, fundaTypes: quedan.fundaTypes } : {}),
+        });
+
         await lote.commit();
-        registrado = true;
     } catch (err) {
         console.error(`Error registrando la compra parcial en ${spec.col}:`, err);
+        showToast('No se pudo guardar la compra parcial. Nada cambió: vuelve a intentarlo.',
+            'error', 6000);
+        return;
     }
 
-    // La lista se actualiza aunque el historial haya fallado: si no, la
-    // herramienta deja de servir para lo único que no puede fallar, que es
-    // saber qué falta. El pendiente se corrige solo al palomear (marcarComprada
-    // reescribe `cantidad`).
-    const ok = await actualizarItem(product.id, { quantity: restante });
-    if (!ok) return;
-
-    showToast(registrado
-        ? `Compraste ${cantidad}. Quedan ${restante} pendientes.`
-        : `Quedan ${restante} pendientes, pero Analytics no se actualizó.`,
-        registrado ? 'success' : 'error', registrado ? 3500 : 6000);
+    const falta = quedan ? [...quedan.colors, ...quedan.fundaTypes].join(', ') : null;
+    showToast(falta
+        ? `Compraste ${cantidad}. Falta: ${falta}.`
+        : `Compraste ${cantidad}. Quedan ${restante} pendientes.`,
+        'success', 4000);
 }
 
 // ========== Totales ==========
@@ -395,10 +469,11 @@ function initFormulario() {
     // La cantidad es una pieza por color marcado. Antes también sumaba los tipos,
     // así que «2 colores + 1 tipo» daba 3: un número que no eran piezas de nada.
     const updateFundaQuantity = () => {
-        const count = document.querySelectorAll('#fundaColors input:checked').length;
+        const count = document.querySelectorAll(
+            '#fundaColors input:checked, #fundaTypes input:checked').length;
         document.getElementById('productQuantity').value = count;
     };
-    document.querySelectorAll('#fundaColors input')
+    document.querySelectorAll('#fundaColors input, #fundaTypes input')
         .forEach(cb => cb.addEventListener('change', updateFundaQuantity));
 
     const borrarBtn = document.getElementById('borrarCompradasBtn');
@@ -424,7 +499,6 @@ async function onAgregarProducto() {
     const typeMap = {
         'Micas':         'micaType',
         'Hidrogel':      'hidrogelType',
-        'Fundas':        'fundaType',
         'Fundas nuevas': 'fundasNuevasType',
         '1hora':         'unaHoraType',
     };
@@ -444,25 +518,19 @@ async function onAgregarProducto() {
         return;
     }
 
-    // Sin tipo no se puede saber qué rota más rápido, que es justo la pregunta
-    // que se quiere responder de fundas
-    if (category === 'Fundas' && !typeInput) {
-        showToast('Selecciona el tipo de funda.', 'error');
-        return;
-    }
-
-    // `'0'` es una cadena con contenido, así que se cuela por la validación de
-    // arriba. En fundas pasa solo: sin colores marcados la cantidad queda en 0.
+    // En fundas cada casilla marcada, sea color o tipo, es UNA funda por
+    // comprar: «Azul, Rojo, Lila + Transparente» son cuatro. El detalle de qué
+    // se consiguió de verdad se fija al comprar, no al anotar.
     if (parseInt(quantity) < 1) {
         showToast(category === 'Fundas'
-            ? 'Marca al menos un color.'
+            ? 'Marca al menos un color o un tipo.'
             : 'La cantidad tiene que ser 1 o más.', 'error');
         return;
     }
 
-    const colors = category === 'Fundas'
-        ? [...document.querySelectorAll('#fundaColors input:checked')].map(c => c.value)
-        : [];
+    const marcadas = sel => [...document.querySelectorAll(sel)].map(c => c.value);
+    const colors     = category === 'Fundas' ? marcadas('#fundaColors input:checked') : [];
+    const tiposFunda = category === 'Fundas' ? marcadas('#fundaTypes input:checked')  : [];
 
     const product = {
         name,
@@ -472,9 +540,7 @@ async function onAgregarProducto() {
         category,
         type:       typeInput?.value ?? '',
         colors,
-        // Se sigue escribiendo el campo viejo (con un solo tipo dentro) para no
-        // romper lo que ya lea `fundaTypes` de los items existentes
-        fundaTypes: category === 'Fundas' && typeInput ? [typeInput.value] : [],
+        fundaTypes: tiposFunda,
     };
 
     const ref = await agregarItem(product);
@@ -484,8 +550,8 @@ async function onAgregarProducto() {
     registrarCompra({ ...product, id: ref.id }).catch(() => {});
 
     document.getElementById('productName').value = '';
-    document.querySelectorAll('#fundaColors input').forEach(cb => cb.checked = false);
-    document.querySelectorAll('input[name="fundaType"]').forEach(r => r.checked = false);
+    document.querySelectorAll('#fundaColors input, #fundaTypes input')
+        .forEach(cb => cb.checked = false);
     if (category === 'Fundas') document.getElementById('productQuantity').value = 0;
 }
 
@@ -546,7 +612,7 @@ function tipoDeRegistro(product) {
 
 // El documento de historial de un producto. `cantidad` se pasa aparte porque
 // no siempre es la del renglón: en una compra parcial es lo que se compró.
-async function datosRegistro(product, cantidad) {
+async function datosRegistro(product, cantidad, compradas = null) {
     const aliasMap = await cargarAliases(window.RUTA_ALIASES);
     const spec     = specRegistro(product.category);
     const ahora    = new Date();
@@ -566,9 +632,13 @@ async function datosRegistro(product, cantidad) {
         // Hasta que se palomee en la lista no cuenta como compra
         estado:   'pendiente',
     };
-    // Los colores son metadata para el dueño: no entran en ningún cálculo,
-    // porque después no hay forma de saber cuál color se fue
-    if (product.category === 'Fundas') datos.colores = product.colors ?? [];
+    // En fundas, colores y tipos SÍ entran en los cálculos: el dueño quiere
+    // saber cuáles se compran más. En una compra parcial se guarda exactamente
+    // lo que se consiguió, no lo que se había anotado.
+    if (product.category === 'Fundas') {
+        datos.colores = compradas ? compradas.colores : (product.colors ?? []);
+        datos.tipos   = compradas ? compradas.tipos   : (product.fundaTypes ?? []);
+    }
     // En la colección compartida hay que poder distinguir de qué categoría es
     if (spec.col === REGISTRO_COMPARTIDO.col) datos.categoria = product.category;
     return datos;

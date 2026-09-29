@@ -4,12 +4,12 @@
 
 ## Pendientes
 
-- [ ] **Locales: falta la parte manual** (ver «Puesta en marcha» en el README)
-	- [ ] Publicar `firestore.rules` en la consola de Firebase (sin esto `items` y `locales` están denegadas)
-	- [ ] Activar Email/Password en Authentication y crear el usuario
-	- [ ] Correr `migrar.html` una sola vez
-- [ ] Analytics de las categorías que no son micas: hoy se palomean pero no registran nada
-- [ ] Analytics de Fundas (tab bloqueado en `analytics/index.html`)
+- [x] ~~**Locales: la parte manual**~~ (2026-09-29): reglas publicadas, usuario admin creado y migración corrida
+- [x] ~~Analytics de las categorías que no son micas~~ (2026-09-29): fundas → `fundas_compras`, el resto → `compras` con campo `categoria`
+- [x] ~~Analytics de Fundas~~ (2026-09-29): pestaña desbloqueada con ranking, rotación FIFO, variantes y lo parado. Falta probarla con datos reales
+- [ ] `venta.js`: unificar `color` y `tipo` en una sola variante, como ya hacen la lista y Analytics
+- [ ] `venta.js`: deja de bajar `fundas_compras` entera en cada carga (crece para siempre, y es un teléfono)
+- [ ] Una venta guarda `mes`/`año` con la hora del teléfono y `fecha` con la del servidor: discrepan en el cambio de año
 - [ ] Agregar el conector `hidrogel-mcp` en claude.ai y sus instrucciones en el proyecto (ver `hidrogel-mcp/README.md`)
 - [ ] Analytics de micas: corregir un producto (borrarlo y volver a agregarlo) lo registra dos veces en `micas_compras`
 - [ ] Analytics de micas: revisar en Firestore los registros de `a07` 9D (28 cajas = 280 pzs; ¿se capturaron piezas en vez de cajas?)
