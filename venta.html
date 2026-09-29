@@ -407,31 +407,20 @@
 
 <!-- Firebase init — config inyectada por GitHub Actions -->
 <script>
-    // Ojo: aquí el placeholder va ENTRE COMILLAS, a diferencia del resto de las
-    // páginas. Esta pantalla es nueva y todavía no está en la lista `targets`
-    // de .github/workflows/deploy.yml ni en `PAGINAS` de dev.py, así que puede
-    // llegar sin reemplazar. Como objeto pelado eso sería un error de sintaxis
-    // y la pantalla no abriría; como texto se detecta y la config se saca de
-    // una página hermana que sí la tenga. En cuanto se agregue a esas dos
-    // listas, este archivo sigue funcionando igual y el respaldo nunca corre.
-    const CONFIG_INYECTADA   = '%%FIREBASE_CONFIG%%';
+    // El placeholder va pelado, igual que en el resto de las páginas, porque
+    // esta pantalla ya está en `targets` de .github/workflows/deploy.yml y en
+    // `PAGINAS` de dev.py. Estuvo entre comillas mientras no lo estaba, como
+    // defensa por si llegaba sin reemplazar; al agregarla a esas listas, el
+    // objeto de varias líneas cayó dentro de las comillas y rompió la página
+    // con un SyntaxError. Si se vuelve a sacar de esas listas, esto no abre.
+    const firebaseConfig     = %%FIREBASE_CONFIG%%;
     const APPCHECK_SITE_KEY  = '%%APPCHECK_SITE_KEY%%';
     const APPCHECK_PROVIDER  = '%%APPCHECK_PROVIDER%%';   // 'enterprise' o vacío (reCAPTCHA v3)
-
-    async function leerConfigFirebase() {
-        if (!CONFIG_INYECTADA.startsWith('%%')) return JSON.parse(CONFIG_INYECTADA);
-        console.warn('venta.html no recibió la config de Firebase. Falta agregarla a `targets` en .github/workflows/deploy.yml y a `PAGINAS` en dev.py. Mientras, se toma de locales.html.');
-        const resp  = await fetch('locales.html', { cache: 'no-store' });
-        const texto = await resp.text();
-        const m = texto.match(/firebaseConfig\s*=\s*(\{[\s\S]*?\})\s*;/);
-        if (!m) throw new Error('locales.html tampoco trae la config inyectada');
-        return JSON.parse(m[1]);
-    }
 
     let db;
     // venta.js espera esta promesa antes de tocar Firestore
     const firebaseListo = (async () => {
-        firebase.initializeApp(await leerConfigFirebase());
+        firebase.initializeApp(firebaseConfig);
         // App Check: la base solo acepta peticiones que vengan de este sitio.
         // Mientras no haya llave (placeholder sin reemplazar), no se activa.
         if (!APPCHECK_SITE_KEY.startsWith('%%')) {
