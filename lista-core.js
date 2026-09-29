@@ -466,8 +466,12 @@ function initFormulario() {
         });
     });
 
-    // La cantidad es una pieza por color marcado. Antes también sumaba los tipos,
-    // así que «2 colores + 1 tipo» daba 3: un número que no eran piezas de nada.
+    // Una pieza por cada casilla marcada, sean colores o tipos: color y tipo son
+    // la misma dimensión. «Azul» es una funda y «Magsafe» es otra, no un color y
+    // un tipo de la misma. Por eso «Azul, Rojo + Transparente» son 3 piezas.
+    //
+    // No cambiar esto a contar solo colores: una funda «Para personalizar» sin
+    // color quedaría en cantidad 0 y la app no dejaría agregarla.
     const updateFundaQuantity = () => {
         const count = document.querySelectorAll(
             '#fundaColors input:checked, #fundaTypes input:checked').length;
