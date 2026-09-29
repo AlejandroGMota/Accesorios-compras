@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vender</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos propios de esta pantalla. Van aquí y no en style.css porque
+           esa hoja la comparten todas las páginas y esta es la única pensada
+           para usarse de pie, con el pulgar, en el teléfono del local. */
+
+        /* Sitio para la barra fija de abajo */
+        body { padding-bottom: 150px; }
+
+        .container { padding-top: 20px; }
+
+        /* Cada paso es una tarjeta más apretada que las del resto del sitio:
+           entre menos haya que desplazar, menos tarda una venta. */
+        .paso {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        .paso[hidden] { display: none; }
+
+        .paso-titulo {
+            font-size: 0.72em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .paso-titulo .opcional {
+            text-transform: none;
+            letter-spacing: 0;
+            font-weight: 500;
+            font-size: 0.95em;
+        }
+
+        /* ===== Chips: el control de toda la pantalla ===== */
+        .chip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+            gap: 8px;
+        }
+
+        .chip {
+            min-height: 52px;               /* pulgar, no cursor */
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95em;
+            font-weight: 600;
+            line-height: 1.25;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;      /* sin la espera del doble toque */
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.12s, border-color 0.12s, color 0.12s;
+        }
+
+        .chip:active { transform: scale(0.97); }
+
+        .chip[aria-pressed="true"] {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        .chip .chip-nota {
+            display: block;
+            font-size: 0.72em;
+            font-weight: 500;
+            opacity: 0.65;
+            margin-top: 2px;
+        }
+
+        .chip-grid-modelos {
+            max-height: 42vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 2px;
+        }
+
+        #buscarModelo {
+            margin-bottom: 10px;
+            min-height: 48px;
+        }
+
+        /* ===== Resumen de un paso ya resuelto ===== */
+        .elegido {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .elegido-valor {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: var(--primary);
+            overflow-wrap: anywhere;
+        }
+
+        .btn-cambiar {
+            flex: none;
+            padding: 10px 16px;
+            min-height: 44px;
+            border: 1.5px solid var(--border);
+            border-radius: 50px;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        /* ===== Barra fija: cantidad + registrar ===== */
+        .barra-registrar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 200;
+            padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border);
+        }
+
+        .barra-resumen {
+            font-size: 0.82em;
+            color: var(--text-muted);
+            text-align: center;
+            margin-bottom: 8px;
+            min-height: 1.2em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .barra-resumen strong { color: var(--text); font-weight: 600; }
+
+        .barra-fila { display: flex; align-items: stretch; gap: 10px; }
+
+        .cantidad {
+            display: flex;
+            align-items: center;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            flex: none;
+        }
+
+        .cantidad button {
+            width: 46px;
+            min-height: 54px;
+            border: none;
+            background: transparent;
+            color: var(--primary);
+            font-size: 1.4em;
+            font-weight: 600;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .cantidad button:disabled { color: var(--border); cursor: default; }
+
+        .cantidad output {
+            min-width: 28px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        #registrarBtn {
+            flex: 1;
+            margin-top: 0;
+            min-height: 54px;
+            font-size: 1.05em;
+        }
+
+        #registrarBtn:disabled {
+            background: var(--border);
+            color: var(--text-muted);
+            cursor: default;
+            opacity: 1;
+        }
+
+        /* ===== Ventas de hoy ===== */
+        .hoy { margin-top: 26px; }
+
+        .hoy-titulo {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 0.78em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .hoy-total { font-size: 1.05em; color: var(--primary); }
+
+        .venta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }
+
+        .venta-texto { flex: 1; font-size: 0.92em; overflow-wrap: anywhere; }
+        .venta-texto .venta-detalle { display: block; font-size: 0.82em; color: var(--text-muted); margin-top: 2px; }
+
+        .venta.anulada { opacity: 0.55; }
+        .venta.anulada .venta-texto { text-decoration: line-through; }
+
+        .venta-accion {
+            flex: none;
+            min-width: 44px;
+            min-height: 44px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--danger);
+            font-family: 'Inter', sans-serif;
+            font-size: 1em;
+            font-weight: 700;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .venta.anulada .venta-accion {
+            color: var(--text-muted);
+            font-size: 0.8em;
+            padding: 0 10px;
+        }
+
+        /* ===== Aviso de guardado: informa sin tapar el siguiente toque ===== */
+        #avisoGuardado {
+            position: fixed;
+            left: 50%;
+            bottom: 96px;
+            transform: translateX(-50%) translateY(10px);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: calc(100vw - 28px);
+            padding: 10px 12px 10px 16px;
+            border-radius: 50px;
+            background: var(--success);
+            color: #fff;
+            font-size: 0.86em;
+            font-weight: 600;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            pointer-events: none;          /* el fondo no roba toques */
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        #avisoGuardado.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        #avisoGuardado.error { background: var(--danger); }
+        #avisoGuardado .aviso-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        #avisoGuardado button {
+            flex: none;
+            pointer-events: auto;           /* lo único tocable del aviso */
+            min-height: 36px;
+            padding: 0 14px;
+            border: 1.5px solid rgba(255, 255, 255, 0.7);
+            border-radius: 50px;
+            background: transparent;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95em;
+            font-weight: 700;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .nota-pie {
+            font-size: 0.78em;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-top: 18px;
+        }
+
+        @media (max-width: 480px) {
+            .chip-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+            .chip { font-size: 0.9em; padding: 10px 8px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1 id="nombreLocal">Vender</h1>
+        <p class="header-subtitle">Lo que se vendió hoy</p>
+    </div>
+    <nav class="header-nav">
+        <a href="#" id="ligaLista" class="header-link" hidden>Lista</a>
+        <a href="locales.html" class="header-link">Locales</a>
+    </nav>
+</header>
+
+<div class="container">
+
+    <div id="aviso" class="card" hidden></div>
+
+    <main id="flujo" hidden>
+
+        <!-- Paso 1 · Modelo -->
+        <section class="paso" id="pasoModelo">
+            <div class="paso-titulo"><span>1 · ¿Qué modelo?</span><span class="opcional" id="contadorModelos"></span></div>
+            <div id="modeloElegido" class="elegido" hidden>
+                <span class="elegido-valor" id="modeloElegidoTexto"></span>
+                <button type="button" class="btn-cambiar" id="cambiarModeloBtn">Cambiar</button>
+            </div>
+            <div id="modeloPicker">
+                <input type="text" id="buscarModelo" placeholder="Buscar modelo…"
+                       autocomplete="off" autocapitalize="off" spellcheck="false"
+                       aria-label="Buscar modelo">
+                <div class="chip-grid chip-grid-modelos" id="modelosGrid"></div>
+                <p class="muted" id="modelosVacio" hidden></p>
+            </div>
+        </section>
+
+        <!-- Paso 2 · Tipo -->
+        <section class="paso" id="pasoTipo" hidden>
+            <div class="paso-titulo"><span>2 · ¿Qué tipo de funda?</span></div>
+            <div class="chip-grid" id="tiposGrid"></div>
+        </section>
+
+        <!-- Paso 3 · Color (opcional) -->
+        <section class="paso" id="pasoColor" hidden>
+            <div class="paso-titulo"><span>3 · Color</span><span class="opcional">opcional</span></div>
+            <div class="chip-grid" id="coloresGrid"></div>
+        </section>
+
+        <!-- Ventas de hoy -->
+        <section class="hoy" id="seccionHoy">
+            <div class="hoy-titulo">
+                <span>Ventas de hoy</span>
+                <span class="hoy-total" id="hoyTotal"></span>
+            </div>
+            <div id="hoyLista"></div>
+        </section>
+
+        <p class="nota-pie">
+            Solo se anota qué se vendió, sin precio. Si te equivocas, toca la ✕ de la venta:
+            queda anulada pero no se borra, para que el conteo del mes cuadre.
+        </p>
+
+    </main>
+
+</div>
+
+<!-- Barra fija: cantidad y registrar. Siempre a la vista, sin desplazar. -->
+<div class="barra-registrar" id="barraRegistrar" hidden>
+    <div class="barra-resumen" id="barraResumen">Elige el modelo</div>
+    <div class="barra-fila">
+        <div class="cantidad">
+            <button type="button" id="menosBtn" aria-label="Una pieza menos" disabled>−</button>
+            <output id="cantidadValor" aria-live="polite">1</output>
+            <button type="button" id="masBtn" aria-label="Una pieza más">+</button>
+        </div>
+        <button type="button" id="registrarBtn" class="btn-primary" disabled>Registrar venta</button>
+    </div>
+</div>
+
+<!-- Confirmación de guardado, con deshacer -->
+<div id="avisoGuardado" role="status" aria-live="polite">
+    <span class="aviso-texto" id="avisoGuardadoTexto"></span>
+    <button type="button" id="avisoGuardadoBtn" hidden></button>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
+
+<!-- Firebase init — config inyectada por GitHub Actions -->
+<script>
+    // Ojo: aquí el placeholder va ENTRE COMILLAS, a diferencia del resto de las
+    // páginas. Esta pantalla es nueva y todavía no está en la lista `targets`
+    // de .github/workflows/deploy.yml ni en `PAGINAS` de dev.py, así que puede
+    // llegar sin reemplazar. Como objeto pelado eso sería un error de sintaxis
+    // y la pantalla no abriría; como texto se detecta y la config se saca de
+    // una página hermana que sí la tenga. En cuanto se agregue a esas dos
+    // listas, este archivo sigue funcionando igual y el respaldo nunca corre.
+    const CONFIG_INYECTADA   = '%%FIREBASE_CONFIG%%';
+    const APPCHECK_SITE_KEY  = '%%APPCHECK_SITE_KEY%%';
+    const APPCHECK_PROVIDER  = '%%APPCHECK_PROVIDER%%';   // 'enterprise' o vacío (reCAPTCHA v3)
+
+    async function leerConfigFirebase() {
+        if (!CONFIG_INYECTADA.startsWith('%%')) return JSON.parse(CONFIG_INYECTADA);
+        console.warn('venta.html no recibió la config de Firebase. Falta agregarla a `targets` en .github/workflows/deploy.yml y a `PAGINAS` en dev.py. Mientras, se toma de locales.html.');
+        const resp  = await fetch('locales.html', { cache: 'no-store' });
+        const texto = await resp.text();
+        const m = texto.match(/firebaseConfig\s*=\s*(\{[\s\S]*?\})\s*;/);
+        if (!m) throw new Error('locales.html tampoco trae la config inyectada');
+        return JSON.parse(m[1]);
+    }
+
+    let db;
+    // venta.js espera esta promesa antes de tocar Firestore
+    const firebaseListo = (async () => {
+        firebase.initializeApp(await leerConfigFirebase());
+        // App Check: la base solo acepta peticiones que vengan de este sitio.
+        // Mientras no haya llave (placeholder sin reemplazar), no se activa.
+        if (!APPCHECK_SITE_KEY.startsWith('%%')) {
+            firebase.appCheck().activate(
+                APPCHECK_PROVIDER === 'enterprise'
+                    ? new firebase.appCheck.ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY)
+                    : APPCHECK_SITE_KEY,
+                true);
+            console.info('App Check activo (%s)', APPCHECK_PROVIDER === 'enterprise' ? 'reCAPTCHA Enterprise' : 'reCAPTCHA');
+        } else {
+            console.info('App Check sin configurar: falta el secret APPCHECK_SITE_KEY.');
+        }
+        db = firebase.firestore();
+        // Con la lista guardada, vender sigue funcionando sin señal: la venta se
+        // queda en la cola del teléfono y sube cuando vuelve la conexión.
+        await db.enablePersistence().catch(err => console.warn('Persistencia offline no disponible:', err.code));
+    })();
+</script>
+
+<script src="venta.js"></script>
+</body>
+</html>

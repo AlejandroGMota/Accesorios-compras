@@ -51,6 +51,30 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Historial de compras de fundas. Mismo criterio que micas_compras: lo
+    // escribe la lista del local, que no tiene cuenta.
+    match /fundas_compras/{docId} {
+      allow read, write: if true;
+    }
+
+    // Historial de todo lo demás (Hidrogel, Fundas nuevas, 1hora, Refacciones,
+    // Otros) en una sola colección, con el campo `categoria` diciendo de cuál
+    // es. El documento es idéntico en todas y ninguna tiene análisis propio,
+    // así que Analytics las lee de un tirón en vez de con una consulta por
+    // categoría.
+    match /compras/{docId} {
+      allow read, write: if true;
+    }
+
+    // Ventas de fundas, desde `venta.html`. Las registra quien atiende el
+    // local, que tampoco tiene cuenta, así que se escribe abierto como el
+    // resto. Una venta mal capturada no se borra: se marca `anulada`, y por eso
+    // el borrado sí queda prohibido — es lo único irreversible.
+    match /fundas_ventas/{docId} {
+      allow read, create, update: if true;
+      allow delete: if false;
+    }
+
     // Documento viejo de la lista (respaldo) y bandera de la migración
     match /app/{docId} {
       allow read, write: if true;

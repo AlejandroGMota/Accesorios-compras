@@ -382,6 +382,112 @@ select:focus {
     transform: translateY(-50%) scale(1.1);
 }
 
+/* ========== Compra parcial ========== */
+/* El ✓ no cambia: sigue siendo un toque y cierra el renglón. Esto es el camino
+   de al lado, colgado del número, que es el dato que se va a corregir. */
+.cantidad-linea {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.parcialBtn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 0 14px;
+    min-height: 32px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.parcialBtn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* Con el panel abierto la tarjeta crece, y el ✓ y el ✕ están centrados en
+   vertical: si no se anclan arriba se irían a media rejilla de chips, justo
+   donde va a caer el pulgar. */
+.product.parcial-abierto .buyBtn,
+.product.parcial-abierto .deleteBtn {
+    top: 20px;
+    transform: none;
+}
+
+.product.parcial-abierto .deleteBtn:hover { transform: scale(1.1); }
+
+.parcial-panel {
+    /* Recupera el hueco que la tarjeta reserva para el ✓ y el ✕, que arriba
+       ya no estorban: los chips necesitan el ancho completo en un teléfono */
+    margin: 14px -92px 2px 0;
+    padding: 14px;
+    background: var(--primary-light);
+    border-radius: var(--radius-sm);
+}
+
+.parcial-titulo {
+    font-size: 0.86em !important;
+    font-weight: 600;
+    color: var(--primary) !important;
+    margin-bottom: 10px;
+}
+
+.parcial-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.parcial-chip {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    background: var(--surface);
+    color: var(--primary);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.parcial-chip:hover,
+.parcial-chip:active {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.parcial-chip.otra,
+.parcial-chip.cancelar {
+    font-size: 0.82em;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.parcial-chip.cancelar:hover,
+.parcial-chip.cancelar:active {
+    background: var(--surface);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.parcial-nota {
+    font-size: 0.78em !important;
+    color: var(--text-muted) !important;
+    margin-top: 10px;
+}
+
 /* ========== Total general ========== */
 #totalPrice {
     position: fixed;
@@ -804,7 +910,9 @@ select:focus {
 
     .product:hover { transform: none; }
 
-    .deleteBtn { display: none !important; }
+    .deleteBtn,
+    .parcialBtn,
+    .parcial-panel { display: none !important; }
 
     .product h3 { font-size: 10pt; }
     .product p  { font-size: 9pt; padding: 2px 0; }
@@ -1009,3 +1117,7 @@ select:focus {
 .auth-error[hidden] { display: none; }
 
 #authSalir { margin-left: 4px; }
+
+/* El nombre del local resalta sobre la cantidad, para que «Tianguis ×2»
+   no se lea como si hubiera un segundo tianguis */
+.reparto-local { color: var(--text); font-weight: 600; }

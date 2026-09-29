@@ -26,7 +26,7 @@
     <!-- Tabs de categoría -->
     <div class="tab-bar">
         <button class="tab active" data-tab="micas">Micas</button>
-        <button class="tab locked" disabled title="Próximamente">Fundas 🔒</button>
+        <button class="tab" data-tab="fundas">Fundas</button>
         <button class="tab" data-tab="hidrogel">Hidrogel</button>
     </div>
 
@@ -118,6 +118,95 @@
     <section class="card">
         <h2>Previsión de compra · próximos 3 meses</h2>
         <div id="proyecciones-contenido"></div>
+    </section>
+
+    </div>
+
+    <div id="panel-fundas" class="tab-panel" hidden>
+
+    <p id="f-aviso" class="hidro-aviso urgente" hidden></p>
+
+    <div class="card">
+        <div id="f-campo-local" hidden>
+            <label for="filtro-local-fundas">Local</label>
+            <select id="filtro-local-fundas"><option value="">Todos los locales (global)</option></select>
+        </div>
+        <label for="filtro-periodo-fundas">Ventas de</label>
+        <select id="filtro-periodo-fundas">
+            <option value="30">Últimos 30 días</option>
+            <option value="90" selected>Últimos 90 días</option>
+            <option value="365">Último año</option>
+            <option value="0">Todo el historial</option>
+        </select>
+    </div>
+
+    <!-- A · Resumen -->
+    <section class="card">
+        <h2>Resumen</h2>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="stat-label">Fundas vendidas</span>
+                <span class="stat-value" id="f-stat-vendidas">—</span>
+                <span class="stat-sub" id="f-stat-vendidas-sub"></span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Fundas compradas</span>
+                <span class="stat-value" id="f-stat-compradas">—</span>
+                <span class="stat-sub" id="f-stat-compradas-sub"></span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Modelo más vendido</span>
+                <span class="stat-value" id="f-stat-modelo">—</span>
+                <span class="stat-sub" id="f-stat-modelo-sub"></span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Tipo que rota más rápido</span>
+                <span class="stat-value" id="f-stat-tipo">—</span>
+                <span class="stat-sub" id="f-stat-tipo-sub"></span>
+            </div>
+        </div>
+        <p class="chart-note" id="f-nota-resumen"></p>
+    </section>
+
+    <!-- B · Ranking de modelos -->
+    <section class="card">
+        <h2>Modelos que más piden funda</h2>
+        <p class="chart-note">
+            Por unidades vendidas en el periodo: es lo que pide el cliente. «Compradas» va al lado
+            solo para comparar lo que surtiste contra lo que se vendió.
+        </p>
+        <div id="f-ranking-contenido"></div>
+    </section>
+
+    <!-- C · Rotación por tipo -->
+    <section class="card">
+        <h2>Qué tipo rota más rápido</h2>
+        <p class="chart-note">
+            Días entre comprar una funda y venderla, por tipo, juntando todos los modelos.
+        </p>
+        <div id="f-rotacion-contenido"></div>
+        <div class="chart-container" id="f-rotacion-grafica" hidden>
+            <canvas id="f-chart-rotacion"></canvas>
+        </div>
+    </section>
+
+    <!-- D · Qué lleva mucho sin venderse -->
+    <section class="card">
+        <h2>¿Qué lleva mucho sin venderse?</h2>
+        <p class="chart-note">
+            Lo comprado que el FIFO no pudo emparejar con ninguna venta: dinero parado en el aparador.
+        </p>
+        <div id="f-parado-contenido"></div>
+    </section>
+
+    <!-- E · Tendencia mensual -->
+    <section class="card">
+        <h2>Tendencia mensual</h2>
+        <p class="chart-note">Piezas vendidas por mes y tipo de funda. Todo el historial, sin el filtro de periodo.</p>
+        <div id="f-tendencia-aviso"></div>
+        <div class="chart-container" id="f-tendencia-grafica" hidden>
+            <canvas id="f-chart-tendencia"></canvas>
+        </div>
     </section>
 
     </div>

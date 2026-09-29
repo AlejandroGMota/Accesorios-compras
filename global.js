@@ -54,14 +54,15 @@ function agrupar(items) {
         a.name.localeCompare(b.name, 'es'));
 }
 
-// Cómo se reparte un producto entre locales: "Centro 2 · Tianguis 1"
+// Cómo se reparte un producto entre locales: "Centro ×2 · Tianguis ×1".
+// La «×» va porque «Tianguis 2» se leía como si fuera un segundo tianguis.
 function reparto(grupo) {
     const porLocal = new Map();
     for (const i of grupo.items)
         porLocal.set(i.local, (porLocal.get(i.local) ?? 0) + (i.quantity ?? 0));
     return [...porLocal.entries()]
         .sort((a, b) => b[1] - a[1])
-        .map(([id, n]) => `${escapeHtml(nombreLocal(id))} ${n}`)
+        .map(([id, n]) => `<span class="reparto-local">${escapeHtml(nombreLocal(id))}</span> ×${n}`)
         .join(' · ');
 }
 
