@@ -23,7 +23,7 @@ PUERTO = 8000
 
 # Lo mismo que `targets` en .github/workflows/deploy.yml
 PAGINAS = ['index.html', 'local.html', 'locales.html', 'admin.html',
-           'global.html', 'migrar.html', 'analytics/index.html']
+           'global.html', 'migrar.html', 'venta.html', 'analytics/index.html']
 
 # Lo que hay que copiar tal cual para que el sitio funcione
 COPIAR = ['*.js', '*.css', '*.html', 'analytics/*', 'catalogo-buytiti/*',
@@ -73,9 +73,17 @@ def construir():
 
 
 def servir():
-    os.chdir(SALIDA)
+    # Se sirve con `directory=` en vez de `os.chdir`: si otra corrida de
+    # `dev.py --build` vuelve a generar `.local/`, el servidor que ya estaba
+    # arriba se quedaba con su directorio de trabajo apuntando a un inodo
+    # borrado y toda petición moría con FileNotFoundError, pareciendo un
+    # problema de red. Resolviendo la ruta en cada petición, sobrevive.
+    SALIDA.mkdir(exist_ok=True)
 
     class Handler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(SALIDA), **kwargs)
+
         def end_headers(self):
             # Sin caché, para no pelearse con el navegador al ir cambiando
             self.send_header('Cache-Control', 'no-store')

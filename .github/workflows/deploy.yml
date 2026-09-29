@@ -84,7 +84,7 @@ jobs:
           # Sin el secret APPCHECK_SITE_KEY el placeholder se queda y App Check no se activa
           clave = os.environ.get('APPCHECK_SITE_KEY', '').strip()
           targets = ['index.html', 'local.html', 'locales.html', 'admin.html',
-                     'global.html', 'migrar.html', 'analytics/index.html']
+                     'global.html', 'migrar.html', 'venta.html', 'analytics/index.html']
           for path in targets:
               with open(path, 'r') as f:
                   content = f.read()
