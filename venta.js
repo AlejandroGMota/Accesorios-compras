@@ -312,7 +312,7 @@ function registrarVenta() {
         modelo:          estado.modelo,
         modelo_original: estado.modeloOriginal ?? estado.modelo,
         // Se guarda en `tipo` porque es la clave por la que Analytics agrupa y
-        // corre el FIFO; el nombre viene de cuando color y tipo eran cosas
+        // empareja ventas con compras; el nombre viene de cuando color y tipo eran cosas
         // distintas. El valor es la variante: «Azul» o «Magsafe», una sola.
         tipo:            estado.variante,
         variante:        estado.variante,
