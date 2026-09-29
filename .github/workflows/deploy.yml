@@ -9,6 +9,18 @@ on:
       - 'index.html'
       - 'style.css'
       - 'app.js'
+      - 'lista-core.js'
+      - 'auth.js'
+      - 'local.html'
+      - 'local.js'
+      - 'locales.html'
+      - 'locales.js'
+      - 'admin.html'
+      - 'admin.js'
+      - 'global.html'
+      - 'global.js'
+      - 'migrar.html'
+      - 'migrar.js'
       - 'secondary-styles.css'
       - 'fundas-lanzadas.html'
       - 'catalogo-buytiti/index.html'
@@ -71,7 +83,8 @@ jobs:
           config = os.environ['FIREBASE_CONFIG'].strip()
           # Sin el secret APPCHECK_SITE_KEY el placeholder se queda y App Check no se activa
           clave = os.environ.get('APPCHECK_SITE_KEY', '').strip()
-          targets = ['index.html', 'analytics/index.html']
+          targets = ['index.html', 'local.html', 'locales.html', 'admin.html',
+                     'global.html', 'migrar.html', 'analytics/index.html']
           for path in targets:
               with open(path, 'r') as f:
                   content = f.read()

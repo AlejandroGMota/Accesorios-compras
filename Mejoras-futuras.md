@@ -4,6 +4,11 @@
 
 ## Pendientes
 
+- [ ] **Locales: falta la parte manual** (ver «Puesta en marcha» en el README)
+	- [ ] Publicar `firestore.rules` en la consola de Firebase (sin esto `items` y `locales` están denegadas)
+	- [ ] Activar Email/Password en Authentication y crear el usuario
+	- [ ] Correr `migrar.html` una sola vez
+- [ ] Analytics de las categorías que no son micas: hoy se palomean pero no registran nada
 - [ ] Analytics de Fundas (tab bloqueado en `analytics/index.html`)
 - [ ] Agregar el conector `hidrogel-mcp` en claude.ai y sus instrucciones en el proyecto (ver `hidrogel-mcp/README.md`)
 - [ ] Analytics de micas: corregir un producto (borrarlo y volver a agregarlo) lo registra dos veces en `micas_compras`
@@ -13,6 +18,12 @@
 
 ## Completado
 
+- [x] Listas por local con URL propia, panel de admin y lista global agrupada por producto
+- [x] Un documento por producto (`items`) en vez del array dentro de `app/productos`: se acabaron las escrituras que se pisaban y los botones que apuntaban a la posición del array
+- [x] Palomear en todas las categorías, no solo en micas
+- [x] Analytics con filtro por local y global; `micas_compras` lleva campo `local`
+- [x] Login con Firebase Auth en admin y lista global; reglas versionadas en `firestore.rules`
+- [x] `dev.py` para probar el sitio completo en local con la config real
 - [x] Analytics de micas: 9D/9H por caja de 10 pzs y Privacidad por pieza (totales, ranking, dona, tendencia y proyección)
 - [x] Analytics de micas: normalizar nombres al leer (aliases + convención iPhone/Samsung/OPPO) y ranking ordenado de mayor a menor
 - [x] Analytics de micas: exigir tipo y un modelo por renglón al agregar; avisar si falla `registrarCompraMica`; mostrar micas sin tipo en la lista

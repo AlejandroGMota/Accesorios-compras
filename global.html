@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista global</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>Lista global</h1>
+        <p class="header-subtitle">Todo lo que hay que comprar, junto</p>
+    </div>
+    <nav class="header-nav">
+        <a href="index.html" class="header-link">Tianguis</a>
+        <a href="locales.html" class="header-link">Locales</a>
+        <a href="analytics/index.html" class="header-link">Analytics</a>
+    </nav>
+</header>
+
+<div class="container">
+
+    <div class="card">
+        <h2>Filtros</h2>
+        <label for="filtroLocal">Local</label>
+        <select id="filtroLocal"><option value="">Todos los locales</option></select>
+
+        <label for="filtroCategoria">Categoría</label>
+        <select id="filtroCategoria"><option value="">Todas las categorías</option></select>
+
+        <div class="options-group" style="display:block">
+            <p>Ver</p>
+            <div class="pill-group">
+                <input type="radio" id="vistaAgrupada" name="vistaGlobal" value="agrupada" checked>
+                <label for="vistaAgrupada">Junto por producto</label>
+                <input type="radio" id="vistaPorLocal" name="vistaGlobal" value="local">
+                <label for="vistaPorLocal">Separado por local</label>
+            </div>
+        </div>
+
+        <div class="options-group" style="display:block">
+            <p>Pendientes</p>
+            <div class="pill-group">
+                <input type="checkbox" id="ocultarCompradas" checked>
+                <label for="ocultarCompradas">Esconder lo ya comprado</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <span class="stat-label">Productos por comprar</span>
+            <span class="stat-value" id="statPendientes">—</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Piezas</span>
+            <span class="stat-value" id="statPiezas">—</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Costo estimado</span>
+            <span class="stat-value" id="statCosto">—</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Locales con pendientes</span>
+            <span class="stat-value" id="statLocales">—</span>
+        </div>
+    </div>
+
+    <div id="contenidoGlobal"><p class="muted">Cargando…</p></div>
+
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+
+<!-- Firebase init — config inyectada por GitHub Actions -->
+<script>
+    const firebaseConfig = %%FIREBASE_CONFIG%%;
+    firebase.initializeApp(firebaseConfig);
+    // App Check: la base solo acepta peticiones que vengan de este sitio.
+    // Mientras no haya llave (placeholder sin reemplazar), no se activa y todo sigue igual.
+    const APPCHECK_SITE_KEY = '%%APPCHECK_SITE_KEY%%';
+    const APPCHECK_PROVIDER = '%%APPCHECK_PROVIDER%%';   // 'enterprise' o vacío (reCAPTCHA v3)
+    if (!APPCHECK_SITE_KEY.startsWith('%%')) {
+        firebase.appCheck().activate(
+            APPCHECK_PROVIDER === 'enterprise'
+                ? new firebase.appCheck.ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY)
+                : APPCHECK_SITE_KEY,
+            true);
+        console.info('App Check activo (%s)', APPCHECK_PROVIDER === 'enterprise' ? 'reCAPTCHA Enterprise' : 'reCAPTCHA');
+    } else {
+        console.info('App Check sin configurar: falta el secret APPCHECK_SITE_KEY.');
+    }
+    const db = firebase.firestore();
+    db.enablePersistence().catch(err => console.warn('Persistencia offline no disponible:', err.code));
+</script>
+
+
+<script src="lista-core.js"></script>
+<script src="auth.js"></script>
+<script src="global.js"></script>
+</body>
+</html>

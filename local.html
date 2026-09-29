@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Accesorios</title>
+    <title>Lista del local</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -12,17 +12,17 @@
 
 <header>
     <div>
-        <h1>Lista de Accesorios</h1>
-        <p class="header-subtitle">Gestión de inventario y compras</p>
+        <h1 id="nombreLocal">Lista del local</h1>
+        <p class="header-subtitle">Lo que hace falta pedir</p>
     </div>
     <nav class="header-nav">
         <a href="locales.html" class="header-link">Locales</a>
-        <a href="global.html" class="header-link">Lista global</a>
-        <a href="analytics/index.html" class="header-link">Analytics</a>
     </nav>
 </header>
 
 <div class="container">
+
+    <div id="avisoLocal" class="card" hidden></div>
 
     <!-- ===== Formulario ===== -->
     <div class="card">
@@ -42,9 +42,6 @@
 
         <label for="productName">Nombre del producto</label>
         <input type="text" id="productName" placeholder="Ej. iPhone 15 Pro">
-
-        <label for="productPrice">Precio ($)</label>
-        <input type="number" id="productPrice" placeholder="0.00" min="0" step="0.01">
 
         <label for="productQuantity">Cantidad</label>
         <input type="number" id="productQuantity" placeholder="0" min="0" step="1">
@@ -155,7 +152,6 @@
     </div>
 
     <div class="category-header">Micas</div>
-    <div id="micasSubtotal" class="category-subtotal">Subtotal: $0.00</div>
     <div class="category-header sub">Micas 9D</div>
     <div id="micas9DList"></div>
     <div class="category-header sub">Micas 9H</div>
@@ -166,40 +162,25 @@
     <div id="micasSinTipoList"></div>
 
     <div class="category-header">Hidrogel</div>
-    <div id="hidrogelSubtotal" class="category-subtotal">Subtotal: $0.00</div>
     <div id="hidrogelList"></div>
 
     <div class="category-header">Fundas</div>
-    <div id="fundasSubtotal" class="category-subtotal">Subtotal: $0.00</div>
     <div id="fundasList"></div>
 
     <div class="category-header">Fundas nuevas</div>
-    <div id="fundasnuevasSubtotal" class="category-subtotal">Subtotal: $0.00</div>
     <div id="fundasNuevasList"></div>
 
     <div class="category-header">1 Hora</div>
-    <div id="1horaSubtotal" class="category-subtotal">Subtotal: $0.00</div>
     <div id="unaHoraList"></div>
 
     <div class="category-header">Refacciones</div>
-    <div id="refaccionesSubtotal" class="category-subtotal">Subtotal: $0.00</div>
     <div id="refaccionesList"></div>
 
     <div class="category-header">Otros</div>
-    <div id="otrosSubtotal" class="category-subtotal">Subtotal: $0.00</div>
     <div id="otrosList"></div>
-
-    <!-- ===== Navegación ===== -->
-    <nav class="nav-links">
-        <a href="catalogo-buytiti/index.html">Catálogo BuyTiti</a>
-        <a href="catalogo-myshop/index.html">Catálogo My Shop</a>
-        <a href="fundas-lanzadas.html">Celulares Recientes</a>
-        <button class="btn-pdf" onclick="window.print()">Exportar PDF</button>
-    </nav>
 
 </div>
 
-<div id="totalPrice">Total General: $0.00</div>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <!-- Firebase SDK -->
@@ -230,6 +211,6 @@
 </script>
 
 <script src="lista-core.js"></script>
-<script src="app.js"></script>
+<script src="local.js"></script>
 </body>
 </html>
