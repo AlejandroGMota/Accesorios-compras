@@ -672,7 +672,7 @@ function tipoDeFunda(d) {
 }
 
 // Piezas enteras: media funda no existe, y un `cantidad` raro (texto, 0, negativo)
-// no debe entrar al FIFO como si fuera una pieza.
+// no debe entrar al emparejado como si fuera una pieza.
 function piezasDe(d) {
     const n = Math.round(Number(d.cantidad));
     return Number.isFinite(n) && n > 0 ? n : 0;
@@ -736,7 +736,7 @@ function prepararVentasFundas(crudos, aliasMap) {
     return { ventas, diag };
 }
 
-// ---------- FIFO ----------
+// ---------- Emparejado de ventas con compras ----------
 // No se sabe qué pieza física se vendió, así que se supone que se vende primero
 // lo que se compró primero. `clave` decide el grano: por tipo (juntando modelos)
 // para la rotación, y por modelo+tipo para saber qué lote lleva parado.
@@ -745,7 +745,7 @@ function prepararVentasFundas(crudos, aliasMap) {
 // y una funda comprada y vendida el mismo día son 0 días de verdad. Como los
 // eventos se procesan en orden, cualquier lote que esté en la cola se compró
 // antes o el mismo día que la venta, así que los días nunca salen negativos.
-function correrFifo(lotes, ventas, clave) {
+function emparejarVentasConCompras(lotes, ventas, clave) {
     const grupos = new Map();
     const eventosDe = k => {
         if (!grupos.has(k)) grupos.set(k, []);
@@ -811,13 +811,13 @@ function medianaPonderada(pares) {
 
 // ---------- Cálculos por vista ----------
 
-// El FIFO corre sobre todo el historial (la cola de un tipo depende de todas las
+// El emparejado corre sobre todo el historial (la cola de una variante depende de todas las
 // ventas anteriores), y la ventana solo decide qué emparejamientos se reportan.
-function calcularRotacion(fifoPorTipo, tipos, desde) {
+function calcularRotacion(emparejadoPorTipo, tipos, desde) {
     const enVentana = f => !desde || f >= desde;
 
     const filas = tipos.map(tipo => {
-        const r           = fifoPorTipo.get(tipo) || { pares: [], huerfanas: [] };
+        const r           = emparejadoPorTipo.get(tipo) || { pares: [], huerfanas: [] };
         const pares       = r.pares.filter(p => enVentana(p.fechaVenta));
         const huerfanas   = r.huerfanas.filter(h => enVentana(h.fechaVenta));
         const emparejadas = pares.reduce((s, p) => s + p.piezas, 0);
@@ -845,12 +845,12 @@ function calcularRotacion(fifoPorTipo, tipos, desde) {
     };
 }
 
-// Lo que quedó sin emparejar, por modelo+tipo. Este FIFO va con otra clave a
+// Lo que quedó sin emparejar, por modelo+variante. Este emparejado va con otra clave a
 // propósito: el de la rotación junta modelos, así que una venta de un modelo
 // podría consumir el lote de otro y el sobrante no diría nada del modelo.
-function calcularParado(fifoPorModeloTipo, hoy) {
+function calcularParado(emparejadoPorModeloTipo, hoy) {
     const filas = [];
-    for (const [clave, r] of fifoPorModeloTipo) {
+    for (const [clave, r] of emparejadoPorModeloTipo) {
         const vivos = r.cola.filter(l => l.restantes > 0);   // ya vienen en orden de compra
         if (!vivos.length) continue;
         const viejo = vivos[0];
@@ -900,8 +900,8 @@ function calcularFundas(lotes, ventas, desde, hoy) {
         tipos, lotes, ventas,
         lotesVentana:  lotes.filter(l => enVentana(l.fecha)),
         ventasVentana: ventas.filter(v => enVentana(v.fecha)),
-        rotacion: calcularRotacion(correrFifo(lotes, ventas, d => d.tipo), tipos, desde),
-        parado:   calcularParado(correrFifo(lotes, ventas, d => `${d.modelo}||${d.tipo}`), hoy),
+        rotacion: calcularRotacion(emparejarVentasConCompras(lotes, ventas, d => d.tipo), tipos, desde),
+        parado:   calcularParado(emparejarVentasConCompras(lotes, ventas, d => `${d.modelo}||${d.tipo}`), hoy),
         ranking:  calcularRankingFundas(lotes.filter(l => enVentana(l.fecha)), ventas.filter(v => enVentana(v.fecha))),
         tendenciaModelos: calcularTendenciaModelos(ventas, desde, hoy),
     };
@@ -1171,10 +1171,15 @@ function renderRotacionFundas(vista) {
             </table>
         </div>
         <p class="chart-note">
-            Mediana de días, ponderada por piezas, suponiendo que se vende primero lo que se compró
-            primero (FIFO). No es un rastreo pieza por pieza: no se sabe qué funda física se vendió.
-            Con menos de ${PISO_ROTACION} piezas emparejadas el número es ruido, no rotación, y por eso
-            esas filas no pueden ganar el destacado del resumen.
+            <strong>Se supone que se vende primero lo que se compró primero</strong>, como en el
+            aparador: el que llega nuevo se pone atrás y sale lo de adelante. Nadie anota qué funda
+            concreta se llevó el cliente, así que para poder medir cuánto tardó en venderse hay que
+            emparejar cada venta con alguna compra, y la más vieja es la apuesta razonable.
+            <strong>Es una aproximación, no un rastreo pieza por pieza.</strong>
+            El número es la mediana de días —no el promedio, que una sola venta de un lote viejo
+            arrastraría—, y pesa por piezas: un lote de 30 cuenta 30 veces más que una suelta.
+            Con menos de ${PISO_ROTACION} piezas emparejadas es ruido, no rotación, y esas filas no
+            pueden ganar el destacado del resumen.
         </p>
         <p class="chart-note">
             «Sin respaldo» son ventas que ninguna compra del historial explica: stock de antes de este
@@ -1253,7 +1258,7 @@ function renderParadoFundas(vista) {
             </table>
         </div>
         <p class="chart-note">
-            El lote más viejo de cada modelo y tipo que el FIFO no pudo emparejar con ninguna venta,
+            El lote más viejo de cada modelo y variante que no se pudo emparejar con ninguna venta,
             con más de ${DIAS_PARADO} días desde que se compró. En rojo, los de más de ${DIAS_PARADO * 2} días.
             «Pzs del lote» son las de ese lote; «Pzs sin vender», todas las de ese modelo y tipo.
             ${ocultas ? `Hay ${ocultas} más con menos días. ` : ''}
