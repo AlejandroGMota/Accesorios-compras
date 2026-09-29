@@ -1,0 +1,69 @@
+rules_version = '2';
+
+// Reglas de Firestore de accesories.alejandrogmota.com
+//
+// Hasta ahora vivían solo en la consola de Firebase y estaban en
+// `allow read, write: if true`. Aquí quedan versionadas, pero OJO: este
+// archivo no se publica solo. Hay que pegarlo en la consola
+// (Firestore Database → Rules → Publicar) para que surta efecto.
+//
+// Criterio actual: las listas quedan abiertas, porque la gente de cada local
+// anota sin cuenta. Lo único que pide sesión es administrar locales.
+// Eso significa que los datos siguen siendo legibles por quien conozca el
+// proyecto: el login de admin y de la lista global esconde la pantalla, no
+// los datos. Cerrarlos de verdad pide login (aunque sea anónimo) en las
+// listas de local.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Quién administra se decide por la colección `admins`: un documento vacío
+    // por cada UID autorizado, creado a mano desde la consola. Así no hay
+    // ningún correo ni identificador dentro del repo, que es público, y dar o
+    // quitar permiso no obliga a volver a publicar las reglas.
+    function esAdmin() {
+      return request.auth != null
+          && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // La lista de administradores se gestiona solo desde la consola. Cada quien
+    // puede consultar si es admin, para que el panel avise en vez de fallar
+    // callado al guardar.
+    match /admins/{uid} {
+      allow read:  if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Productos por comprar. Los anota quien esté en el local, sin cuenta.
+    match /items/{itemId} {
+      allow read, write: if true;
+    }
+
+    // Los locales los lee cualquiera (las listas necesitan su nombre),
+    // pero crearlos, renombrarlos y borrarlos es solo tuyo.
+    match /locales/{localId} {
+      allow read:  if true;
+      allow write: if esAdmin();
+    }
+
+    // Historial de compras de micas: lo escribe la lista al agregar y palomear
+    match /micas_compras/{docId} {
+      allow read, write: if true;
+    }
+
+    // Documento viejo de la lista (respaldo) y bandera de la migración
+    match /app/{docId} {
+      allow read, write: if true;
+    }
+
+    // Hidrogel. El conector escribe con cuenta de servicio, que se salta
+    // estas reglas; esto es para que la pestaña de Analytics pueda leer.
+    match /hidrogel_ventas/{docId} {
+      allow read, write: if true;
+    }
+
+    match /hidrogel_pedidos/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

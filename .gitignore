@@ -4,3 +4,5 @@ venv/
 catalogo-buytiti/scraper/scraper
 .env
 index.local.html
+tmp/*
+.local/

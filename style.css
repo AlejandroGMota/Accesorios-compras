@@ -107,6 +107,8 @@ label:first-of-type { margin-top: 0; }
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="email"],
+input[type="password"],
 select {
     width: 100%;
     padding: 12px 16px;
@@ -124,6 +126,8 @@ select {
 input[type="text"]:focus,
 input[type="number"]:focus,
 input[type="date"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
 select:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.08);
@@ -855,3 +859,153 @@ select:focus {
 
     :root { --section-gap: 40px; }
 }
+
+/* ========== Barra de la lista ========== */
+.lista-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: var(--section-gap);
+}
+
+.btn-toolbar {
+    background: var(--surface);
+    color: var(--primary);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 8px 18px;
+    font-family: inherit;
+    font-size: 0.85em;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: background 0.2s, color 0.2s;
+}
+
+.btn-toolbar:hover:not(:disabled) { background: var(--primary); color: #fff; }
+
+.btn-toolbar:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* La barra queda pegada al primer encabezado de categoría */
+.lista-toolbar + .category-header { margin-top: 16px; }
+
+/* ========== Índice de locales ========== */
+.local-card {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.local-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+}
+
+.local-card:last-child { margin-bottom: 0; }
+
+.local-nombre { font-weight: 600; font-size: 1.02em; }
+
+.local-detalle {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* ========== Botones chicos de tabla ========== */
+.btn-mini {
+    background: var(--surface);
+    color: var(--primary);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    padding: 5px 12px;
+    font-family: inherit;
+    font-size: 0.78em;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.btn-mini:hover:not(:disabled) { background: var(--primary); color: #fff; }
+
+.btn-mini:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-mini.peligro { color: var(--danger); }
+.btn-mini.peligro:hover:not(:disabled) { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+.acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.etiqueta {
+    display: inline-block;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.72em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 50px;
+    vertical-align: middle;
+}
+
+/* ========== Lista global ========== */
+.data-table tr.fila-comprada td {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    text-decoration-color: var(--success);
+}
+
+.data-table tr.fila-comprada td:last-child { text-decoration: none; }
+
+.reparto {
+    font-size: 0.86em;
+    color: var(--text-muted);
+    min-width: 150px;
+}
+
+/* ========== Candado de admin y lista global ========== */
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--bg);
+}
+
+.auth-overlay[hidden] { display: none; }
+
+.auth-card {
+    width: 100%;
+    max-width: 380px;
+    margin: 0;
+}
+
+.auth-error {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: rgba(231, 76, 60, 0.08);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+    color: var(--danger-dark);
+    font-size: 0.86em;
+}
+
+.auth-error[hidden] { display: none; }
+
+#authSalir { margin-left: 4px; }

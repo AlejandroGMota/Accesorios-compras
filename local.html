@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista del local</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+    <div>
+        <h1 id="nombreLocal">Lista del local</h1>
+        <p class="header-subtitle">Lo que hace falta pedir</p>
+    </div>
+    <nav class="header-nav">
+        <a href="locales.html" class="header-link">Locales</a>
+    </nav>
+</header>
+
+<div class="container">
+
+    <div id="avisoLocal" class="card" hidden></div>
+
+    <!-- ===== Formulario ===== -->
+    <div class="card">
+        <h2>Añadir producto</h2>
+
+        <label for="productCategory">Categoría</label>
+        <select id="productCategory">
+            <option value="">Selecciona una categoría</option>
+            <option value="Micas">Micas</option>
+            <option value="Hidrogel">Hidrogel</option>
+            <option value="Fundas">Fundas</option>
+            <option value="Fundas nuevas">Fundas nuevas</option>
+            <option value="1hora">1 Hora</option>
+            <option value="Refacciones">Refacciones</option>
+            <option value="Otros">Otros</option>
+        </select>
+
+        <label for="productName">Nombre del producto</label>
+        <input type="text" id="productName" placeholder="Ej. iPhone 15 Pro">
+
+        <label for="productQuantity">Cantidad</label>
+        <input type="number" id="productQuantity" placeholder="0" min="0" step="1">
+
+        <!-- Micas -->
+        <div id="micaOptions" class="options-group" style="display:none">
+            <p>Tipo de mica</p>
+            <div class="pill-group">
+                <input type="radio" id="mica9d" name="micaType" value="9D">
+                <label for="mica9d">9D</label>
+                <input type="radio" id="mica9h" name="micaType" value="9H">
+                <label for="mica9h">9H</label>
+                <input type="radio" id="micaPrivacidad" name="micaType" value="Privacidad">
+                <label for="micaPrivacidad">Privacidad</label>
+            </div>
+        </div>
+
+        <!-- Hidrogel -->
+        <div id="hidrogelOptions" class="options-group" style="display:none">
+            <p>Tipo de hidrogel</p>
+            <div class="pill-group">
+                <input type="radio" id="hidroMatte" name="hidrogelType" value="matte">
+                <label for="hidroMatte">Matte</label>
+                <input type="radio" id="hidroPrivacidad" name="hidrogelType" value="privacidad">
+                <label for="hidroPrivacidad">Privacidad</label>
+                <input type="radio" id="hidroHd" name="hidrogelType" value="hd">
+                <label for="hidroHd">HD</label>
+                <input type="radio" id="hidroBlueray" name="hidrogelType" value="blueray">
+                <label for="hidroBlueray">Blueray</label>
+            </div>
+        </div>
+
+        <!-- Fundas: colores -->
+        <div id="fundaColors" class="options-group" style="display:none">
+            <p>Colores</p>
+            <div class="pill-group">
+                <input type="checkbox" id="colRojo" value="Rojo">
+                <label for="colRojo">Rojo</label>
+                <input type="checkbox" id="colAzul" value="Azul">
+                <label for="colAzul">Azul</label>
+                <input type="checkbox" id="colMenta" value="Menta">
+                <label for="colMenta">Menta</label>
+                <input type="checkbox" id="colLila" value="Lila">
+                <label for="colLila">Lila</label>
+                <input type="checkbox" id="colNegro" value="Negro">
+                <label for="colNegro">Negro</label>
+                <input type="checkbox" id="colRosa" value="Rosa">
+                <label for="colRosa">Rosa</label>
+            </div>
+        </div>
+
+        <!-- Fundas: tipos -->
+        <div id="fundaTypes" class="options-group" style="display:none">
+            <p>Tipo de funda</p>
+            <div class="pill-group">
+                <input type="checkbox" id="fMagsafe" value="Magsafe">
+                <label for="fMagsafe">Magsafe</label>
+                <input type="checkbox" id="fTransparente" value="Transparente">
+                <label for="fTransparente">Transparente</label>
+                <input type="checkbox" id="fTresPiezas" value="3 piezas">
+                <label for="fTresPiezas">3 piezas</label>
+                <input type="checkbox" id="fDisenoH" value="Diseño hombre">
+                <label for="fDisenoH">Diseño hombre</label>
+                <input type="checkbox" id="fDisenoM" value="Diseño mujer">
+                <label for="fDisenoM">Diseño mujer</label>
+                <input type="checkbox" id="fUsoRudo" value="Uso rudo">
+                <label for="fUsoRudo">Uso rudo</label>
+                <input type="checkbox" id="fColor" value="Color">
+                <label for="fColor">Color</label>
+            </div>
+        </div>
+
+        <!-- Fundas nuevas -->
+        <div id="fundasNuevasOptions" class="options-group" style="display:none">
+            <p>Prioridad</p>
+            <div class="pill-group">
+                <input type="radio" id="fnMuyNuevo" name="fundasNuevasType" value="Muy nuevo">
+                <label for="fnMuyNuevo">Muy nuevo</label>
+                <input type="radio" id="fnDificil" name="fundasNuevasType" value="Dificil de vender">
+                <label for="fnDificil">Difícil de vender</label>
+                <input type="radio" id="fnUrgente" name="fundasNuevasType" value="Urgente">
+                <label for="fnUrgente">Urgente</label>
+            </div>
+        </div>
+
+        <!-- 1 Hora -->
+        <div id="unaHoraOptions" class="options-group" style="display:none">
+            <p>Tipo</p>
+            <div class="pill-group">
+                <input type="radio" id="uhAudifonos" name="unaHoraType" value="Audifonos BT">
+                <label for="uhAudifonos">Audífonos BT</label>
+                <input type="radio" id="uhCables50" name="unaHoraType" value="Cables 50">
+                <label for="uhCables50">Cables 50cm</label>
+                <input type="radio" id="uhCargador" name="unaHoraType" value="Cargador Completo">
+                <label for="uhCargador">Cargador Completo</label>
+                <input type="radio" id="uhCables2m" name="unaHoraType" value="Cables 2M">
+                <label for="uhCables2m">Cables 2M</label>
+            </div>
+        </div>
+
+        <button id="addProductBtn" class="btn-primary">Agregar Producto</button>
+    </div>
+
+    <!-- ===== Listas por categoría ===== -->
+
+    <div class="lista-toolbar">
+        <button id="borrarCompradasBtn" class="btn-toolbar" disabled>Borrar compradas (0)</button>
+    </div>
+
+    <div class="category-header">Micas</div>
+    <div class="category-header sub">Micas 9D</div>
+    <div id="micas9DList"></div>
+    <div class="category-header sub">Micas 9H</div>
+    <div id="micas9HList"></div>
+    <div class="category-header sub">Micas Privacidad</div>
+    <div id="micasPrivacidadList"></div>
+    <div id="micasSinTipoHeader" class="category-header sub" style="display:none">Micas sin tipo</div>
+    <div id="micasSinTipoList"></div>
+
+    <div class="category-header">Hidrogel</div>
+    <div id="hidrogelList"></div>
+
+    <div class="category-header">Fundas</div>
+    <div id="fundasList"></div>
+
+    <div class="category-header">Fundas nuevas</div>
+    <div id="fundasNuevasList"></div>
+
+    <div class="category-header">1 Hora</div>
+    <div id="unaHoraList"></div>
+
+    <div class="category-header">Refacciones</div>
+    <div id="refaccionesList"></div>
+
+    <div class="category-header">Otros</div>
+    <div id="otrosList"></div>
+
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
+
+<!-- Firebase init — config inyectada por GitHub Actions -->
+<script>
+    const firebaseConfig = %%FIREBASE_CONFIG%%;
+    firebase.initializeApp(firebaseConfig);
+    // App Check: la base solo acepta peticiones que vengan de este sitio.
+    // Mientras no haya llave (placeholder sin reemplazar), no se activa y todo sigue igual.
+    const APPCHECK_SITE_KEY = '%%APPCHECK_SITE_KEY%%';
+    const APPCHECK_PROVIDER = '%%APPCHECK_PROVIDER%%';   // 'enterprise' o vacío (reCAPTCHA v3)
+    if (!APPCHECK_SITE_KEY.startsWith('%%')) {
+        firebase.appCheck().activate(
+            APPCHECK_PROVIDER === 'enterprise'
+                ? new firebase.appCheck.ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY)
+                : APPCHECK_SITE_KEY,
+            true);
+        console.info('App Check activo (%s)', APPCHECK_PROVIDER === 'enterprise' ? 'reCAPTCHA Enterprise' : 'reCAPTCHA');
+    } else {
+        console.info('App Check sin configurar: falta el secret APPCHECK_SITE_KEY.');
+    }
+    const db = firebase.firestore();
+    db.enablePersistence().catch(err => console.warn('Persistencia offline no disponible:', err.code));
+</script>
+
+<script src="lista-core.js"></script>
+<script src="local.js"></script>
+</body>
+</html>

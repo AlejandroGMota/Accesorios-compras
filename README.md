@@ -63,13 +63,48 @@ Accesorios-compras/
 │   ├── hidrogel-core.js                  # Lógica compartida con hidrogel-mcp
 │   └── aliases.csv
 ├── hidrogel-mcp/                         # Conector de Claude en la VM de Oracle → ver su README
-├── index.html                            # Aplicación principal
+├── index.html                            # Lista del tianguis (la de siempre)
+├── app.js                                # Arranque de la lista del tianguis
+├── lista-core.js                         # Lógica compartida por las listas
+├── local.html / local.js                 # Lista de un local  ·  ?id=<idDelLocal>
+├── locales.html / locales.js             # Índice de locales con su liga
+├── admin.html / admin.js                 # Crear y editar locales (pide login)
+├── global.html / global.js               # Todo junto para comprar (pide login)
+├── migrar.html / migrar.js               # Migración de una sola vez, no va en el menú
+├── auth.js                               # Candado de admin y de la lista global
+├── firestore.rules                       # Reglas de Firestore (hay que pegarlas en la consola)
+├── dev.py                                # Genera .local/ con la config real para probar
 ├── style.css                             # Estilos globales
-├── app.js                                # Lógica de la aplicación
 ├── fundas-lanzadas.html                  # Vista de fundas lanzadas
 ├── CNAME                                 # Dominio personalizado de GitHub Pages
 └── README.md                             # Este archivo
 ```
+
+### Las listas y los locales
+
+Cada punto de venta tiene su propia lista y su propia liga. El **tianguis** es un
+local más (`tianguis`), pero conserva la URL de siempre y es el único que muestra
+precios y totales.
+
+| Página | Para qué | Pide login |
+|---|---|---|
+| `/` | Lista del tianguis | No |
+| `/local.html?id=<id>` | Lista de un local, sin precios | No |
+| `/locales.html` | Índice con la liga de cada local | No |
+| `/admin.html` | Crear, renombrar, desactivar y borrar locales | Sí |
+| `/global.html` | Todo junto para ir a comprar | Sí |
+
+Los locales se crean en caliente desde el admin, así que no pueden ser carpetas:
+harían falta un commit y un deploy por cada uno. Por eso la liga lleva el local
+en `?id=`.
+
+En la lista global lo importante es la vista **«junto por producto»**: suma el
+mismo modelo de todos los locales, porque no se compran 1 caja del local A y 1
+del B, se compran 2 y luego se reparten. La columna *Reparto* dice a quién le
+toca cada cuánto. La vista **«separado por local»** es la del regreso.
+
+Palomear un producto en la global lo marca en **todos** los locales que lo
+pidieron, para que quien anotó vea que ya viene en camino.
 
 ## Categorías de Productos
 
@@ -173,18 +208,37 @@ Acceder directamente a: [accesories.alejandrogmota.com](https://accesories.aleja
 
 Los datos se sincronizan en tiempo real con **Firebase Firestore**, lo que permite acceder a la lista desde cualquier dispositivo.
 
+Cada producto es **un documento** de la colección `items`:
+
 ```javascript
-// Estructura de un documento en Firestore
+// items/{itemId}
 {
-  "name": "Mica 9D iPhone 13",
-  "price": 150,
+  "local":    "tianguis",        // de qué lista es
+  "name":     "Mica 9D iPhone 13",
+  "price":    150,
   "quantity": 2,
   "category": "Micas",
-  "type": "9D"
+  "type":     "9D",
+  "comprada": null,              // fecha en ms cuando se palomea
+  "creado":   1759000000000      // orden dentro de la lista
 }
 ```
 
-**Nota:** La configuración de Firebase nunca se almacena en el repositorio; se inyecta durante el deploy a través de GitHub Secrets.
+```javascript
+// locales/{localId}
+{ "nombre": "Local Centro", "activo": true, "creado": 1759000000000 }
+```
+
+Antes toda la lista vivía como un array dentro de un solo documento
+(`app/productos`) que se reescribía entero en cada cambio. Con una sola persona
+nunca se notó, pero al palomear desde la lista global mientras alguien anota en
+su local, la última escritura borraba la otra sin avisar. Un documento por
+producto quita ese problema y de paso hace que los botones de borrar y palomear
+apunten al id del documento y no a la posición en el array.
+
+El documento viejo **no se borra**: queda como respaldo.
+
+**Nota:** La configuración de Firebase nunca se almacena en el repositorio; se inyecta durante el deploy a través de GitHub Secrets. Ojo: lo que se inyecta queda visible en el HTML publicado, así que ahí solo puede ir lo que puede ser público — una contraseña nunca.
 
 ### Cerrar el acceso a la base con App Check
 
@@ -237,6 +291,72 @@ Si algo falla, quitar el secret `APPCHECK_SITE_KEY`, volver a desplegar y regres
 La cuota gratis es de **10,000 evaluaciones al mes**; pasando de ahí hay que habilitar facturación en el proyecto de Cloud. Sin cuenta de facturación, reCAPTCHA entrega 4 niveles de puntuación en vez de 11, suficiente para App Check.
 
 El sitio soporta los dos proveedores: con `APPCHECK_PROVIDER=enterprise` usa Enterprise y sin ese secret usa el reCAPTCHA clásico, por si algún día se reutiliza una llave vieja.
+
+## Puesta en marcha de los locales
+
+Esto se hace **una sola vez** y hay tres pasos que solo se pueden hacer a mano.
+Mientras no estén, `items` y `locales` siguen denegadas y las listas no cargan.
+
+### 1· Publicar las reglas de Firestore
+
+Las reglas viven en `firestore.rules`, pero ese archivo **no se publica solo**:
+hay que pegarlo en la consola.
+
+1. Firebase → **Firestore Database** → pestaña **Rules**
+2. Pegar el contenido de `firestore.rules` y **Publicar**
+
+Conviene hacerlo cuando puedas comprobar en el momento que la lista del tianguis
+sigue cargando; si las reglas quedan mal, deja de funcionar.
+
+### 2· Crear el usuario y darle permiso de admin
+
+1. Firebase → **Authentication** → **Sign-in method** → activar **Email/Password**
+2. Pestaña **Users** → **Add user** → un correo y una contraseña
+3. Copiar el **UID del usuario** que aparece en esa lista
+4. Firestore → crear la colección **`admins`** → un documento cuyo **ID sea ese UID**, sin campos
+
+Quién administra se decide por la colección `admins`, no por el correo: basta
+con que exista `admins/<uid>`. Así el repo, que es público, no lleva ningún
+dato personal, y dar o quitar permiso no obliga a volver a publicar las reglas.
+
+Si la llave de API tiene restricción por dominio (hoy la tiene), el login solo
+funciona desde `accesories.alejandrogmota.com`. Para probarlo en `localhost` hay
+que agregarlo en Google Cloud Console → Credentials → la llave → HTTP referrers.
+
+### 3· Migrar los datos que ya existen
+
+Abrir **`/migrar.html`** (no está en el menú, es de un solo uso):
+
+1. **Revisar sin tocar nada** — dice cuántos productos y cuántos registros de
+   Analytics se van a mover
+2. **Migrar** — pasa `app/productos.items[]` a la colección `items` con
+   `local: tianguis`, crea el local «Tianguis» y marca como `tianguis` los
+   registros viejos de `micas_compras`
+
+El documento viejo `app/productos` **no se borra**: queda como respaldo, y la
+migración deja una bandera para no poder correrse dos veces.
+
+### Qué protege el login y qué no
+
+El login solo cierra **crear y editar locales**; eso lo imponen las reglas. Las
+listas se escriben sin cuenta, porque la gente de cada local anota sin
+credenciales, así que `items` está abierto: el login de `global.html` esconde la
+pantalla, no los datos. Para cerrarlos de verdad hace falta **App Check**
+(sección de arriba) o pedir sesión también en las listas de local.
+
+## Probar en local
+
+```bash
+python3 dev.py          # genera .local/ y levanta http://localhost:8000
+python3 dev.py --build  # solo genera .local/
+```
+
+Lee `FIREBASE_CONFIG` de `.env` y hace lo mismo que el paso «Inject Firebase
+config» del workflow, pero dejando los archivos con sus nombres de siempre para
+que los enlaces entre páginas funcionen. `.local/` está en `.gitignore`.
+
+Ojo: `--build` borra y rehace `.local/`, así que si el servidor estaba corriendo
+hay que reiniciarlo.
 
 ## Diseño y Estilos
 

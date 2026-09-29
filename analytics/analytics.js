@@ -120,6 +120,20 @@ async function cargarDatos() {
     return snap.docs.map(d => d.data());
 }
 
+// Los registros de antes de que hubiera locales son del tianguis
+const localDe = d => d.local || 'tianguis';
+
+async function cargarLocales() {
+    try {
+        const snap = await db.collection('locales').get();
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es'));
+    } catch (e) {
+        console.warn('No se pudieron cargar los locales:', e);
+        return [];
+    }
+}
+
 function prepararDocs(crudos, aliasMap) {
     const docs = [];
     let sinTipo = 0, pendientes = 0;
@@ -494,11 +508,14 @@ function comprasPorDia(compras) {
 }
 
 // Lo que hay ahora en la lista de compras, por modelo y tipo
-async function cargarPendientes(aliasMap) {
+async function cargarPendientes(aliasMap, local = '') {
     const pendientes = new Map();
     try {
-        const doc   = await db.collection('app').doc('productos').get();
-        const items = doc.exists ? (doc.data().items || []) : [];
+        // Cada producto es un documento de `items`; antes eran un array dentro
+        // de un solo documento. Sin local, se cuentan los de todos.
+        const ref   = local ? db.collection('items').where('local', '==', local) : db.collection('items');
+        const snap  = await ref.get();
+        const items = snap.docs.map(d => d.data());
         for (const p of items) {
             if (p.category !== 'Micas' || !PZS_POR_CAJA[p.type]) continue;
             // Las ya palomeadas cuentan como compra hecha; descontarlas otra vez
@@ -615,31 +632,63 @@ mostrarPestana(location.hash.slice(1));
 
 window.addEventListener('DOMContentLoaded', async () => {
     try {
-        const [crudos, aliasMap] = await Promise.all([cargarDatos(), cargarAliases()]);
-        const { docs, sinTipo, pendientes: sinPalomear } = prepararDocs(crudos, aliasMap);
+        const [crudos, aliasMap, locales] = await Promise.all([
+            cargarDatos(), cargarAliases(), cargarLocales(),
+        ]);
 
-        if (docs.length === 0) {
+        const selector = document.getElementById('filtro-local');
+        locales.forEach(l => {
+            const op = document.createElement('option');
+            op.value = l.id;
+            op.textContent = l.nombre;
+            selector.appendChild(op);
+        });
+        // Con un solo local no hay nada que separar
+        selector.closest('.filtro-local').hidden = locales.length < 2;
+
+        const vacio = mensaje => {
             document.querySelector('.stat-grid').innerHTML =
-                '<p class="muted" style="grid-column:1/-1">Aún no hay compras registradas. Agrega micas desde la lista principal.</p>';
-            document.getElementById('proyecciones-contenido').innerHTML =
-                '<p class="muted">Sin datos aún.</p>';
-            return;
+                `<p class="muted" style="grid-column:1/-1">${mensaje}</p>`;
+            document.getElementById('proyecciones-contenido').innerHTML = '<p class="muted">Sin datos aún.</p>';
+        };
+
+        let docsActuales = [];
+
+        async function pintar(local) {
+            const filtrados = local ? crudos.filter(d => localDe(d) === local) : crudos;
+            const { docs, sinTipo, pendientes: sinPalomear } = prepararDocs(filtrados, aliasMap);
+            docsActuales = docs;
+
+            if (docs.length === 0) {
+                vacio(local
+                    ? 'Este local todavía no tiene compras registradas.'
+                    : 'Aún no hay compras registradas. Agrega micas desde la lista principal.');
+                document.getElementById('reponer-contenido').innerHTML = '';
+                return;
+            }
+
+            const pendientes = await cargarPendientes(aliasMap, local);
+            renderDashboard(docs, sinTipo, sinPalomear);
+            renderRanking(docs);
+            renderDonut(docs);
+            renderTendencia(docs);
+            renderPrevision(calcularPrevision(docs, pendientes));
         }
 
-        const pendientes = await cargarPendientes(aliasMap);
+        await pintar('');
 
-        renderDashboard(docs, sinTipo, sinPalomear);
-        renderRanking(docs);
-        renderDonut(docs);
-        renderTendencia(docs);
-        renderPrevision(calcularPrevision(docs, pendientes));
+        selector.addEventListener('change', async () => {
+            document.getElementById('reponer-contenido').innerHTML = '';
+            await pintar(selector.value);
+        });
 
         // El botón vuelve a leer la lista de compras, que cambia mientras se arma el pedido
         const boton = document.getElementById('btn-reponer');
         boton.addEventListener('click', async () => {
             boton.disabled = true;
             boton.textContent = 'Calculando…';
-            renderReposicion(calcularReposicion(docs, await cargarPendientes(aliasMap)));
+            const pendientes = await cargarPendientes(aliasMap, selector.value);
+            renderReposicion(calcularReposicion(docsActuales, pendientes));
             boton.disabled = false;
             boton.textContent = 'Actualizar';
         });
