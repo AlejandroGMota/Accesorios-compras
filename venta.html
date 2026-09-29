@@ -405,7 +405,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-check-compat.js"></script>
 
-<!-- Firebase init — config inyectada por GitHub Actions -->
+<!-- Firebase init — config inyectada por GitHub Actions.
+     Esta página tiene que estar en TRES listas para funcionar en producción:
+     `paths` y `targets` en .github/workflows/deploy.yml, y `PAGINAS` en dev.py.
+     Faltar en `targets` la deja sin config; faltar en `paths` hace que un push
+     que solo la toque no despliegue nada, y el arreglo se queda en GitHub sin
+     llegar al sitio. Las dos cosas ya pasaron. -->
 <script>
     // El placeholder va pelado, igual que en el resto de las páginas, porque
     // esta pantalla ya está en `targets` de .github/workflows/deploy.yml y en
