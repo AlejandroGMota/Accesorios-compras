@@ -231,7 +231,7 @@ const HERRAMIENTAS = [
                             tipo: {
                                 type: 'string',
                                 enum: TIPOS,
-                                description: '«Privacidad» a secas = "Privacidad Matte". Lion solo si el mensaje dice «lion» («priv hd lion», «priv matte lion»). «Normales» = "HD". Tablet 11" sin decir HD o Matte = "Tablet 11\" HD".',
+                                description: '«Privacidad» a secas = "Privacidad Matte". Lion solo si el mensaje dice «lion» («priv hd lion», «priv matte lion»). «Normales» = "HD". En tablets el material es obligatorio: si no dicen HD o Matte, pregunta antes de cotizar.',
                             },
                             cantidad: { type: 'integer', minimum: 1 },
                             precio:   { type: 'number', minimum: 0, description: 'Precio unitario en MXN. Omítelo si no lo sabes.' },

@@ -17,10 +17,15 @@ export const TIPOS = [
     'Privacidad Matte Lion',
     'Privacidad HD Lion',
     'Privacidad 360',
+    // En tablets el material va siempre: no hay «Tablet 13"» a secas. Las
+    // cotizaciones viejas de «Tablet 13"» y «Tablet 13" reducida» sin material
+    // se quedan en el historial, pero no cuentan para ninguna existencia.
     'Tablet 11" HD',
     'Tablet 11" Matte',
-    'Tablet 13"',
-    'Tablet 13" reducida',
+    'Tablet 13" HD',
+    'Tablet 13" Matte',
+    'Tablet 13" reducida HD',
+    'Tablet 13" reducida Matte',
     'Tablet 13" Privacidad HD',
 ];
 
@@ -50,10 +55,12 @@ export const MINIMO_GRUPO = 50;
 // la que se guardan su conteo en `hidrogel_conteos` y sus compras en `hidrogel_compras`,
 // igual que el SKU de una hoja en un pedido.
 export const SIN_KASR = [
-    { id: 'blue-ray',       descripcion: 'Blue Ray',                 tipos: ['Blue Ray'] },
-    { id: 'tab13',          descripcion: 'Tablet 13" (HD o Matte)',  tipos: ['Tablet 13"'] },
-    { id: 'tab13-reducida', descripcion: 'Tablet 13" reducida',      tipos: ['Tablet 13" reducida'] },
-    { id: 'tab13-priv',     descripcion: 'Tablet 13" Privacidad HD', tipos: ['Tablet 13" Privacidad HD'] },
+    { id: 'blue-ray',             descripcion: 'Blue Ray',                  tipos: ['Blue Ray'] },
+    { id: 'tab13-hd',             descripcion: 'Tablet 13" HD',             tipos: ['Tablet 13" HD'] },
+    { id: 'tab13-matte',          descripcion: 'Tablet 13" Matte',          tipos: ['Tablet 13" Matte'] },
+    { id: 'tab13-reducida-hd',    descripcion: 'Tablet 13" reducida HD',    tipos: ['Tablet 13" reducida HD'] },
+    { id: 'tab13-reducida-matte', descripcion: 'Tablet 13" reducida Matte', tipos: ['Tablet 13" reducida Matte'] },
+    { id: 'tab13-priv',           descripcion: 'Tablet 13" Privacidad HD',  tipos: ['Tablet 13" Privacidad HD'] },
 ];
 
 // Tarifas DDP de KASR (USD, puerta a puerta con impuestos)

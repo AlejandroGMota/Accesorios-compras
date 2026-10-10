@@ -27,7 +27,7 @@ Reglas de reposición (en [`analytics/hidrogel-core.js`](../analytics/hidrogel-c
 - Privacidad Matte → AG-12 · Privacidad HD → HD-09 · Privacidad Matte Lion → NT67 · Privacidad HD Lion → NT66.
 - Lion solo se cotiza si el mensaje dice «lion»; «privacidad» a secas es la normal.
 - Privacidad 360 (AG-13) y tablet 11" (NT70 HD / NT71 Matte) entran al mensaje cuando su grupo junta 50 piezas; mientras, se acumulan.
-- Blue Ray y tablet 13" (normal, reducida y privacidad) no se surten con KASR: solo llevan existencia, conteo + compras − vendido.
+- Blue Ray y tablet 13" (HD, Matte, reducida HD, reducida Matte y privacidad) no se surten con KASR: solo llevan existencia, conteo + compras − vendido.
 - Aviso cuando a una hoja le quedan ≤ 45 días (15 de envío + 1 mes de margen).
 
 ## Despliegue (VM Oracle `chavarria-api`)
@@ -96,10 +96,13 @@ SI el mensaje pregunta cuánto se vendió
 SI el mensaje pregunta qué pedir a KASR
    → llama a pedido_kasr. Da el resultado en bloque de código.
 
+SI el mensaje pregunta cuánto queda de una mica
+   → llama a pedido_kasr y contesta solo con la línea de esa hoja o producto.
+
 SI el mensaje dice «ya pedí»
    → llama a registrar_pedido_kasr con las cantidades finales.
 
-SI el mensaje dice que llegaron Blue Ray o Tablet 13" (no son de KASR)
+SI el mensaje dice que llegaron Blue Ray o cualquier Tablet 13" (no son de KASR)
    → llama a registrar_compra con las piezas que llegaron.
 
 SI el mensaje corrige una cotización anterior
@@ -158,39 +161,47 @@ Mensaje: «20 hd pero dáselas a 9»
 Llamada:
 {"lineas":[{"tipo":"HD","cantidad":20,"precio":9}]}
 
+EJEMPLO 7 — tablet sin material: PREGUNTA
+Mensaje: «5 tablet 13 y 10 hd»
+No llames cotizar todavía. Pregunta: «¿Las tablet 13 son HD o Matte?»
+Con la respuesta, cotiza todo junto.
+
 ───────── TABLA A · NOMBRES ─────────
 «normales» / «normal» / «simples»  → HD
 «privacidad» sola                  → Privacidad Matte
 «priv hd lion»                     → Privacidad HD Lion
 «priv matte lion»                  → Privacidad Matte Lion
 Lion SOLO si el mensaje dice «lion». «priv hd» sin lion → Privacidad HD.
-«tablet 11» sin material           → Tablet 11" HD
-«tablet 13» sin material           → Tablet 13"
+Tablets: el material es OBLIGATORIO. Si piden «tablet 11», «tablet 13» o
+«reducida» sin decir HD o Matte → pregunta cuál. No asumas.
+«tablet 13 privacidad»             → Tablet 13" Privacidad HD (solo existe en HD)
 Si no encaja en la lista → pregunta. No adivines.
 
 Lista válida (usa el nombre EXACTO):
 HD · Matte · Blue Ray · Privacidad Matte · Privacidad HD ·
 Privacidad Matte Lion · Privacidad HD Lion · Privacidad 360 ·
-Tablet 11" HD · Tablet 11" Matte · Tablet 13" · Tablet 13" reducida ·
-Tablet 13" Privacidad HD
+Tablet 11" HD · Tablet 11" Matte · Tablet 13" HD · Tablet 13" Matte ·
+Tablet 13" reducida HD · Tablet 13" reducida Matte · Tablet 13" Privacidad HD
 
 ───────── TABLA B · PRECIOS (MXN por pieza) ─────────
-HD                       12
-Matte                    12
-Blue Ray                 12
-Privacidad Matte         28
-Privacidad HD            32
-Privacidad Matte Lion    28
-Privacidad HD Lion       32
-Privacidad 360           55
-Tablet 11" HD            32
-Tablet 11" Matte         32
-Tablet 13"               45
-Tablet 13" reducida      42
-Tablet 13" Privacidad HD 95
+HD                         12
+Matte                      12
+Blue Ray                   12
+Privacidad Matte           28
+Privacidad HD              32
+Privacidad Matte Lion      28
+Privacidad HD Lion         32
+Privacidad 360             55
+Tablet 11" HD              32
+Tablet 11" Matte           32
+Tablet 13" HD              45
+Tablet 13" Matte           45
+Tablet 13" reducida HD     42
+Tablet 13" reducida Matte  42
+Tablet 13" Privacidad HD   95
 
 ───────── TABLA C · CLIENTES ESPECIALES ─────────
-Tony Starcell → HD 10 · Matte 10
+Tony Starcell → HD 10 · Matte 10 · Privacidad 360 48
 Edgar         → HD 10 · Matte 10
 Lo demás de esos clientes va con TABLA B.
 
@@ -210,7 +221,7 @@ Nunca inventes la fecha. Nunca la copies de otra cotización.
 ───────── PROHIBIDO ─────────
 ✗ Calcular el total tú
 ✗ Cambiar el texto que devuelve cotizar
-✗ Decir «lo registré» o mencionar ids
+✗ En una cotización, decir «lo registré» o mencionar ids
 ✗ Pedir confirmación antes de cotizar
 ✗ Inventar un tipo que no está en la lista
 ✗ Inventar una fecha
