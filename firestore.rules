@@ -1,13 +1,19 @@
 rules_version = '2';
 
 // ===========================================================================
-// VERSIÓN DEL ARCHIVO: 2  ·  2026-09-29
+// VERSIÓN DEL ARCHIVO: 3  ·  2026-10-09
 //
 // ⚠️ El `rules_version = '2'` de arriba NO es esta versión. Esa es la del
 // lenguaje de reglas de Firestore y solo acepta '1' o '2': si se cambia por
 // un 2.1 o parecido, la consola rechaza el archivo entero al publicarlo.
 // El seguimiento de nuestros cambios vive aquí abajo.
 //
+//   3 · 2026-10-09 — se agregan `hidrogel_conteos` (conteo físico de cada
+//       hoja, que el panel toma como punto de partida en vez de dar por hecho
+//       que no quedaba nada al llegar cada pedido) y `hidrogel_compras` (Blue
+//       Ray y Tablet 13", que no se piden a KASR). Las dos solo se crean: un
+//       conteo o una compra mal capturados se corrigen con un conteo nuevo, y
+//       así queda rastro de los dos.
 //   2 · 2026-09-29 (e89d1f7) — se agregan `fundas_compras`, `compras` (el
 //       resto de categorías, con campo `categoria`) y `fundas_ventas`. En
 //       ventas el borrado queda prohibido: una venta mal capturada se marca
@@ -108,6 +114,16 @@ service cloud.firestore {
 
     match /hidrogel_pedidos/{docId} {
       allow read, write: if true;
+    }
+
+    match /hidrogel_conteos/{docId} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+
+    match /hidrogel_compras/{docId} {
+      allow read, create: if true;
+      allow update, delete: if false;
     }
   }
 }

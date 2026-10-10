@@ -3,13 +3,15 @@
 // Servidor MCP sin estado (Streamable HTTP, respuestas JSON) en un Cloudflare Worker.
 
 import {
-    TIPOS, HOJAS, SKUS, DIAS_AVISO, DIAS_SIN_PEDIDO,
+    TIPOS, HOJAS, SKUS, SIN_KASR, DIAS_AVISO, DIAS_SIN_PEDIDO,
     parsearFecha, fechaPedido, formatoFecha, formatoNumero, haceDias,
     resumirVentas, periodos, sugerirPedido, describirPedido,
 } from '../../analytics/hidrogel-core.js';
 
 const VENTAS   = 'hidrogel_ventas';
 const PEDIDOS  = 'hidrogel_pedidos';
+const CONTEOS  = 'hidrogel_conteos';
+const COMPRAS  = 'hidrogel_compras';   // Blue Ray y Tablet 13", que no son de KASR
 const PROTOCOLOS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
 
 // ========== Credencial de servidor (opcional) ==========
@@ -158,6 +160,31 @@ function pedidosRecientes(db) {
     return db.consultar(PEDIDOS, { orden: 'DESCENDING', limite: 50 });
 }
 
+// Conteos (un documento por hoja contada; solo importa el último de cada una) y
+// compras fuera de KASR. Si no se pueden leer (reglas sin publicar), se sigue sin
+// ellos y se avisa en el texto.
+function opcional(db, coleccion, limite) {
+    return db.consultar(coleccion, { orden: 'DESCENDING', limite }).catch(err => {
+        console.log(`No se pudieron leer ${coleccion}: ${err.message}`);
+        return null;
+    });
+}
+
+const PEDIDO = { suman: 'pedidas',   la: 'el pedido' };
+const COMPRA = { suman: 'compradas', la: 'la compra' };
+
+// Cuánto queda, en palabras: «quedan ~50 según el conteo del 10 oct 2026 (~16 días)»
+function textoExistencia(x, diasRitmo, entrada) {
+    const e = x.existencia;
+    if (e.queda === null) return `sin conteo, no se sabe cuánto queda; vendidas ${x.enRitmo} en ${Math.round(diasRitmo)} días`;
+    const origen = e.conteo
+        ? `el conteo del ${formatoFecha(e.conteo.fecha)} (${e.base}${e.entro ? ` + ${e.entro} ${entrada.suman}` : ''})`
+        : `${entrada.la} del ${formatoFecha(e.pedido.fecha)} (${e.base})`;
+    if (e.queda < 0) return `NO CUADRA: según ${origen} se vendieron ${-e.queda} de más; falta contar o anular cotizaciones que no se concretaron`;
+    const dias = x.diasRestantes === null ? '' : ` (~${x.diasRestantes} días)${x.alerta ? ' ⚠' : ''}`;
+    return `quedan ~${e.queda} según ${origen}${dias}`;
+}
+
 // ========== Herramientas ==========
 
 function cotizaciones(n) {
@@ -204,7 +231,7 @@ const HERRAMIENTAS = [
                             tipo: {
                                 type: 'string',
                                 enum: TIPOS,
-                                description: '«Privacidad» a secas = "Privacidad Matte". «Normales» = "HD". Tablet 11" sin decir HD o Matte = "Tablet 11\" HD".',
+                                description: '«Privacidad» a secas = "Privacidad Matte". Lion solo si el mensaje dice «lion» («priv hd lion», «priv matte lion»). «Normales» = "HD". Tablet 11" sin decir HD o Matte = "Tablet 11\" HD".',
                             },
                             cantidad: { type: 'integer', minimum: 1 },
                             precio:   { type: 'number', minimum: 0, description: 'Precio unitario en MXN. Omítelo si no lo sabes.' },
@@ -331,27 +358,31 @@ const HERRAMIENTAS = [
             'mensaje para el proveedor. Muestra el mensaje tal cual, en un bloque de código para copiar.',
         inputSchema: { type: 'object', properties: {}, additionalProperties: false },
         async ejecutar(_, db) {
-            const pedidos = await pedidosRecientes(db);
-            const ventas  = await db.consultar(VENTAS, { desde: periodos(pedidos).inicio });
-            const s = sugerirPedido({ ventas, pedidos });
+            const [pedidos, leidosConteos, leidasCompras] = await Promise.all([
+                pedidosRecientes(db), opcional(db, CONTEOS, 200), opcional(db, COMPRAS, 50),
+            ]);
+            const conteos = leidosConteos || [];
+            const compras = leidasCompras || [];
+            const ventas  = await db.consultar(VENTAS, { desde: periodos(pedidos, new Date(), conteos, compras).inicio });
+            const s = sugerirPedido({ ventas, pedidos, conteos, compras });
             const pedido = s.ultimoPedido;
 
             const encabezado = pedido
                 ? `Último pedido a KASR: ${formatoFecha(pedido.fecha)} (${haceDias(s.dias)}), ${formatoNumero(pedido.piezas || 0)} pzs.`
                 : `No hay pedido a KASR registrado; cuento los últimos ${DIAS_SIN_PEDIDO} días.`;
-            const hojas = s.hojas.map(h => {
-                const resto = h.diasRestantes === null ? '' : `, quedan ~${h.queda} (~${h.diasRestantes} días)${h.alerta ? ' ⚠' : ''}`;
-                return `- ${h.sku} (${h.descripcion}): vendidas ${h.vendido} desde ${formatoFecha(h.desde)}${resto}`;
-            });
+            const hojas = s.hojas.map(h =>
+                `- ${h.sku} (${h.descripcion}): por reponer ${h.vendido} (vendidas desde ${formatoFecha(h.desde)}); ${textoExistencia(h, s.diasRitmo, PEDIDO)}`);
+            const sinKasr = s.sinKasr.map(x => `- ${x.descripcion}: ${textoExistencia(x, s.diasRitmo, COMPRA)}`);
             const grupos = Object.entries(s.grupos).map(([g, d]) =>
                 `${g}: ${d.vendido} de ${d.minimo}${d.entra ? ' → entra al mensaje' : ' → aún no entra (se acumula)'}`);
-            const fuera = Object.entries(s.fueraKasr).map(([t, n]) => `${t} ${n}`).join(', ');
             const aviso = !s.aviso ? '' : s.aviso.urgente
                 ? `⚠ Ya toca pedir: ${s.aviso.sku} alcanza ~${s.aviso.diasRestantes} días y el envío tarda 10–15.`
                 : `Próximo pedido: antes del ${formatoFecha(s.aviso.pedirAntes)} (${s.aviso.sku} alcanza ~${s.aviso.diasRestantes} días; aviso a ${DIAS_AVISO}).`;
 
             const lineas = [encabezado, `Cotizaciones desde el último pedido: ${s.resumen.cotizaciones}.`, 'Por hoja:', ...hojas, ...grupos];
-            if (fuera) lineas.push(`Fuera de KASR: ${fuera}.`);
+            lineas.push('Sin KASR (solo existencia, no se piden):', ...sinKasr);
+            if (s.noCuadran.length) lineas.push(`⚠ No cuadra: ${s.noCuadran.map(x => x.sku || x.descripcion).join(', ')}.`);
+            if (!leidosConteos || !leidasCompras) lineas.push('(No pude leer los conteos o las compras: lo que queda puede no estar al día.)');
             if (aviso) lineas.push(aviso);
             lineas.push('', s.mensaje ? `Mensaje:\n${s.mensaje}` : 'No hay ventas de hojas KASR en el periodo.', '', s.tarifa);
             return lineas.join('\n');
@@ -389,6 +420,42 @@ const HERRAMIENTAS = [
             return `Pedido registrado (id ${doc.id}), ${formatoFecha(cuando)}: ${detalle} = ${piezas} pzs. ${describirPedido(limpios)}`;
         },
     },
+    {
+        name: 'registrar_compra',
+        description:
+            'Guarda una compra de micas que NO son de KASR (Blue Ray y Tablet 13"), para que se sumen a lo que queda. ' +
+            'Llámala solo cuando el usuario diga que ya le llegaron, con las piezas que llegaron. Lo de KASR va con ' +
+            'registrar_pedido_kasr.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                items: {
+                    type: 'object',
+                    description: 'Piezas por producto',
+                    properties: Object.fromEntries(SIN_KASR.map(x => [x.tipos[0], { type: 'integer', minimum: 0, description: x.descripcion }])),
+                    additionalProperties: false,
+                },
+                fecha: { type: 'string', description: 'AAAA-MM-DD (hora de México). Omítela si fue hoy.' },
+            },
+            required: ['items'],
+            additionalProperties: false,
+        },
+        async ejecutar({ items, fecha }, db) {
+            for (const [nombre, n] of Object.entries(items)) {
+                if (!SIN_KASR.some(x => x.tipos[0] === nombre)) throw new Error(`Producto desconocido "${nombre}". Usa uno de: ${SIN_KASR.map(x => x.tipos[0]).join(', ')}.`);
+                if (!Number.isInteger(n) || n < 0) throw new Error(`Piezas inválidas para ${nombre}: ${n}.`);
+            }
+            // Se guarda con el id del producto, igual que su conteo
+            const limpios = Object.fromEntries(SIN_KASR.filter(x => items[x.tipos[0]] > 0).map(x => [x.id, items[x.tipos[0]]]));
+            const piezas  = Object.values(limpios).reduce((a, b) => a + b, 0);
+            if (!piezas) throw new Error('La compra no tiene piezas.');
+            const ahora  = new Date();
+            const cuando = fechaPedido(fecha, ahora);
+            const doc = await db.agregar(COMPRAS, { fecha: cuando, items: limpios, piezas, origen: 'claude', creado: ahora });
+            const detalle = SIN_KASR.filter(x => limpios[x.id]).map(x => `${x.tipos[0]} ${limpios[x.id]}`).join(', ');
+            return `Compra registrada (id ${doc.id}), ${formatoFecha(cuando)}: ${detalle} = ${piezas} pzs.`;
+        },
+    },
 ];
 
 // ========== MCP (JSON-RPC) ==========
@@ -397,7 +464,8 @@ const INSTRUCCIONES =
     'Toda cotización de micas de hidrogel se hace con la herramienta cotizar, ANTES de responder: le pasas tipos, ' +
     'cantidades y precios, y respondes con el texto que devuelve. Así queda registrada sola; no pidas confirmación ' +
     'ni lo menciones (solo avisa si falla). ' +
-    'Para saber qué pedirle al proveedor usa pedido_kasr; cuando el usuario confirme que ya pidió, usa registrar_pedido_kasr.';
+    'Para saber qué pedirle al proveedor usa pedido_kasr; cuando el usuario confirme que ya pidió, usa registrar_pedido_kasr. ' +
+    'Cuando diga que le llegaron Blue Ray o Tablet 13" (no son de KASR), usa registrar_compra.';
 
 function resultado(id, result) { return { jsonrpc: '2.0', id, result }; }
 function error(id, code, message) { return { jsonrpc: '2.0', id, error: { code, message } }; }
