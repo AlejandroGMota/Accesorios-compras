@@ -843,6 +843,9 @@ select:focus {
 }
 
 .data-table tr.alerta td { color: var(--danger-dark); font-weight: 600; }
+
+/* Formulario de compra bajo la tabla «Sin KASR» */
+.hidro-compra { margin-top: 28px; }
 .data-table tr.anulada td { color: var(--text-muted); text-decoration: line-through; }
 
 .pedido-grid {

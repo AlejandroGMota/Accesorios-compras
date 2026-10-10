@@ -270,7 +270,7 @@
                 <thead>
                     <tr>
                         <th>Hoja</th>
-                        <th>Pedido</th>
+                        <th>Partió de</th>
                         <th>Vendido</th>
                         <th>Queda</th>
                         <th>Alcanza</th>
@@ -279,7 +279,41 @@
                 <tbody id="hidro-hojas"></tbody>
             </table>
         </div>
+        <p class="chart-note">«Partió de» es el último conteo físico de la hoja más lo pedido después; sin conteo, el último pedido.
+            Si «Queda» sale negativo, se vendió más de lo que había: falta contar o anular cotizaciones que no se concretaron.</p>
         <p id="hidro-fuera" class="chart-note"></p>
+    </section>
+
+    <!-- Lo que se vende pero no se pide a KASR -->
+    <section class="card">
+        <h2>Sin KASR</h2>
+        <p class="chart-note">Se venden pero no se piden a KASR. Cuánto queda sale del último conteo más lo comprado después;
+            sin conteo, de la última compra.</p>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Partió de</th>
+                        <th>Vendido</th>
+                        <th>Queda</th>
+                        <th>Alcanza</th>
+                    </tr>
+                </thead>
+                <tbody id="hidro-sin-kasr"></tbody>
+            </table>
+        </div>
+
+        <div class="hidro-compra">
+            <label for="hidro-compra-producto">Registrar compra</label>
+            <select id="hidro-compra-producto"></select>
+            <label for="hidro-compra-piezas">Piezas que llegaron</label>
+            <input type="number" id="hidro-compra-piezas" min="1" step="1">
+            <label for="hidro-compra-fecha">Fecha de la compra</label>
+            <input type="date" id="hidro-compra-fecha">
+            <button id="hidro-compra-registrar" class="btn-primary">Registrar compra</button>
+            <p id="hidro-compra-estado" class="muted"></p>
+        </div>
     </section>
 
     <!-- Mensaje para el proveedor -->

@@ -11,6 +11,11 @@ export const TIPOS = [
     'Blue Ray',
     'Privacidad Matte',     // "privacidad" a secas
     'Privacidad HD',
+    // Lion es el mismo uso con material más barato de KASR. Se cotiza aparte
+    // porque sale de otra hoja (NT67 / NT66) con otro costo: así el inventario
+    // de cada hoja se descuenta de lo que de verdad se vendió de ella.
+    'Privacidad Matte Lion',
+    'Privacidad HD Lion',
     'Privacidad 360',
     'Tablet 11" HD',
     'Tablet 11" Matte',
@@ -24,21 +29,32 @@ export const TIPOS = [
 // entran solas al mensaje cuando el grupo junta MINIMO_GRUPO piezas vendidas.
 // Tablet 13" (normal, reducida y privacidad) no tiene equivalente en KASR.
 export const HOJAS = [
-    { sku: 'AG-12', usd: 0.60, descripcion: 'Privacidad Matte', tipos: ['Privacidad Matte'] },
-    { sku: 'NT68',  usd: 0.19, descripcion: 'HD',               tipos: ['HD'] },
-    { sku: 'NT69',  usd: 0.19, descripcion: 'Matte',            tipos: ['Matte'] },
-    { sku: 'NT67',  usd: 0.48, descripcion: 'Privacidad Matte a prueba, solo a mano', tipos: [] },
-    { sku: 'NT66',  usd: 0.48, descripcion: 'Privacidad HD',    tipos: ['Privacidad HD'] },
+    { sku: 'AG-12', usd: 0.60, descripcion: 'Privacidad Matte',      tipos: ['Privacidad Matte'] },
+    { sku: 'NT68',  usd: 0.19, descripcion: 'HD',                    tipos: ['HD'] },
+    { sku: 'NT69',  usd: 0.19, descripcion: 'Matte',                 tipos: ['Matte'] },
+    { sku: 'HD-09', usd: 0.70, descripcion: 'Privacidad HD',         tipos: ['Privacidad HD'] },
+    // Línea Lion: cada venta Lion descuenta de su propia hoja, no de AG-12 / HD-09
+    { sku: 'NT67',  usd: 0.48, descripcion: 'Privacidad Matte Lion', tipos: ['Privacidad Matte Lion'] },
+    { sku: 'NT66',  usd: 0.48, descripcion: 'Privacidad HD Lion',    tipos: ['Privacidad HD Lion'] },
     { sku: 'AG-13', usd: 1.30, descripcion: 'Privacidad 360',   tipos: ['Privacidad 360'],   grupo: 'Privacidad 360' },
     { sku: 'NT70',  usd: 0.58, descripcion: 'Tablet 11" HD',    tipos: ['Tablet 11" HD'],    grupo: 'Tablet 11"' },
     { sku: 'NT71',  usd: 0.58, descripcion: 'Tablet 11" Matte', tipos: ['Tablet 11" Matte'], grupo: 'Tablet 11"' },
 ];
 
 export const SKUS = HOJAS.map(h => h.sku);
+
 export const MINIMO_GRUPO = 50;
 
-// Tipos que no se surten con KASR
-export const TIPOS_FUERA_KASR = TIPOS.filter(t => !HOJAS.some(h => h.tipos.includes(t)));
+// Productos que se venden pero no se piden a KASR. Llevan existencia (conteo +
+// compras − vendido) pero no costo ni sugerencia de pedido. El `id` es la clave con
+// la que se guardan su conteo en `hidrogel_conteos` y sus compras en `hidrogel_compras`,
+// igual que el SKU de una hoja en un pedido.
+export const SIN_KASR = [
+    { id: 'blue-ray',       descripcion: 'Blue Ray',                 tipos: ['Blue Ray'] },
+    { id: 'tab13',          descripcion: 'Tablet 13" (HD o Matte)',  tipos: ['Tablet 13"'] },
+    { id: 'tab13-reducida', descripcion: 'Tablet 13" reducida',      tipos: ['Tablet 13" reducida'] },
+    { id: 'tab13-priv',     descripcion: 'Tablet 13" Privacidad HD', tipos: ['Tablet 13" Privacidad HD'] },
+];
 
 // Tarifas DDP de KASR (USD, puerta a puerta con impuestos)
 export const TARIFAS_DDP = [
@@ -51,6 +67,8 @@ export const TARIFAS_DDP = [
 export const DIAS_ENVIO = 15;
 export const DIAS_AVISO = DIAS_ENVIO + 30;
 export const DIAS_SIN_PEDIDO = 30; // periodo por defecto si no hay pedido registrado
+// Ventana para medir el ritmo de venta (piezas por día)
+export const DIAS_RITMO = 30;
 
 const DIA = 24 * 60 * 60 * 1000;
 
@@ -147,48 +165,106 @@ function piezasDe(ventas, tipos, desde) {
     return n;
 }
 
-// Desde cuándo cuenta cada hoja: el último pedido que la incluyó. Si nunca se ha
+// Último conteo de una hoja (por SKU) o de un producto sin KASR (por id)
+function ultimoConteo(conteos, clave) {
+    return conteos.filter(c => c.sku === clave).sort((a, b) => b.fecha - a.fecha)[0] || null;
+}
+
+// Desde cuándo se repone cada hoja: el último pedido que la incluyó. Si nunca se ha
 // pedido, desde el primer pedido registrado, para que lo vendido se acumule.
 // pedidos: [{ fecha: Date, items: { SKU: piezas } }] en cualquier orden.
-export function periodos(pedidos, ahora = new Date()) {
+// conteos: [{ fecha: Date, sku, piezas }] y compras (misma forma que un pedido), en
+// cualquier orden; aquí solo cuentan para saber desde cuándo hay que leer ventas.
+export function periodos(pedidos, ahora = new Date(), conteos = [], compras = []) {
     const orden   = [...pedidos].sort((a, b) => b.fecha - a.fecha);
     const primero = orden.length ? orden[orden.length - 1].fecha : new Date(ahora.getTime() - DIAS_SIN_PEDIDO * DIA);
     const porSku  = Object.fromEntries(SKUS.map(sku => {
         const pedido = orden.find(p => (p.items?.[sku] || 0) > 0) || null;
         return [sku, { desde: pedido ? pedido.fecha : primero, pedido }];
     }));
+    const fechas = [
+        ...Object.values(porSku).map(p => p.desde),
+        ...[...SKUS, ...SIN_KASR.map(x => x.id)].map(clave => ultimoConteo(conteos, clave)?.fecha).filter(Boolean),
+        ...SIN_KASR.map(x => compras.filter(c => (c.items?.[x.id] || 0) > 0).sort((a, b) => b.fecha - a.fecha)[0]?.fecha).filter(Boolean),
+        new Date(ahora.getTime() - DIAS_RITMO * DIA),
+    ];
     return {
         ultimoPedido: orden[0] || null,
         desdeGeneral: orden.length ? orden[0].fecha : primero,
         porSku,
         // Fecha más antigua que hay que leer de hidrogel_ventas
-        inicio: new Date(Math.min(...Object.values(porSku).map(p => p.desde.getTime()))),
+        inicio: new Date(Math.min(...fechas.map(f => f.getTime()))),
     };
 }
 
-// Qué pedirle a KASR: reponer lo vendido de cada hoja desde el último pedido que la incluyó.
+// Cuánto queda de una hoja o de un producto sin KASR. `pedidos` son los pedidos a
+// KASR para una hoja y las compras para un producto sin KASR: cuentan igual.
+//
+// Con conteo: lo contado, más lo pedido después, menos lo vendido después. Lo
+// pedido suma desde que se pide aunque tarde en llegar, que es lo que importa
+// para decidir el siguiente pedido. Por lo mismo, si al contar viene un pedido
+// en camino, hay que sumarlo al conteo: su fecha es anterior y ya no entra solo.
+//
+// Sin conteo: lo del último pedido menos lo vendido desde él. Da por hecho que
+// al llegar no quedaba nada de antes, que es justo lo que el conteo corrige.
+//
+// Sin conteo ni pedido no hay de dónde partir y `queda` es null.
+//
+// `queda` no se topa en cero a propósito: un negativo es que se vendió más de lo
+// que había, o sea que falta contar o hay cotizaciones que no se concretaron y
+// siguen contando como vendidas. Con un 0 el error se arrastra sin que se vea.
+function existencia(clave, tipos, { ventas, pedidos, conteos }) {
+    const conteo = ultimoConteo(conteos, clave);
+    if (conteo) {
+        const entro   = pedidos.filter(p => p.fecha > conteo.fecha).reduce((n, p) => n + (p.items?.[clave] || 0), 0);
+        const vendido = piezasDe(ventas, tipos, conteo.fecha);
+        return { conteo, pedido: null, base: conteo.piezas, entro, vendido, queda: conteo.piezas + entro - vendido };
+    }
+    const pedido = [...pedidos].sort((a, b) => b.fecha - a.fecha).find(p => (p.items?.[clave] || 0) > 0);
+    if (!pedido) return { conteo: null, pedido: null, base: null, entro: 0, vendido: null, queda: null };
+    const vendido = piezasDe(ventas, tipos, pedido.fecha);
+    return { conteo: null, pedido, base: pedido.items[clave], entro: 0, vendido, queda: pedido.items[clave] - vendido };
+}
+
+// Qué pedirle a KASR: reponer lo vendido de cada hoja desde el último pedido que la
+// incluyó. El conteo no cambia cuánto se repone; cambia cuánto queda y cuánto alcanza.
 // ventas: [{ fecha: Date, lineas: [{ tipo, cantidad, precio }], anulada? }]
-export function sugerirPedido({ ventas, pedidos, ahora = new Date() }) {
-    const p = periodos(pedidos, ahora);
+// compras: lo que se compró fuera de KASR, con la misma forma que un pedido.
+export function sugerirPedido({ ventas, pedidos, conteos = [], compras = [], ahora = new Date() }) {
+    const p = periodos(pedidos, ahora, conteos, compras);
+
+    // El ritmo va con ventana propia: lo que se vende por día no cambia porque
+    // llegue mercancía o porque alguien cuente las cajas. Si las cotizaciones se
+    // empezaron a registrar hace menos de DIAS_RITMO días, se divide entre los
+    // días que sí hay; si no, el ritmo sale más bajo y el aviso llega tarde.
+    const primeraVenta = ventas.reduce((min, v) => (v.fecha < min ? v.fecha : min), ahora);
+    const diasRitmo    = Math.min(DIAS_RITMO, Math.max(1, (ahora - primeraVenta) / DIA));
+    const desdeRitmo   = new Date(ahora.getTime() - diasRitmo * DIA);
+
+    const medir = (clave, tipos, entradas) => {
+        const e       = existencia(clave, tipos, { ventas, pedidos: entradas, conteos });
+        const enRitmo = piezasDe(ventas, tipos, desdeRitmo);
+        const porDia  = enRitmo / diasRitmo;
+        const diasRestantes = e.queda !== null && e.queda >= 0 && porDia > 0 ? Math.floor(e.queda / porDia) : null;
+        return { existencia: e, enRitmo, porDia, diasRestantes };
+    };
 
     const hojas = HOJAS.map(h => {
         const { desde, pedido: ultimo } = p.porSku[h.sku];
-        const vendido  = piezasDe(ventas, h.tipos, desde);
-        const pedido   = ultimo?.items?.[h.sku] || 0;
-        const queda    = Math.max(0, pedido - vendido);
-        const porDia   = vendido / Math.max(1, (ahora - desde) / DIA);
-        // Sin pedido de esta hoja no se sabe cuánto queda
-        const diasRestantes = ultimo && porDia > 0 ? Math.floor(queda / porDia) : null;
+        const m = medir(h.sku, h.tipos, pedidos);
         return {
             ...h,
+            ...m,
+            // Lo que se repone
             desde,
-            pedido,
-            vendido,
-            queda,
-            diasRestantes,
-            alerta: diasRestantes !== null && diasRestantes <= DIAS_AVISO,
+            pedido:  ultimo?.items?.[h.sku] || 0,
+            vendido: piezasDe(ventas, h.tipos, desde),
+            alerta:  m.diasRestantes !== null && m.diasRestantes <= DIAS_AVISO,
         };
     });
+
+    // No se piden a KASR, así que no llevan aviso de envío
+    const sinKasr = SIN_KASR.map(x => ({ ...x, ...medir(x.id, x.tipos, compras) }));
 
     const grupos = {};
     for (const h of hojas.filter(h => h.grupo)) {
@@ -210,24 +286,22 @@ export function sugerirPedido({ ventas, pedidos, ahora = new Date() }) {
         pedirAntes:    new Date(ahora.getTime() + Math.max(0, critica.diasRestantes - DIAS_AVISO) * DIA),
     };
 
-    // Resumen general y lo que no es de KASR: desde el último pedido
-    const delPeriodo = ventas.filter(v => v.fecha >= p.desdeGeneral);
-    const resumen    = resumirVentas(delPeriodo);
-    const fueraKasr  = Object.fromEntries(
-        TIPOS_FUERA_KASR.filter(t => resumen.porTipo[t]).map(t => [t, resumen.porTipo[t]])
-    );
-
-    const piezas = Object.values(sugerido).reduce((a, b) => a + b, 0);
+    // Resumen general: desde el último pedido
+    const resumen = resumirVentas(ventas.filter(v => v.fecha >= p.desdeGeneral));
+    const piezas  = Object.values(sugerido).reduce((a, b) => a + b, 0);
 
     return {
         desde: p.desdeGeneral,
         dias:  Math.max(0, Math.floor((ahora - p.desdeGeneral) / DIA)),
         ultimoPedido: p.ultimoPedido,
         resumen,
+        diasRitmo,
         hojas,
+        sinKasr,
+        // Lo que se vendió de más según la cuenta: falta contar o anular cotizaciones
+        noCuadran: [...hojas, ...sinKasr].filter(x => x.existencia.queda < 0),
         grupos,
         sugerido,
-        fueraKasr,
         aviso,
         piezas,
         mensaje: armarMensaje(sugerido),

@@ -17,13 +17,17 @@ Chat de Claude ──(MCP)──▶ hidrogel.alejandrogmota.com ──▶ nginx 
 | `ventas_hidrogel` | Suma lo cotizado en un periodo, por tipo (por defecto, desde el último pedido) |
 | `pedido_kasr` | Mensaje «Can you create a link for…» con lo vendido de cada hoja, costo y tarifa DDP |
 | `registrar_pedido_kasr` | Guarda un pedido a KASR en `hidrogel_pedidos` |
+| `registrar_compra` | Guarda una compra de Blue Ray o Tablet 13" (no son de KASR) en `hidrogel_compras` |
 
 Reglas de reposición (en [`analytics/hidrogel-core.js`](../analytics/hidrogel-core.js), compartido con la pestaña):
 
-- Cada hoja repone lo vendido desde el último pedido que la incluyó.
-- Privacidad Matte → AG-12. NT67 está a prueba: solo se agrega a mano.
+- Cada hoja repone lo vendido desde el último pedido que la incluyó. El conteo físico no cambia eso.
+- Cuánto queda: último conteo físico (`hidrogel_conteos`) + lo pedido después − lo vendido después. Sin conteo, el último pedido − lo vendido desde él. Un negativo sale como «no cuadra».
+- El ritmo de venta usa los últimos 30 días (o los que haya desde la primera cotización registrada).
+- Privacidad Matte → AG-12 · Privacidad HD → HD-09 · Privacidad Matte Lion → NT67 · Privacidad HD Lion → NT66.
+- Lion solo se cotiza si el mensaje dice «lion»; «privacidad» a secas es la normal.
 - Privacidad 360 (AG-13) y tablet 11" (NT70 HD / NT71 Matte) entran al mensaje cuando su grupo junta 50 piezas; mientras, se acumulan.
-- Blue Ray y tablet 13" (normal, reducida y privacidad) no se surten con KASR.
+- Blue Ray y tablet 13" (normal, reducida y privacidad) no se surten con KASR: solo llevan existencia, conteo + compras − vendido.
 - Aviso cuando a una hoja le quedan ≤ 45 días (15 de envío + 1 mes de margen).
 
 ## Despliegue (VM Oracle `chavarria-api`)
@@ -67,8 +71,9 @@ Instrucciones del proyecto «Presupuesto de micas hidrogel». Son las que pega e
 
 ```
 Eres el asistente de cotizaciones de Celinki (micas de hidrogel).
-Tienes el conector «Hidrogel» con 5 herramientas:
-  cotizar · anular_cotizacion · pedido_kasr · registrar_pedido_kasr · ventas_hidrogel
+Tienes el conector «Hidrogel» con 6 herramientas:
+  cotizar · anular_cotizacion · pedido_kasr · registrar_pedido_kasr ·
+  registrar_compra · ventas_hidrogel
 
 ╔══════════════════════════════════════════════════════╗
 ║  REGLA 1 (la más importante):                        ║
@@ -93,6 +98,9 @@ SI el mensaje pregunta qué pedir a KASR
 
 SI el mensaje dice «ya pedí»
    → llama a registrar_pedido_kasr con las cantidades finales.
+
+SI el mensaje dice que llegaron Blue Ray o Tablet 13" (no son de KASR)
+   → llama a registrar_compra con las piezas que llegaron.
 
 SI el mensaje corrige una cotización anterior
    → 1) anular_cotizacion con el id viejo
@@ -153,12 +161,16 @@ Llamada:
 ───────── TABLA A · NOMBRES ─────────
 «normales» / «normal» / «simples»  → HD
 «privacidad» sola                  → Privacidad Matte
+«priv hd lion»                     → Privacidad HD Lion
+«priv matte lion»                  → Privacidad Matte Lion
+Lion SOLO si el mensaje dice «lion». «priv hd» sin lion → Privacidad HD.
 «tablet 11» sin material           → Tablet 11" HD
 «tablet 13» sin material           → Tablet 13"
 Si no encaja en la lista → pregunta. No adivines.
 
 Lista válida (usa el nombre EXACTO):
-HD · Matte · Blue Ray · Privacidad Matte · Privacidad HD · Privacidad 360 ·
+HD · Matte · Blue Ray · Privacidad Matte · Privacidad HD ·
+Privacidad Matte Lion · Privacidad HD Lion · Privacidad 360 ·
 Tablet 11" HD · Tablet 11" Matte · Tablet 13" · Tablet 13" reducida ·
 Tablet 13" Privacidad HD
 
@@ -168,6 +180,8 @@ Matte                    12
 Blue Ray                 12
 Privacidad Matte         28
 Privacidad HD            32
+Privacidad Matte Lion    28
+Privacidad HD Lion       32
 Privacidad 360           55
 Tablet 11" HD            32
 Tablet 11" Matte         32
