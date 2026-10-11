@@ -75,18 +75,30 @@ function renderResumen(s) {
         : cuando;
 }
 
-const PEDIDO = { suman: 'pedidas',   de: 'del pedido del' };
-const COMPRA = { suman: 'compradas', de: 'de la compra del' };
+// Una hoja de KASR: lo pedido y lo vendido desde el último pedido, y cuánto queda
+function filaHoja(h) {
+    const q = h.existencia.queda;
+    const noCuadra = q !== null && q < 0;
+    return `
+        <tr class="${h.alerta || noCuadra ? 'alerta' : ''}">
+            <td><strong>${esc(h.sku)}</strong> ${esc(h.descripcion)}</td>
+            <td>${h.pedido || '—'}</td>
+            <td>${h.vendido}</td>
+            <td>${q === null ? '—' : noCuadra ? `${q} · no cuadra` : q}</td>
+            <td>${h.diasRestantes === null ? '—' : `~${h.diasRestantes} días`}</td>
+        </tr>`;
+}
 
-// «80 contadas el 10 oct 2026 + 30 pedidas» / «350 del pedido del 17 sep 2026» / «Sin conteo»
-function partida(e, entrada) {
+// «12 contadas el 10 oct 2026 + 20 compradas» / «20 de la compra del 15 oct 2026» / «Sin conteo»
+function partida(e) {
     if (e.conteo) return `${formatoNumero(e.base)} contadas el ${formatoFecha(e.conteo.fecha)}` +
-                         (e.entro ? ` + ${formatoNumero(e.entro)} ${entrada.suman}` : '');
-    if (e.pedido) return `${formatoNumero(e.base)} ${entrada.de} ${formatoFecha(e.pedido.fecha)}`;
+                         (e.entro ? ` + ${formatoNumero(e.entro)} compradas` : '');
+    if (e.pedido) return `${formatoNumero(e.base)} de la compra del ${formatoFecha(e.pedido.fecha)}`;
     return 'Sin conteo';
 }
 
-function filaExistencia(nombre, x, diasRitmo, entrada) {
+// Un producto sin KASR
+function filaExistencia(nombre, x, diasRitmo) {
     const e = x.existencia;
     const noCuadra = e.queda !== null && e.queda < 0;
     // Sin de dónde partir, lo único que hay es cuánto se vende
@@ -94,7 +106,7 @@ function filaExistencia(nombre, x, diasRitmo, entrada) {
     return `
         <tr class="${x.alerta || noCuadra ? 'alerta' : ''}">
             <td>${nombre}</td>
-            <td>${partida(e, entrada)}</td>
+            <td>${partida(e)}</td>
             <td>${vendido}</td>
             <td>${e.queda === null ? '—' : noCuadra ? `${e.queda} · no cuadra` : e.queda}</td>
             <td>${x.diasRestantes === null ? '—' : `~${x.diasRestantes} días`}</td>
@@ -102,9 +114,8 @@ function filaExistencia(nombre, x, diasRitmo, entrada) {
 }
 
 function renderHojas(s, sinConteos) {
-    $('hidro-hojas').innerHTML = s.hojas.map(h =>
-        filaExistencia(`<strong>${esc(h.sku)}</strong> ${esc(h.descripcion)}`, h, s.diasRitmo, PEDIDO)).join('');
-    $('hidro-sin-kasr').innerHTML = s.sinKasr.map(x => filaExistencia(esc(x.descripcion), x, s.diasRitmo, COMPRA)).join('');
+    $('hidro-hojas').innerHTML = s.hojas.map(filaHoja).join('');
+    $('hidro-sin-kasr').innerHTML = s.sinKasr.map(x => filaExistencia(esc(x.descripcion), x, s.diasRitmo)).join('');
 
     const notas = Object.entries(s.grupos).map(([g, d]) =>
         `${g}: ${d.vendido} de ${d.minimo}${d.entra ? ' — entra al mensaje' : ' — se acumula hasta llegar a ' + d.minimo}`);
