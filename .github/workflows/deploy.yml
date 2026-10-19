@@ -13,6 +13,7 @@ on:
       - 'auth.js'
       - 'local.html'
       - 'local.js'
+      - 'iconos/**'
       - 'locales.html'
       - 'locales.js'
       - 'admin.html'
