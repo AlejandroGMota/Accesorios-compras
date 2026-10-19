@@ -2,6 +2,34 @@
 // Misma pantalla que el tianguis pero sin precios ni totales: aquí solo se
 // anota lo que hace falta, el precio lo pone el dueño al comprar.
 
+// Cada local se instala como su propia app («GAMMA Cell · Santa Gertrudis»). El manifest
+// se arma aquí con los datos del local, así un local nuevo es instalable desde que se
+// crea, sin deploy ni workflow. Va como data: URL, por eso todas las rutas son absolutas.
+function hacerInstalable(id, nombre) {
+    const base = new URL('.', location.href).href;
+    const inicio = `${base}local.html?id=${encodeURIComponent(id)}`;
+    const manifest = {
+        id: inicio,
+        name: `GAMMA Cell · ${nombre}`,
+        short_name: nombre,
+        start_url: inicio,
+        scope: base,
+        display: 'standalone',
+        background_color: '#f9f9f9',
+        theme_color: '#023265',
+        icons: [
+            { src: `${base}iconos/icono-192.png`, sizes: '192x192', type: 'image/png' },
+            { src: `${base}iconos/icono-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+        ],
+    };
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+    document.head.appendChild(link);
+    // iPhone no lee el manifest: toma el nombre de esta etiqueta al agregar a inicio
+    document.querySelector('meta[name="apple-mobile-web-app-title"]').content = nombre;
+}
+
 function mostrarAviso(html) {
     const aviso = document.getElementById('avisoLocal');
     aviso.innerHTML = html;
@@ -35,6 +63,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('nombreLocal').textContent = local.nombre;
     document.title = `${local.nombre} · Lista`;
+    hacerInstalable(id, local.nombre);
 
     if (local.activo === false) {
         const aviso = document.getElementById('avisoLocal');
