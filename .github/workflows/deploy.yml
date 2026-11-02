@@ -10,6 +10,8 @@ on:
       - 'style.css'
       - 'app.js'
       - 'lista-core.js'
+      - 'precios.js'
+      - 'manifest.webmanifest'
       - 'auth.js'
       - 'local.html'
       - 'local.js'
