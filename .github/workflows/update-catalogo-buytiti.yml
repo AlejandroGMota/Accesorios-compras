@@ -1,11 +1,8 @@
 name: Actualizar catálogo BuyTiti
 
 on:
-  # Permite ejecutarlo manualmente desde la pestaña Actions
+  # Solo manual desde la pestaña Actions (ya no corre cada lunes desde 2026-11-02)
   workflow_dispatch:
-  # Automatico cada lunes a las 6am UTC
-  schedule:
-    - cron: '0 6 * * 1'
 
 permissions:
   contents: write
