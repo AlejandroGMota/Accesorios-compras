@@ -1,13 +1,16 @@
 rules_version = '2';
 
 // ===========================================================================
-// VERSIÓN DEL ARCHIVO: 3  ·  2026-10-09
+// VERSIÓN DEL ARCHIVO: 4  ·  2026-11-02
 //
 // ⚠️ El `rules_version = '2'` de arriba NO es esta versión. Esa es la del
 // lenguaje de reglas de Firestore y solo acepta '1' o '2': si se cambia por
 // un 2.1 o parecido, la consola rechaza el archivo entero al publicarlo.
 // El seguimiento de nuestros cambios vive aquí abajo.
 //
+//   4 · 2026-11-02 — se agrega `config/precios`: los precios de proveedor de
+//       micas e hidrogel dejan de estar fijos en el código. Las listas los
+//       leen sin cuenta; cambiarlos es solo del admin, desde admin.html.
 //   3 · 2026-10-09 — se agregan `hidrogel_conteos` (conteo físico de cada
 //       hoja, que el panel toma como punto de partida en vez de dar por hecho
 //       que no quedaba nada al llegar cada pedido) y `hidrogel_compras` (Blue
@@ -68,6 +71,13 @@ service cloud.firestore {
     // Los locales los lee cualquiera (las listas necesitan su nombre),
     // pero crearlos, renombrarlos y borrarlos es solo tuyo.
     match /locales/{localId} {
+      allow read:  if true;
+      allow write: if esAdmin();
+    }
+
+    // Precios de proveedor (`config/precios`). Todas las listas los leen; solo
+    // el admin los cambia, porque de ellos sale lo que se cobra en la lista.
+    match /config/{docId} {
       allow read:  if true;
       allow write: if esAdmin();
     }

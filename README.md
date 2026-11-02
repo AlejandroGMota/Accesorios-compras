@@ -46,7 +46,7 @@ Accesorios-compras/
 ├── .github/
 │   └── workflows/
 │       ├── deploy.yml                    # Deploy a GitHub Pages
-│       ├── update-catalogo-buytiti.yml   # Actualización semanal BuyTiti
+│       ├── update-catalogo-buytiti.yml   # Actualización manual BuyTiti
 │       └── update-catalogo-myshop.yml    # Actualización manual my-shop.mx
 ├── catalogo-buytiti/                     # Catálogo scrapeado de BuyTiti
 │   ├── index.html
@@ -113,6 +113,10 @@ Opciones disponibles:
 - 9D — por caja de 10 pzs (cantidad y precio son por caja)
 - 9H — por caja de 10 pzs (cantidad y precio son por caja)
 - Privacidad — por pieza
+
+En las listas de los locales (Santa Gertrudis…) todas las micas se anotan **en piezas**: la 9D y la 9H se guardan como cajas redondeando hacia arriba (`quantity`) y conservan las piezas anotadas (`piezas`), así la lista global y Analytics siguen sumando cajas.
+
+**Precios:** se cambian en `admin.html` → Precios (por pieza; la caja de 9D y 9H es pieza × 10). Se guardan en `config/precios` y todas las listas los leen al abrir; al guardar, lo pendiente que traía el precio anterior se ajusta solo. Los valores de respaldo están en `precios.js`.
 
 Cómo capturar el nombre para que Analytics lo agrupe bien:
 - Un modelo por renglón (la app rechaza "17, 11, 13, 15").
@@ -434,10 +438,9 @@ Se dispara en cada push a `main`:
 
 ### Actualización del catálogo BuyTiti (`update-catalogo-buytiti.yml`)
 
-Corre el scraper de Go y hace commit del `productos.json` actualizado. Se ejecuta:
+Corre el scraper de Go y hace commit del `productos.json` actualizado:
 
-- **Automáticamente** cada lunes a las 6am UTC
-- **Manualmente** desde Actions → Actualizar catálogo BuyTiti → Run workflow
+- **Solo manualmente** desde Actions → Actualizar catálogo BuyTiti → Run workflow. Desde 2026-11-02 ya no corre cada lunes; los catálogos se dejaron de actualizar.
 
 ### Secrets requeridos en GitHub Actions
 

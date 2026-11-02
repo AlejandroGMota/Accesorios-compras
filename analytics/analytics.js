@@ -1444,12 +1444,130 @@ async function initFundas(aliasMap, locales) {
 }
 
 
+// ========== Otras categorías y lo que falta ==========
+// Hidrogel de la lista, Fundas nuevas, 1 hora, Refacciones y Otros comparten la
+// colección `compras` (con `categoria`) y no tenían vista. Arriba va todo lo
+// pendiente de la lista, de todas las categorías, con su costo estimado.
+
+const CATEGORIAS_LISTA = ['Micas', 'Hidrogel', 'Fundas', 'Fundas nuevas', '1hora', 'Refacciones', 'Otros'];
+const NOMBRE_CATEGORIA = { '1hora': '1 hora' };
+const nombreCategoria  = c => NOMBRE_CATEGORIA[c] ?? c;
+const TOP_OTRAS        = 5;
+
+async function cargarFaltante() {
+    const snap = await db.collection('items').get();
+    return snap.docs.map(d => d.data()).filter(i => !i.comprada);
+}
+
+function renderFaltante(items, locales) {
+    const nombreLocal = id => locales.find(l => l.id === id)?.nombre ?? id ?? 'tianguis';
+    const cont = document.getElementById('falta-contenido');
+    if (!items.length) {
+        cont.innerHTML = '<p class="muted">No hay nada pendiente en ninguna lista.</p>';
+        document.getElementById('falta-total').textContent = '—';
+        document.getElementById('falta-piezas').textContent = '—';
+        return;
+    }
+
+    const porCategoria = new Map();
+    for (const i of items) {
+        const cat = CATEGORIAS_LISTA.includes(i.category) ? i.category : 'Otros';
+        if (!porCategoria.has(cat)) porCategoria.set(cat, []);
+        porCategoria.get(cat).push(i);
+    }
+    const costo = i => (Number(i.price) || 0) * (Number(i.quantity) || 0);
+    const total = items.reduce((s, i) => s + costo(i), 0);
+    document.getElementById('falta-total').textContent  = fmtDinero(total);
+    document.getElementById('falta-piezas').textContent = fmtNum(items.length);
+
+    // Sin precio (anotado en un local) no se puede estimar: se avisa en vez de sumar $0 callado
+    cont.innerHTML = CATEGORIAS_LISTA.filter(c => porCategoria.has(c)).map(cat => {
+        const lista = porCategoria.get(cat).sort((a, b) => costo(b) - costo(a));
+        const subtotal = lista.reduce((s, i) => s + costo(i), 0);
+        const sinPrecio = lista.filter(i => !Number(i.price)).length;
+        return `
+        <details class="falta-cat">
+            <summary><strong>${escapeHtml(nombreCategoria(cat))}</strong>
+                · ${plural(lista.length, 'renglón', 'renglones')} · ${fmtDinero(subtotal)}
+                ${sinPrecio ? `<span class="muted">(${sinPrecio} sin precio)</span>` : ''}</summary>
+            <div class="table-wrapper"><table class="data-table">
+                <thead><tr><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Local</th><th>Costo</th></tr></thead>
+                <tbody>${lista.map(i => `<tr>
+                    <td>${escapeHtml(i.name ?? '')}</td>
+                    <td>${escapeHtml(i.type || '—')}</td>
+                    <td>${i.piezas ? `${i.quantity} cj (${i.piezas} pzs)` : fmtNum(Number(i.quantity) || 0)}</td>
+                    <td>${escapeHtml(nombreLocal(i.local))}</td>
+                    <td>${Number(i.price) ? fmtDinero(costo(i)) : '<span class="muted">sin precio</span>'}</td>
+                </tr>`).join('')}</tbody>
+            </table></div>
+        </details>`;
+    }).join('');
+}
+
+async function cargarComprasOtras() {
+    const snap = await db.collection('compras').get();
+    return snap.docs.map(d => d.data())
+        .filter(d => !d.anulado && d.estado !== 'anulado' && d.estado !== 'pendiente');
+}
+
+function renderComprasOtras(docs, dias) {
+    const hoy   = new Date();
+    const desde = dias ? new Date(hoy.getTime() - dias * DIA_MS) : null;
+    const enRango = docs.filter(d => !desde || fechaDe(d) >= desde);
+    const cont = document.getElementById('otras-contenido');
+    if (!enRango.length) {
+        cont.innerHTML = '<p class="muted">Sin compras registradas en este periodo.</p>';
+        return;
+    }
+
+    const grupos = new Map();
+    for (const d of enRango) {
+        const cat = d.categoria || 'Otros';
+        const g = grupos.get(cat) ?? { piezas: 0, invertido: 0, productos: new Map(), ultima: null };
+        const cant = Number(d.cantidad) || 0;
+        const f = fechaDe(d);
+        g.piezas    += cant;
+        g.invertido += (Number(d.precio) || 0) * cant;
+        const nombre = d.nombre || d.nombre_original || '—';
+        g.productos.set(nombre, (g.productos.get(nombre) ?? 0) + cant);
+        if (f && (!g.ultima || f > g.ultima)) g.ultima = f;
+        grupos.set(cat, g);
+    }
+
+    const filas = [...grupos.entries()].sort((a, b) => b[1].invertido - a[1].invertido);
+    cont.innerHTML = `
+    <div class="table-wrapper"><table class="data-table">
+        <thead><tr><th>Categoría</th><th>Piezas</th><th>Invertido</th><th>Última compra</th><th>Lo que más se compra</th></tr></thead>
+        <tbody>${filas.map(([cat, g]) => `<tr>
+            <td><strong>${escapeHtml(nombreCategoria(cat))}</strong></td>
+            <td>${fmtNum(g.piezas)}</td>
+            <td>${fmtDinero(g.invertido)}</td>
+            <td>${g.ultima ? fmtDia(g.ultima) : '—'}</td>
+            <td>${[...g.productos.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOP_OTRAS)
+                .map(([n, c]) => `${escapeHtml(n)} (${fmtNum(c)})`).join(', ')}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+async function initOtras(locales) {
+    const pintarFaltante = async () => renderFaltante(await cargarFaltante(), locales);
+    const compras = await cargarComprasOtras();
+    const periodo = document.getElementById('otras-periodo');
+    const pintarCompras = () => renderComprasOtras(compras, Number(periodo.value));
+    periodo.addEventListener('change', pintarCompras);
+    document.getElementById('btn-falta').addEventListener('click', pintarFaltante);
+    await pintarFaltante();
+    pintarCompras();
+}
+
+
 // ========== Pestañas ==========
 
 const SUBTITULOS = {
     micas:    'Historial de compras · Micas',
     fundas:   'Compras y ventas · Fundas',
     hidrogel: 'Pedidos a KASR · Hidrogel',
+    otras:    'Lo que falta y otras categorías',
 };
 
 function mostrarPestana(nombre) {
@@ -1534,4 +1652,5 @@ window.addEventListener('DOMContentLoaded', async () => {
     const [aliasMap, locales] = await Promise.all([cargarAliases(), cargarLocales()]);
     initMicas(aliasMap, locales).catch(err => console.error('Error cargando micas:', err));
     initFundas(aliasMap, locales).catch(err => console.error('Error cargando fundas:', err));
+    initOtras(locales).catch(err => console.error('Error cargando otras categorías:', err));
 });

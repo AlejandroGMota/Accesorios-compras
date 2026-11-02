@@ -26,8 +26,7 @@ let CON_PRECIOS  = true; // el local no ve precios ni totales
 // ========== Catálogo de categorías ==========
 const CATEGORIAS = ['Micas', 'Hidrogel', 'Fundas', 'Fundas nuevas', '1hora', 'Refacciones', 'Otros'];
 
-const PRECIOS_MICA     = { '9D': 60, '9H': 35, 'Privacidad': 18 };
-const PRECIO_HIDROGEL  = { privacidad: 330, otros: 180 };
+// Precios: viven en precios.js, compartido con el panel de admin
 
 const LISTA_IDS = [
     'micas9DList', 'micas9HList', 'micasPrivacidadList', 'micasSinTipoList',
@@ -104,10 +103,17 @@ function escapeHtml(s) {
 // hay que corregir, así que se toca ahí mismo en vez de en un tercer botón
 // pegado al ✓ y al ✕ (34px cada uno, ya bastante junto para un pulgar). Solo
 // aparece cuando hay algo que partir y el renglón sigue abierto.
+function textoCantidad(product) {
+    if (!product.piezas) return product.quantity;
+    const cajas = `${product.quantity} caja${product.quantity === 1 ? '' : 's'}`;
+    // El local piensa en piezas; el que compra, en cajas
+    return CON_PRECIOS ? `${cajas} (${product.piezas} pzs)` : `${product.piezas} pzs (${cajas})`;
+}
+
 function buildCantidadLinea(product) {
     const parcial = !product.comprada && product.quantity > 1;
-    if (!parcial) return `<p><span>Cantidad:</span> ${product.quantity}</p>`;
-    return `<p class="cantidad-linea"><span>Cantidad:</span> ${product.quantity}
+    if (!parcial) return `<p><span>Cantidad:</span> ${textoCantidad(product)}</p>`;
+    return `<p class="cantidad-linea"><span>Cantidad:</span> ${textoCantidad(product)}
         <button class="parcialBtn" type="button"
             aria-label="Compré menos de ${product.quantity}">compré menos</button></p>`;
 }
@@ -377,6 +383,8 @@ async function comprarParcial(product, elegido) {
         });
         lote.update(ITEMS_REF.doc(product.id), {
             quantity: restante,
+            // Las piezas anotadas ya no cuadran con las cajas que faltan
+            piezas:   firebase.firestore.FieldValue.delete(),
             ...(quedan ? { colors: quedan.colors, fundaTypes: quedan.fundaTypes } : {}),
         });
 
@@ -396,13 +404,37 @@ async function comprarParcial(product, elegido) {
 }
 
 // ========== Totales ==========
+// En micas e hidrogel el precio cambia con el tipo, así que el subtotal se
+// desglosa por tipo (en este orden) y al final va el de toda la categoría
+const TIPOS_SUBTOTAL = {
+    Micas:    { '9D': '9D', '9H': '9H', 'Privacidad': 'Privacidad' },
+    Hidrogel: { matte: 'Matte', privacidad: 'Privacidad', hd: 'HD', blueray: 'Blueray' },
+};
+
 function updateCategorySubtotal(category) {
-    const total = currentItems
-        .filter(p => p.category === category)
-        .reduce((sum, p) => sum + (p.price ?? 0) * p.quantity, 0);
+    const items = currentItems.filter(p => p.category === category);
+    const importe = p => (p.price ?? 0) * p.quantity;
+    const total = items.reduce((sum, p) => sum + importe(p), 0);
 
     const el = document.getElementById(`${category.toLowerCase().replace(' ', '')}Subtotal`);
-    if (el) el.textContent = `Subtotal: $${total.toFixed(2)}`;
+    if (!el) return total;
+
+    const tipos = TIPOS_SUBTOTAL[category];
+    if (!tipos) {
+        el.textContent = `Subtotal: $${total.toFixed(2)}`;
+        return total;
+    }
+    const porTipo = new Map();
+    items.forEach(p => {
+        const tipo = tipos[p.type] ?? 'Sin tipo';
+        porTipo.set(tipo, (porTipo.get(tipo) ?? 0) + importe(p));
+    });
+    const partes = [...Object.values(tipos), 'Sin tipo']
+        .filter(t => porTipo.has(t))
+        .map(t => `${t}: $${porTipo.get(t).toFixed(2)}`);
+    el.textContent = partes.length > 1
+        ? `${partes.join(' · ')} · Total: $${total.toFixed(2)}`
+        : `${partes[0] ?? 'Subtotal: $0.00'}`;
     return total;
 }
 
@@ -437,6 +469,10 @@ function initFormulario() {
         hideAllOptions();
         clearAllSelections();
         setPrecio('');
+        // En los locales las micas se anotan por pieza, también la 9D y la 9H
+        const etiqueta = document.querySelector('label[for="productQuantity"]');
+        if (etiqueta) etiqueta.textContent =
+            !CON_PRECIOS && this.value === 'Micas' ? 'Cantidad (piezas)' : 'Cantidad';
 
         const map = {
             'Micas':         'micaOptions',
@@ -455,14 +491,14 @@ function initFormulario() {
     // Precios automáticos por tipo de mica
     document.querySelectorAll('input[name="micaType"]').forEach(radio => {
         radio.addEventListener('change', function () {
-            setPrecio(PRECIOS_MICA[this.value] ?? '');
+            setPrecio(precioMica(this.value) || '');
         });
     });
 
     // Precios automáticos por tipo de hidrogel
     document.querySelectorAll('input[name="hidrogelType"]').forEach(radio => {
         radio.addEventListener('change', function () {
-            setPrecio(this.value === 'privacidad' ? PRECIO_HIDROGEL.privacidad : PRECIO_HIDROGEL.otros);
+            setPrecio(precioHidrogel(this.value));
         });
     });
 
@@ -536,15 +572,23 @@ async function onAgregarProducto() {
     const colors     = category === 'Fundas' ? marcadas('#fundaColors input:checked') : [];
     const tiposFunda = category === 'Fundas' ? marcadas('#fundaTypes input:checked')  : [];
 
+    // En un local la 9D y la 9H se anotan en piezas, pero se compran por caja:
+    // `quantity` lleva las cajas (redondeando hacia arriba) para que la lista
+    // global y Analytics sigan sumando lo mismo, y `piezas` lo que se anotó
+    const tipo   = typeInput?.value ?? '';
+    const piezas = !CON_PRECIOS && category === 'Micas' && micaPorCaja(tipo)
+        ? parseInt(quantity) : null;
+
     const product = {
         name,
         // Sin precio capturado, las micas y el hidrogel ya tienen tarifa conocida por tipo
-        price:      parseFloat(price) || precioPorDefecto(category, typeInput?.value),
-        quantity:   parseInt(quantity),
+        price:      parseFloat(price) || precioPorDefecto(category, tipo),
+        quantity:   piezas ? Math.ceil(piezas / PZS_POR_CAJA) : parseInt(quantity),
         category,
-        type:       typeInput?.value ?? '',
+        type:       tipo,
         colors,
         fundaTypes: tiposFunda,
+        ...(piezas ? { piezas } : {}),
     };
 
     const ref = await agregarItem(product);
@@ -560,8 +604,8 @@ async function onAgregarProducto() {
 }
 
 function precioPorDefecto(category, tipo) {
-    if (category === 'Micas')    return PRECIOS_MICA[tipo] ?? 0;
-    if (category === 'Hidrogel') return tipo === 'privacidad' ? PRECIO_HIDROGEL.privacidad : PRECIO_HIDROGEL.otros;
+    if (category === 'Micas')    return precioMica(tipo);
+    if (category === 'Hidrogel') return precioHidrogel(tipo);
     return 0;
 }
 
@@ -730,6 +774,7 @@ function initLista({ local, conPrecios = true }) {
     LOCAL_ID    = local;
     CON_PRECIOS = conPrecios;
 
+    escucharPrecios();
     initFormulario();
 
     ITEMS_REF.where('local', '==', local).onSnapshot(snap => {

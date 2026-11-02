@@ -1158,3 +1158,13 @@ select:focus {
 /* El nombre del local resalta sobre la cantidad, para que «Tianguis ×2»
    no se lea como si hubiera un segundo tianguis */
 .reparto-local { color: var(--text); font-weight: 600; }
+
+/* ========== Admin: precios ========== */
+.precios-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 16px; margin-bottom: 12px; }
+.precios-grid label { margin-top: 8px; }
+.precios-grid input { margin-top: 4px; }
+
+/* ========== Analytics: lo que falta ========== */
+.falta-cat { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+.falta-cat summary { cursor: pointer; }
+.falta-cat .table-wrapper { margin-top: 8px; }

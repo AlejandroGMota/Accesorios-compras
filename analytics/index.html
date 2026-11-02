@@ -28,6 +28,7 @@
         <button class="tab active" data-tab="micas">Micas</button>
         <button class="tab" data-tab="fundas">Fundas</button>
         <button class="tab" data-tab="hidrogel">Hidrogel</button>
+        <button class="tab" data-tab="otras">Falta y otras</button>
     </div>
 
     <div id="panel-micas" class="tab-panel">
@@ -351,6 +352,42 @@
                 <tbody id="hidro-cotizaciones"></tbody>
             </table>
         </div>
+    </section>
+
+    </div>
+
+    <div id="panel-otras" class="tab-panel" hidden>
+
+    <!-- Todo lo pendiente de todas las listas -->
+    <section class="card">
+        <h2>Lo que falta comprar · todas las categorías</h2>
+        <p class="chart-note">Lo que sigue sin palomear en la lista del tianguis y en las de los locales, con su costo según el precio anotado. Lo anotado en un local no lleva precio.</p>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="stat-label">Costo estimado</span>
+                <span class="stat-value" id="falta-total">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Renglones pendientes</span>
+                <span class="stat-value" id="falta-piezas">—</span>
+            </div>
+        </div>
+        <button id="btn-falta" class="btn-primary">Actualizar</button>
+        <div id="falta-contenido"><p class="muted">Cargando…</p></div>
+    </section>
+
+    <!-- Compras de las categorías sin pestaña propia -->
+    <section class="card">
+        <h2>Compras de otras categorías</h2>
+        <p class="chart-note">Hidrogel de la lista, Fundas nuevas, 1 hora, Refacciones y Otros: lo ya palomeado.</p>
+        <label for="otras-periodo">Periodo</label>
+        <select id="otras-periodo">
+            <option value="30">Últimos 30 días</option>
+            <option value="90" selected>Últimos 90 días</option>
+            <option value="365">Último año</option>
+            <option value="0">Todo el historial</option>
+        </select>
+        <div id="otras-contenido"><p class="muted">Cargando…</p></div>
     </section>
 
     </div>

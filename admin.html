@@ -13,7 +13,7 @@
 <header>
     <div>
         <h1>Admin</h1>
-        <p class="header-subtitle">Crear y editar locales</p>
+        <p class="header-subtitle">Locales y precios</p>
     </div>
     <nav class="header-nav">
         <a href="index.html" class="header-link">Tianguis</a>
@@ -23,6 +23,19 @@
 </header>
 
 <div class="container">
+
+    <div class="card">
+        <h2>Precios</h2>
+        <p class="chart-note">Precio de proveedor por pieza. La 9D y la 9H se compran por caja de 10: la lista cobra la caja a pieza × 10. Al guardar, lo pendiente que tenía el precio anterior se ajusta al nuevo.</p>
+        <div class="precios-grid">
+            <label>Mica 9D (pieza)<input type="number" id="precio-9D" min="0" step="0.5"></label>
+            <label>Mica 9H (pieza)<input type="number" id="precio-9H" min="0" step="0.5"></label>
+            <label>Mica privacidad (pieza)<input type="number" id="precio-Privacidad" min="0" step="0.5"></label>
+            <label>Hidrogel privacidad<input type="number" id="precio-hidro-privacidad" min="0" step="1"></label>
+            <label>Hidrogel otros (matte, HD, Blueray)<input type="number" id="precio-hidro-otros" min="0" step="1"></label>
+        </div>
+        <button id="guardarPreciosBtn" class="btn-primary" disabled>Guardar precios</button>
+    </div>
 
     <div class="card">
         <h2>Nuevo local</h2>
@@ -84,6 +97,7 @@
 
 
 <script src="auth.js"></script>
+<script src="precios.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

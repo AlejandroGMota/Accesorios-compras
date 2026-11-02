@@ -1,4 +1,4 @@
-// Panel de locales: crear, renombrar, desactivar y borrar.
+// Panel de locales (crear, renombrar, desactivar y borrar) y de precios.
 // Sin login por ahora: quien tenga la liga entra.
 
 const LOCALES_REF = db.collection('locales');
@@ -134,8 +134,89 @@ document.getElementById('crearLocalBtn').addEventListener('click', async () => {
     showToast(`Local "${nombre}" creado`, 'success');
 });
 
+// ========== Precios ==========
+const PRECIOS_REF = db.collection('config').doc('precios');
+
+const CAMPOS_PRECIO = [
+    ['micas',    '9D',         'precio-9D'],
+    ['micas',    '9H',         'precio-9H'],
+    ['micas',    'Privacidad', 'precio-Privacidad'],
+    ['hidrogel', 'privacidad', 'precio-hidro-privacidad'],
+    ['hidrogel', 'otros',      'precio-hidro-otros'],
+];
+
+function pintarPrecios() {
+    CAMPOS_PRECIO.forEach(([grupo, clave, id]) => {
+        document.getElementById(id).value = PRECIOS[grupo][clave];
+    });
+}
+
+// El precio por defecto de un renglón de la lista, con los precios vigentes
+const precioDeItem = i =>
+    i.category === 'Micas' ? precioMica(i.type) : precioHidrogel(i.type);
+
+// Lo pendiente de micas e hidrogel que trae el precio por defecto anterior pasa
+// al nuevo. Lo que se capturó a mano con otro precio no se toca, y lo ya
+// palomeado tampoco: esa compra ya se hizo a ese precio.
+//
+// Los precios que estaban fijos en el código antes de `config/precios` (micas
+// 9D y 9H por caja de 10) también cuentan como «por defecto»: lo anotado
+// entonces trae esos.
+const PRECIOS_MICA_VIEJOS = { '9D': 60, '9H': 35, 'Privacidad': 18 };
+
+function ajustesPendientes(nuevos) {
+    const conDefecto = items.filter(i =>
+        !i.comprada && ['Micas', 'Hidrogel'].includes(i.category) &&
+        (i.price === precioDeItem(i) ||
+         (i.category === 'Micas' && i.price === PRECIOS_MICA_VIEJOS[i.type])));
+    const antes = PRECIOS;
+    aplicarPrecios(nuevos);
+    const cambios = conDefecto
+        .map(i => ({ id: i.id, antes: i.price, price: precioDeItem(i) }))
+        .filter(c => c.price !== c.antes);
+    PRECIOS = antes;
+    return cambios;
+}
+
+document.getElementById('guardarPreciosBtn').addEventListener('click', async () => {
+    const nuevos = { micas: {}, hidrogel: {} };
+    for (const [grupo, clave, id] of CAMPOS_PRECIO) {
+        const valor = parseFloat(document.getElementById(id).value);
+        if (!Number.isFinite(valor) || valor <= 0) {
+            showToast('Todos los precios tienen que ser mayores a 0.', 'error');
+            return;
+        }
+        nuevos[grupo][clave] = valor;
+    }
+
+    const cambios = ajustesPendientes(nuevos);
+    const aviso = cambios.length
+        ? `\n\n${cambios.length} producto${cambios.length === 1 ? '' : 's'} pendiente${cambios.length === 1 ? '' : 's'} de la lista pasa${cambios.length === 1 ? '' : 'n'} al precio nuevo.`
+        : '';
+    if (!confirm(`¿Guardar los precios nuevos?${aviso}`)) return;
+
+    try {
+        // Un lote admite 500 escrituras; la lista nunca llega a tanto pendiente
+        const lote = db.batch();
+        lote.set(PRECIOS_REF, { ...nuevos, actualizado: Date.now() });
+        cambios.forEach(c => lote.update(ITEMS_REF.doc(c.id), { price: c.price }));
+        await lote.commit();
+    } catch (err) {
+        console.error('No se pudieron guardar los precios:', err);
+        showToast('No se pudieron guardar. Revisa tu conexión y que tengas permiso de admin.', 'error', 6000);
+        return;
+    }
+    showToast(cambios.length ? `Precios guardados · ${cambios.length} ajustados en la lista` : 'Precios guardados', 'success');
+});
+
 // Nada se carga hasta que haya sesión
 protegerPagina().then(() => {
+    PRECIOS_REF.onSnapshot(doc => {
+        aplicarPrecios(doc.exists ? doc.data() : {});
+        pintarPrecios();
+        document.getElementById('guardarPreciosBtn').disabled = false;
+    }, err => console.error('No se pudieron cargar los precios:', err));
+
     LOCALES_REF.onSnapshot(snap => {
         locales = snap.docs.map(d => ({ id: d.id, ...d.data() }))
             .sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? '', 'es'));
