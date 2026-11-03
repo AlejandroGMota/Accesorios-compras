@@ -1563,11 +1563,79 @@ async function initOtras(locales) {
 
 // ========== Pestañas ==========
 
+// ========== Web: visitas a celinki.com (las escribe celinki-api) ==========
+
+const NOMBRES_EVENTO = {
+    wa_oferta:    'WhatsApp · oferta cortadora',
+    wa_cortadora: 'WhatsApp · cortadoras',
+    wa_hidrogel:  'WhatsApp · micas',
+    wa_envio:     'WhatsApp · envíos',
+    wa_otro:      'WhatsApp · otro',
+};
+
+async function cargarVisitas(dias) {
+    const desde = new Date();
+    desde.setHours(0, 0, 0, 0);
+    desde.setDate(desde.getDate() - (dias - 1));
+    const snap = await db.collection('visitas_celinki').where('fecha', '>=', desde).get();
+    return snap.docs.map(d => d.data()).filter(v => v.fecha);
+}
+
+// [[clave, cuántos]] de mayor a menor
+function contarPor(lista, clave) {
+    const m = new Map();
+    lista.forEach(x => { const k = clave(x) || '—'; m.set(k, (m.get(k) || 0) + 1); });
+    return [...m].sort((a, b) => b[1] - a[1]);
+}
+
+const tablaConteo = (titulo, filas, max = 10) => `
+    <h3>${titulo}</h3>
+    <div class="table-wrapper"><table class="data-table">
+        <tbody>${filas.slice(0, max).map(([k, n]) => `<tr><td>${escapeHtml(k)}</td><td>${n}</td></tr>`).join('') || '<tr><td class="muted">Sin datos</td></tr>'}</tbody>
+    </table></div>`;
+
+function renderVisitas(lista) {
+    const cont = document.getElementById('web-contenido');
+    const visitas = lista.filter(v => v.tipo === 'visita');
+    const eventos = lista.filter(v => v.tipo === 'evento');
+    const sesiones = new Set(visitas.map(v => v.sesion)).size;
+    const conClic = new Set(eventos.map(v => v.sesion)).size;
+    const oferta = eventos.filter(v => v.evento === 'wa_oferta').length;
+    const movil = visitas.filter(v => v.movil).length;
+    const lugar = v => v.ciudad ? `${v.ciudad}${v.estado ? ', ' + v.estado : ''}` : (v.pais || 'Desconocido');
+    const dia = v => v.fecha.toDate().toLocaleDateString('sv-SE');   // AAAA-MM-DD en hora local, ordena bien
+
+    cont.innerHTML = `
+        <div class="stat-grid">
+            <div class="stat-card"><span class="stat-label">Visitas</span><span class="stat-value">${visitas.length}</span></div>
+            <div class="stat-card"><span class="stat-label">Personas (sesiones)</span><span class="stat-value">${sesiones}</span></div>
+            <div class="stat-card"><span class="stat-label">Clics a WhatsApp</span><span class="stat-value">${eventos.length}</span></div>
+            <div class="stat-card"><span class="stat-label">Escribieron</span><span class="stat-value">${sesiones ? fmtPct(conClic / sesiones) : '—'}</span></div>
+            <div class="stat-card"><span class="stat-label">Clics a la oferta</span><span class="stat-value">${oferta}</span></div>
+            <div class="stat-card"><span class="stat-label">Desde celular</span><span class="stat-value">${visitas.length ? fmtPct(movil / visitas.length) : '—'}</span></div>
+        </div>
+        ${tablaConteo('De dónde llegan', contarPor(visitas, v => v.utm ? `${v.origen} · ${v.utm}` : v.origen))}
+        ${tablaConteo('Ciudades', contarPor(visitas, lugar))}
+        ${tablaConteo('Clics por botón', contarPor(eventos, v => NOMBRES_EVENTO[v.evento] || v.evento))}
+        ${tablaConteo('Visitas por día', contarPor(visitas, dia).sort((a, b) => b[0].localeCompare(a[0])), 31)}`;
+}
+
+async function initWeb() {
+    const periodo = document.getElementById('web-periodo');
+    const pintar = async () => {
+        document.getElementById('web-contenido').innerHTML = '<p class="muted">Cargando…</p>';
+        renderVisitas(await cargarVisitas(parseInt(periodo.value, 10)));
+    };
+    periodo.addEventListener('change', () => pintar().catch(err => console.error('Error cargando visitas:', err)));
+    await pintar();
+}
+
 const SUBTITULOS = {
     micas:    'Historial de compras · Micas',
     fundas:   'Compras y ventas · Fundas',
     hidrogel: 'Pedidos a KASR · Hidrogel',
     otras:    'Lo que falta y otras categorías',
+    web:      'Visitas a celinki.com',
 };
 
 function mostrarPestana(nombre) {
@@ -1653,4 +1721,5 @@ window.addEventListener('DOMContentLoaded', async () => {
     initMicas(aliasMap, locales).catch(err => console.error('Error cargando micas:', err));
     initFundas(aliasMap, locales).catch(err => console.error('Error cargando fundas:', err));
     initOtras(locales).catch(err => console.error('Error cargando otras categorías:', err));
+    initWeb().catch(err => console.error('Error cargando visitas:', err));
 });

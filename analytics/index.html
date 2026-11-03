@@ -29,6 +29,7 @@
         <button class="tab" data-tab="fundas">Fundas</button>
         <button class="tab" data-tab="hidrogel">Hidrogel</button>
         <button class="tab" data-tab="otras">Falta y otras</button>
+        <button class="tab" data-tab="web">Web</button>
     </div>
 
     <div id="panel-micas" class="tab-panel">
@@ -390,6 +391,22 @@
         <div id="otras-contenido"><p class="muted">Cargando…</p></div>
     </section>
 
+    </div>
+
+
+    <div id="panel-web" class="tab-panel" hidden>
+    <section class="card">
+        <h2>Visitas a celinki.com</h2>
+        <p class="chart-note">Las cuenta celinki-api. Sin IP ni datos personales: una «persona» es una pestaña abierta (sesión).</p>
+        <label for="web-periodo">Periodo</label>
+        <select id="web-periodo">
+            <option value="1">Hoy</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="30" selected>Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+        </select>
+        <div id="web-contenido"><p class="muted">Cargando…</p></div>
+    </section>
     </div>
 
 </div>

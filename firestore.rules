@@ -1,13 +1,18 @@
 rules_version = '2';
 
 // ===========================================================================
-// VERSIÓN DEL ARCHIVO: 4  ·  2026-11-02
+// VERSIÓN DEL ARCHIVO: 5  ·  2026-11-03
 //
 // ⚠️ El `rules_version = '2'` de arriba NO es esta versión. Esa es la del
 // lenguaje de reglas de Firestore y solo acepta '1' o '2': si se cambia por
 // un 2.1 o parecido, la consola rechaza el archivo entero al publicarlo.
 // El seguimiento de nuestros cambios vive aquí abajo.
 //
+//   5 · 2026-11-03 — se agrega `visitas_celinki`: visitas y clics de
+//       celinki.com. Las escribe solo celinki-api desde la VM con el Admin SDK
+//       (que no pasa por estas reglas); ningún navegador puede escribir. Se
+//       lee sin cuenta porque Analytics no pide login, y no trae datos
+//       personales: ni IP ni nombre, solo página, origen y ciudad.
 //   4 · 2026-11-02 — se agrega `config/precios`: los precios de proveedor de
 //       micas e hidrogel dejan de estar fijos en el código. Las listas los
 //       leen sin cuenta; cambiarlos es solo del admin, desde admin.html.
@@ -80,6 +85,12 @@ service cloud.firestore {
     match /config/{docId} {
       allow read:  if true;
       allow write: if esAdmin();
+    }
+
+    // Visitas de celinki.com: solo las escribe celinki-api (Admin SDK)
+    match /visitas_celinki/{docId} {
+      allow read:  if true;
+      allow write: if false;
     }
 
     // Historial de compras de micas: lo escribe la lista al agregar y palomear
