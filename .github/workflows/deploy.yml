@@ -12,7 +12,6 @@ on:
       - 'lista-core.js'
       - 'modelos.js'
       - 'sw.js'
-      - 'indicadores.html'
       - 'precios.js'
       - 'manifest.webmanifest'
       - 'auth.js'
