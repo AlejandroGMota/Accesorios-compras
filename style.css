@@ -1252,3 +1252,12 @@ select:focus {
 .dialogo-borrar .dialogo-detalle { font-size: 0.9em; color: var(--text-muted); }
 .dialogo-borrar .dialogo-acciones { margin-top: 14px; }
 .dialogo-borrar .dialogo-acciones button { min-height: 40px; padding: 8px 10px; }
+
+/* Header en celular: el título y los tres botones no caben en un renglón de
+   ~360px; sin esto la página entera quedaba más ancha que la pantalla */
+.header-nav { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 560px) {
+    header { flex-wrap: wrap; gap: 8px; padding: 10px 16px; }
+    .header-nav { width: 100%; justify-content: flex-start; }
+    .header-link { padding: 5px 11px; font-size: 0.78em; }
+}
