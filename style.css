@@ -1252,17 +1252,35 @@ select:focus {
     .header-link { padding: 5px 11px; font-size: 0.78em; }
 }
 
-/* Sin señal: un punto naranja fijo en la esquina, nada más */
+/* Sin señal: punto naranja fijo con un pulso suave (como el punto de
+   ubicación de Google Maps), solo cuando no hay internet */
 #puntoSinSenal {
     position: fixed;
-    top: 10px;
-    right: 10px;
+    top: 16px;
+    right: 16px;
     z-index: 200;
     width: 10px;
     height: 10px;
     border-radius: 50%;
     background: #f08c00;
-    box-shadow: 0 0 0 3px rgba(240, 140, 0, 0.25);
     pointer-events: none;
 }
+#puntoSinSenal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: #f08c00;
+    animation: pulso-sin-senal 1.6s ease-out infinite;
+}
+@keyframes pulso-sin-senal {
+    from { transform: scale(1);   opacity: 0.6; }
+    to   { transform: scale(3.2); opacity: 0; }
+}
 #puntoSinSenal[hidden] { display: none; }
+@media (max-width: 560px) { #puntoSinSenal { top: 22px; right: 20px; } }
+@media (prefers-reduced-motion: reduce) { #puntoSinSenal::after { animation: none; } }
+
+/* Header que se esconde al bajar (ver ocultarHeaderAlBajar en lista-core.js) */
+header { transition: transform 0.25s ease; }
+header.header-oculto { transform: translateY(-100%); }

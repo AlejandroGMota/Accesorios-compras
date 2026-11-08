@@ -1002,6 +1002,28 @@ function prepararSinSenal() {
     window.addEventListener('offline', repintar);
 }
 
+// El header se esconde al bajar y regresa al subir (como Chrome o Instagram en
+// el celular): así no le quita pantalla a la lista
+function ocultarHeaderAlBajar() {
+    const header = document.querySelector('header');
+    if (!header) return;
+    let ultimoY = window.scrollY;
+    let pendiente = false;
+    window.addEventListener('scroll', () => {
+        if (pendiente) return;
+        pendiente = true;
+        requestAnimationFrame(() => {
+            const y = window.scrollY;
+            // Un margen para que un temblor del dedo no lo haga parpadear
+            if (Math.abs(y - ultimoY) > 8) {
+                header.classList.toggle('header-oculto', y > ultimoY && y > header.offsetHeight);
+                ultimoY = y;
+            }
+            pendiente = false;
+        });
+    }, { passive: true });
+}
+
 function pintarEstadoSync(fromCache) {
     ultimoFromCache = fromCache;
     const pendientes = currentItems.filter(p => p.sinSubir).length;
@@ -1030,6 +1052,7 @@ function initLista({ local, conPrecios = true }) {
     escucharPrecios();
     initFormulario();
     prepararSinSenal();
+    ocultarHeaderAlBajar();
 
     // Con includeMetadataChanges la lista se vuelve a pintar cuando un cambio
     // termina de subir, para quitarle la marca de «falta subir»
