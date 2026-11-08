@@ -1245,3 +1245,10 @@ select:focus {
 .pedido-camino .pedido-camino-texto { flex: 1 1 220px; }
 .pedido-camino input[type="date"] { width: auto; margin: 0; }
 .pedido-camino button { width: auto; margin: 0; }
+
+/* Eliminar: recuadro chico, no a todo lo ancho del celular */
+.dialogo-app.dialogo-borrar { width: min(300px, calc(100% - 64px)); padding: 16px; }
+.dialogo-borrar h3 { font-size: 1.05em; margin-bottom: 4px; }
+.dialogo-borrar .dialogo-detalle { font-size: 0.9em; color: var(--text-muted); }
+.dialogo-borrar .dialogo-acciones { margin-top: 14px; }
+.dialogo-borrar .dialogo-acciones button { min-height: 40px; padding: 8px 10px; }
