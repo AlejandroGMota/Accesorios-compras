@@ -1252,22 +1252,18 @@ select:focus {
     .header-link { padding: 5px 11px; font-size: 0.78em; }
 }
 
-/* Sin señal: punto naranja fijo que parpadea suave, solo cuando no hay internet */
+/* Sin señal: un marco naranja delgado en la orilla de la pantalla, que
+   parpadea suave. Solo cuando no hay internet; no tapa ni bloquea nada */
 #puntoSinSenal {
     position: fixed;
-    top: 16px;
-    right: 16px;
+    inset: 0;
     z-index: 200;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #f08c00;
+    border: 2px solid rgba(240, 140, 0, 0.75);
     pointer-events: none;
-    animation: parpadeo-sin-senal 1.4s ease-in-out infinite;
+    animation: parpadeo-sin-senal 2s ease-in-out infinite;
 }
-@keyframes parpadeo-sin-senal { 50% { opacity: 0.15; } }
+@keyframes parpadeo-sin-senal { 50% { opacity: 0.25; } }
 #puntoSinSenal[hidden] { display: none; }
-@media (max-width: 560px) { #puntoSinSenal { top: 22px; right: 20px; } }
 @media (prefers-reduced-motion: reduce) { #puntoSinSenal { animation: none; } }
 
 /* Header que se esconde al bajar (ver ocultarHeaderAlBajar en lista-core.js) */
