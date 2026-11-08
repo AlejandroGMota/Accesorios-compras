@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indicador sin señal · muestras</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Página de muestras para elegir el indicador de «sin señal». No va en el menú. -->
+<style>
+    :root { --naranja: #f08c00; --azul: #023265; --rojo: #e74c3c; --fondo: #f9f9f9; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--fondo); color: #333; padding: 16px; }
+    h1 { color: var(--azul); font-size: 1.3em; margin-bottom: 4px; }
+    p.intro { color: #888; font-size: 0.9em; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .muestra {
+        background: #fff; border: 1px solid #e8e8e8; border-radius: 14px;
+        height: 130px; position: relative; overflow: hidden;
+        box-shadow: 0 2px 8px rgba(2, 50, 101, 0.07);
+    }
+    /* Simula la esquina superior derecha de la app */
+    .muestra::before {
+        content: ''; position: absolute; left: 12px; right: 48px; top: 18px; height: 10px;
+        border-radius: 5px; background: #eef2f7;
+    }
+    .muestra::after {
+        content: ''; position: absolute; left: 12px; right: 70px; top: 36px; height: 8px;
+        border-radius: 4px; background: #f3f5f8;
+    }
+    .num {
+        position: absolute; left: 12px; bottom: 10px; font-weight: 700; color: var(--azul); font-size: 1.1em;
+    }
+    .nombre { position: absolute; left: 40px; bottom: 12px; font-size: 0.78em; color: #888; }
+    .ind { position: absolute; top: 14px; right: 14px; }
+
+    /* 1 · Pulso (anillo que crece) */
+    .i1 { width: 10px; height: 10px; border-radius: 50%; background: var(--naranja); }
+    .i1::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--naranja); animation: a1 1.6s ease-out infinite; }
+    @keyframes a1 { to { transform: scale(3.2); opacity: 0; } }
+
+    /* 2 · Doble onda */
+    .i2 { width: 10px; height: 10px; border-radius: 50%; background: var(--naranja); }
+    .i2::before, .i2::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--naranja); animation: a2 2s ease-out infinite; }
+    .i2::after { animation-delay: 1s; }
+    @keyframes a2 { from { transform: scale(1); opacity: 0.8; } to { transform: scale(3.5); opacity: 0; } }
+
+    /* 3 · Respira (crece y se encoge) */
+    .i3 { width: 11px; height: 11px; border-radius: 50%; background: var(--naranja); animation: a3 1.8s ease-in-out infinite; }
+    @keyframes a3 { 50% { transform: scale(0.6); opacity: 0.5; } }
+
+    /* 4 · Parpadeo suave */
+    .i4 { width: 10px; height: 10px; border-radius: 50%; background: var(--naranja); animation: a4 1.4s ease-in-out infinite; }
+    @keyframes a4 { 50% { opacity: 0.15; } }
+
+    /* 5 · Anillo girando (cargando) */
+    .i5 { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid rgba(240,140,0,0.2); border-top-color: var(--naranja); animation: a5 0.9s linear infinite; }
+    @keyframes a5 { to { transform: rotate(360deg); } }
+
+    /* 6 · Tres puntos */
+    .i6 { display: flex; gap: 4px; }
+    .i6 span { width: 6px; height: 6px; border-radius: 50%; background: var(--naranja); animation: a6 1.2s ease-in-out infinite; }
+    .i6 span:nth-child(2) { animation-delay: 0.15s; }
+    .i6 span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes a6 { 0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+    /* 7 · Barras de señal tachadas */
+    .i7 { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+    .i7 span { width: 3px; background: #ccc; border-radius: 1px; }
+    .i7 span:nth-child(1) { height: 4px; background: var(--naranja); }
+    .i7 span:nth-child(2) { height: 7px; }
+    .i7 span:nth-child(3) { height: 10px; }
+    .i7 span:nth-child(4) { height: 14px; }
+    .i7 span:nth-child(1) { animation: a4 1.4s ease-in-out infinite; }
+
+    /* 8 · Ícono nube tachada con brillo */
+    .i8 { width: 22px; height: 22px; animation: a4 2s ease-in-out infinite; }
+
+    /* 9 · Píldora «Sin señal» */
+    .i9 { display: flex; align-items: center; gap: 6px; background: #fff4e0; color: #8a5300; font-size: 11px; font-weight: 600; padding: 4px 9px 4px 7px; border-radius: 20px; }
+    .i9::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--naranja); animation: a4 1.4s ease-in-out infinite; }
+
+    /* 10 · Píldora mínima solo punto con borde */
+    .i10 { width: 18px; height: 18px; border-radius: 50%; background: #fff4e0; display: grid; place-items: center; }
+    .i10::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--naranja); animation: a3 1.8s ease-in-out infinite; }
+
+    /* 11 · Radar (barrido) */
+    .i11 { width: 20px; height: 20px; border-radius: 50%; background: conic-gradient(from 0deg, rgba(240,140,0,0.7), transparent 30%); animation: a5 1.6s linear infinite; }
+    .i11::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: var(--naranja); }
+
+    /* 12 · Wi-Fi que se apaga */
+    .i12 { width: 22px; height: 18px; }
+    .i12 path { fill: none; stroke: var(--naranja); stroke-width: 2.2; stroke-linecap: round; animation: a12 1.8s ease-in-out infinite; }
+    .i12 path:nth-child(2) { animation-delay: 0.2s; }
+    .i12 path:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes a12 { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
+
+    /* 13 · Línea de carga arriba (barra fina en todo el ancho) */
+    .i13 { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: rgba(240,140,0,0.15); overflow: hidden; }
+    .i13::after { content: ''; position: absolute; top: 0; bottom: 0; width: 35%; background: var(--naranja); border-radius: 2px; animation: a13 1.4s ease-in-out infinite; }
+    @keyframes a13 { from { left: -35%; } to { left: 100%; } }
+
+    /* 14 · Esquina iluminada (resplandor) */
+    .i14 { position: absolute; top: -30px; right: -30px; width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle, rgba(240,140,0,0.55), transparent 65%); animation: a3 2.2s ease-in-out infinite; }
+
+    /* 15 · Punto con aro que gira */
+    .i15 { width: 18px; height: 18px; border-radius: 50%; border: 2px dashed var(--naranja); animation: a5 3s linear infinite; }
+    .i15::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--naranja); }
+
+    /* 16 · Latido (corazón) */
+    .i16 { width: 10px; height: 10px; border-radius: 50%; background: var(--naranja); animation: a16 1.3s ease-in-out infinite; }
+    @keyframes a16 { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.5); } 30% { transform: scale(1); } 45% { transform: scale(1.35); } }
+
+    /* 17 · Gota que cae (rebote) */
+    .i17 { width: 9px; height: 9px; border-radius: 50%; background: var(--naranja); animation: a17 1s cubic-bezier(.5,0,.5,1) infinite alternate; }
+    @keyframes a17 { to { transform: translateY(8px); } }
+
+    /* 18 · Borde de la pantalla naranja (marco) */
+    .i18 { position: absolute; inset: 0; border: 3px solid var(--naranja); border-radius: 14px; animation: a4 2s ease-in-out infinite; pointer-events: none; }
+
+    /* 19 · Órbita (punto que da vueltas) */
+    .i19 { width: 20px; height: 20px; animation: a5 1.2s linear infinite; }
+    .i19::before { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid rgba(240,140,0,0.25); }
+    .i19::after { content: ''; position: absolute; top: -2px; left: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--naranja); }
+
+    /* 20 · Ecualizador */
+    .i20 { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+    .i20 span { width: 3px; background: var(--naranja); border-radius: 2px; animation: a20 0.9s ease-in-out infinite; }
+    .i20 span:nth-child(2) { animation-delay: 0.15s; }
+    .i20 span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes a20 { 0%, 100% { height: 4px; } 50% { height: 14px; } }
+
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<h1>Indicador «sin señal»</h1>
+<p class="intro">Cada recuadro simula la esquina de la app. Dime el número que te guste (o una mezcla).</p>
+<div class="grid">
+    <div class="muestra"><span class="ind i1"></span><span class="num">1</span><span class="nombre">Pulso</span></div>
+    <div class="muestra"><span class="ind i2"></span><span class="num">2</span><span class="nombre">Doble onda</span></div>
+    <div class="muestra"><span class="ind i3"></span><span class="num">3</span><span class="nombre">Respira</span></div>
+    <div class="muestra"><span class="ind i4"></span><span class="num">4</span><span class="nombre">Parpadeo</span></div>
+    <div class="muestra"><span class="ind i5"></span><span class="num">5</span><span class="nombre">Cargando</span></div>
+    <div class="muestra"><span class="ind i6"><span></span><span></span><span></span></span><span class="num">6</span><span class="nombre">Tres puntos</span></div>
+    <div class="muestra"><span class="ind i7"><span></span><span></span><span></span><span></span></span><span class="num">7</span><span class="nombre">Barras de señal</span></div>
+    <div class="muestra">
+        <svg class="ind i8" viewBox="0 0 24 24" fill="none" stroke="#f08c00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H8a5 5 0 1 1 1.6-9.7A6 6 0 0 1 20 12.5"/><line x1="3" y1="3" x2="21" y2="21"/></svg>
+        <span class="num">8</span><span class="nombre">Nube tachada</span></div>
+    <div class="muestra"><span class="ind i9">Sin señal</span><span class="num">9</span><span class="nombre">Píldora</span></div>
+    <div class="muestra"><span class="ind i10"></span><span class="num">10</span><span class="nombre">Punto con fondo</span></div>
+    <div class="muestra"><span class="ind i11"></span><span class="num">11</span><span class="nombre">Radar</span></div>
+    <div class="muestra">
+        <svg class="ind i12" viewBox="0 0 24 20"><path d="M2 7a15 15 0 0 1 20 0"/><path d="M5.5 11a10 10 0 0 1 13 0"/><path d="M9 15a5 5 0 0 1 6 0"/><circle cx="12" cy="18" r="1.4" fill="#f08c00"/></svg>
+        <span class="num">12</span><span class="nombre">Wi-Fi</span></div>
+    <div class="muestra"><span class="i13"></span><span class="num">13</span><span class="nombre">Línea arriba</span></div>
+    <div class="muestra"><span class="i14"></span><span class="num">14</span><span class="nombre">Resplandor</span></div>
+    <div class="muestra"><span class="ind i15"></span><span class="num">15</span><span class="nombre">Aro girando</span></div>
+    <div class="muestra"><span class="ind i16"></span><span class="num">16</span><span class="nombre">Latido</span></div>
+    <div class="muestra"><span class="ind i17"></span><span class="num">17</span><span class="nombre">Rebote</span></div>
+    <div class="muestra"><span class="i18"></span><span class="num">18</span><span class="nombre">Marco</span></div>
+    <div class="muestra"><span class="ind i19"></span><span class="num">19</span><span class="nombre">Órbita</span></div>
+    <div class="muestra"><span class="ind i20"><span></span><span></span><span></span></span><span class="num">20</span><span class="nombre">Ecualizador</span></div>
+</div>
+</body>
+</html>
