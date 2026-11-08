@@ -153,9 +153,14 @@ function clearAllProductLists() {
     });
 }
 
+// La lista se vuelve a dibujar entera con cada cambio (también los que llegan
+// de otro teléfono). La posición se guarda y se devuelve: si no, al borrar o
+// palomear algo abajo, la página brincaba.
 function renderAllProducts(products) {
+    const y = window.scrollY;
     clearAllProductLists();
     products.forEach(addProductToDOM);
+    if (window.scrollY !== y) window.scrollTo(0, y);
 
     // Micas viejas sin tipo: suman al subtotal, así que se muestran para poder borrarlas
     const sinTipoHeader = document.getElementById('micasSinTipoHeader');
@@ -177,13 +182,31 @@ function renderAllProducts(products) {
 async function deleteProduct(id) {
     const product = currentItems.find(p => p.id === id);
     if (!product) return;
-    if (!confirm(`¿Borrar "${product.name}" de la lista?`)) return;
+    const y = window.scrollY;
+    const ok = await confirmarBorrado({
+        titulo:   product.name,
+        detalle:  `${etiquetaTipo(product)} · ${detalleRenglon(product)}`,
+        boton:    'Eliminar',
+    });
+    if (!ok) return;
 
     enviar(ITEMS_REF.doc(id).delete(), `El servidor no dejó borrar "${product.name}".`);
     showToast('Producto eliminado', 'error');
+    mantenerPosicion(y);
 
     // Lo que se borra sin palomear nunca se compró: su registro se anula
     if (!product.comprada) anularRegistro(product);
+}
+
+// Al cerrar un diálogo el navegador devuelve el foco a donde estaba; en
+// Android eso llegó a subir la página. Se suelta el foco y se regresa a la
+// posición de antes, también en el siguiente cuadro.
+function mantenerPosicion(y) {
+    document.activeElement?.blur?.();
+    const volver = () => { if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y); };
+    volver();
+    requestAnimationFrame(volver);
+    setTimeout(volver, 150);
 }
 
 // ========== Borrar las ya compradas ==========
@@ -191,12 +214,19 @@ async function borrarCompradas() {
     const compradas = currentItems.filter(p => p.comprada);
     if (!compradas.length) return;
     const n = compradas.length;
-    if (!confirm(`¿Quitar de la lista ${n} producto${n === 1 ? '' : 's'} ya comprado${n === 1 ? '' : 's'}? Las micas siguen contando en Analytics.`)) return;
+    const y = window.scrollY;
+    const ok = await confirmarBorrado({
+        titulo:   `Quitar ${n} comprado${n === 1 ? '' : 's'}`,
+        detalle:  compradas.map(p => p.name).join(', '),
+        boton:    `Quitar ${n}`,
+    });
+    if (!ok) return;
 
     const lote = db.batch();
     compradas.forEach(p => lote.delete(ITEMS_REF.doc(p.id)));
     enviar(lote.commit(), 'El servidor no dejó borrar las compradas.');
     showToast(`${n} producto${n === 1 ? '' : 's'} fuera de la lista`, 'success');
+    mantenerPosicion(y);
 }
 
 // ========== Marcar como comprada ==========
@@ -711,23 +741,51 @@ async function reemplazarRenglon(viejo, nuevo) {
     }).catch(err => console.warn('No se pudo ajustar el registro de Analytics:', err));
 }
 
-let dialogoRepetido = null;
+// ========== Diálogos de la app ==========
+// En vez de confirm() del sistema: se ve como la app y, en Android, no le
+// regresa el foco al campo de nombre al cerrarse (eso hacía brincar la página).
+let dialogoApp = null;
+
+// Abre el diálogo con `html` (un <form method="dialog"> con botones value=…) y
+// resuelve con el value del botón elegido, o '' si se cierra con Esc
+function abrirDialogo(html, clase = '') {
+    if (!dialogoApp) {
+        dialogoApp = document.createElement('dialog');
+        document.body.appendChild(dialogoApp);
+    }
+    const d = dialogoApp;
+    d.className = `dialogo-app ${clase}`;
+    d.innerHTML = html;
+    return new Promise(resolve => {
+        d.addEventListener('close', () => resolve(d.returnValue), { once: true });
+        d.returnValue = '';
+        d.showModal();
+    });
+}
+
+// Confirmar un borrado: true si se eligió «Eliminar»
+async function confirmarBorrado({ titulo, detalle, boton }) {
+    const r = await abrirDialogo(`
+        <form method="dialog">
+            <h3>${escapeHtml(titulo)}</h3>
+            ${detalle ? `<p class="dialogo-detalle">${escapeHtml(detalle)}</p>` : ''}
+            <div class="dialogo-acciones en-fila">
+                <button value="cancelar" class="dialogo-cancelar" autofocus>Cancelar</button>
+                <button value="borrar" class="dialogo-peligro">${escapeHtml(boton)}</button>
+            </div>
+        </form>`, 'dialogo-borrar');
+    return r === 'borrar';
+}
 
 // Resuelve con 'reemplazar', 'sumar', 'ambas' o 'cancelar'
-function preguntarRepetido(viejo, nuevo) {
-    if (!dialogoRepetido) {
-        dialogoRepetido = document.createElement('dialog');
-        dialogoRepetido.className = 'dialogo-repetido';
-        document.body.appendChild(dialogoRepetido);
-    }
-    const d = dialogoRepetido;
+async function preguntarRepetido(viejo, nuevo) {
     const anotado = viejo.creado
         ? new Date(viejo.creado).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
         : '';
     const suma = sumarRenglones(viejo, nuevo);
-    d.innerHTML = `
+    const r = await abrirDialogo(`
         <form method="dialog">
-            <p class="repetido-etiqueta">Ya está en la lista</p>
+            <p class="dialogo-etiqueta">Ya está en la lista</p>
             <h3>${escapeHtml(etiquetaTipo(viejo))} · ${escapeHtml(viejo.name)}</h3>
             <dl>
                 <dt>Ya anotado${anotado ? ` el ${escapeHtml(anotado)}` : ''}</dt>
@@ -735,18 +793,14 @@ function preguntarRepetido(viejo, nuevo) {
                 <dt>Lo que acabas de poner</dt>
                 <dd>«${escapeHtml(nuevo.name)}» · ${escapeHtml(detalleRenglon(nuevo))}</dd>
             </dl>
-            <div class="repetido-acciones">
+            <div class="dialogo-acciones">
                 <button value="reemplazar" class="btn-primary">Reescribir: dejar ${escapeHtml(detalleRenglon(nuevo))}</button>
                 <button value="sumar">Sumar: queda en ${escapeHtml(detalleRenglon(combinar(viejo, suma)))}</button>
                 <button value="ambas">Guardar los dos renglones</button>
-                <button value="cancelar" class="repetido-cancelar">Cancelar</button>
+                <button value="cancelar" class="dialogo-cancelar">Cancelar</button>
             </div>
-        </form>`;
-    return new Promise(resolve => {
-        d.addEventListener('close', () => resolve(d.returnValue || 'cancelar'), { once: true });
-        d.returnValue = '';
-        d.showModal();
-    });
+        </form>`);
+    return r || 'cancelar';
 }
 
 // ========== Analytics: registro de compras ==========
@@ -918,7 +972,11 @@ async function anularRegistro(product) {
 // la lista y la cola de cambios en el teléfono. Aquí solo se avisa qué pasa.
 
 let ultimoFromCache = false;
-let habiaPendientes = false;
+let pendientesDesde  = null;   // desde cuándo hay cambios sin subir
+
+// «Todo subido» solo si de verdad estuvieron esperando: con señal cada cambio
+// tarda medio segundo y el aviso taparía al de «Producto agregado»
+const AVISO_SUBIDO_MS = 3000;
 let desdeCache      = null;   // desde cuándo la lista sale solo del teléfono
 
 // Al abrir con señal, la primera foto de la lista también sale del teléfono
@@ -969,8 +1027,12 @@ function pintarEstadoSync(fromCache) {
     barra.hidden = !texto;
     barra.className = pendientes ? 'pendiente' : '';
 
-    if (habiaPendientes && !pendientes && !sinRed) showToast('Todo subido ✓', 'success');
-    habiaPendientes = pendientes > 0;
+    if (pendientes) pendientesDesde ??= Date.now();
+    else {
+        if (pendientesDesde && !sinRed && Date.now() - pendientesDesde >= AVISO_SUBIDO_MS)
+            showToast('Todo subido ✓', 'success');
+        pendientesDesde = null;
+    }
 }
 
 // ========== Arranque ==========

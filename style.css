@@ -1182,10 +1182,10 @@ select:focus {
 #estadoSync.pendiente { background: #fff4e0; color: #8a5300; }
 
 /* Sin subir todavía: solo el borde punteado, sin texto */
-.product.sin-subir { border-style: dashed; border-color: #e0a030; }
+.product.sin-subir { border: 2px dashed #d08a00; }
 
-/* ========== Renglón repetido ========== */
-.dialogo-repetido {
+/* ========== Diálogos de la app (repetido, eliminar) ========== */
+.dialogo-app {
     margin: auto;
     width: min(420px, calc(100% - 32px));
     padding: 20px;
@@ -1194,19 +1194,25 @@ select:focus {
     box-shadow: var(--shadow-hover);
     color: var(--text);
 }
-.dialogo-repetido::backdrop { background: rgba(2, 50, 101, 0.35); }
-.dialogo-repetido .repetido-etiqueta {
+.dialogo-app[open] { animation: dialogo-entra 0.16s ease-out; }
+@keyframes dialogo-entra { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+.dialogo-app::backdrop { background: rgba(2, 50, 101, 0.35); }
+.dialogo-app .dialogo-etiqueta {
     font-size: 0.75em;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--danger-dark);
 }
-.dialogo-repetido h3 { margin: 4px 0 12px; color: var(--primary); }
-.dialogo-repetido dt { font-size: 0.8em; color: var(--text-muted); margin-top: 8px; }
-.dialogo-repetido dd { font-weight: 500; }
-.repetido-acciones { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
-.repetido-acciones button {
+.dialogo-app h3 { margin: 4px 0 12px; color: var(--primary); overflow-wrap: anywhere; }
+.dialogo-app dt { font-size: 0.8em; color: var(--text-muted); margin-top: 8px; }
+.dialogo-app dd { font-weight: 500; }
+.dialogo-app .dialogo-detalle { font-weight: 500; }
+.dialogo-app .dialogo-nota { margin-top: 8px; font-size: 0.85em; color: var(--text-muted); }
+.dialogo-acciones { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.dialogo-acciones.en-fila { flex-direction: row; }
+.dialogo-acciones.en-fila button { flex: 1; text-align: center; }
+.dialogo-acciones button {
     width: 100%;
     min-height: 44px;
     padding: 10px 14px;
@@ -1219,8 +1225,10 @@ select:focus {
     text-align: left;
     cursor: pointer;
 }
-.repetido-acciones button.btn-primary { background: var(--primary); color: #fff; }
-.repetido-acciones .repetido-cancelar { border-color: var(--border); color: var(--text-muted); text-align: center; }
+.dialogo-acciones button.btn-primary { background: var(--primary); color: #fff; }
+.dialogo-acciones .dialogo-cancelar { border-color: var(--border); color: var(--text-muted); text-align: center; }
+.dialogo-acciones .dialogo-peligro { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+.dialogo-acciones .dialogo-peligro:active { background: var(--danger-dark); }
 
 /* ========== Hidrogel: pedidos en camino ========== */
 .hidro-en-camino { margin-top: 20px; display: grid; gap: 10px; }
