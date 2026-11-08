@@ -1251,3 +1251,18 @@ select:focus {
     .header-nav { width: 100%; justify-content: flex-start; }
     .header-link { padding: 5px 11px; font-size: 0.78em; }
 }
+
+/* Sin señal: un punto naranja fijo en la esquina, nada más */
+#puntoSinSenal {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 200;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #f08c00;
+    box-shadow: 0 0 0 3px rgba(240, 140, 0, 0.25);
+    pointer-events: none;
+}
+#puntoSinSenal[hidden] { display: none; }

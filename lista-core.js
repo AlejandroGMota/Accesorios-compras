@@ -989,6 +989,14 @@ function prepararSinSenal() {
     // Que el navegador no borre los datos guardados si se llena el teléfono
     navigator.storage?.persist?.().catch(() => {});
 
+    // Punto naranja fijo: solo aparece cuando no hay señal
+    const punto = document.createElement('span');
+    punto.id = 'puntoSinSenal';
+    punto.title = 'Sin señal: lo que anotes se sube al volver internet';
+    punto.setAttribute('aria-label', 'Sin señal');
+    punto.hidden = true;
+    document.body.appendChild(punto);
+
     const repintar = () => pintarEstadoSync(ultimoFromCache);
     window.addEventListener('online', repintar);
     window.addEventListener('offline', repintar);
@@ -1003,6 +1011,8 @@ function pintarEstadoSync(fromCache) {
     if (desdeCache && Date.now() - desdeCache < AVISO_CACHE_MS)
         setTimeout(() => pintarEstadoSync(ultimoFromCache), AVISO_CACHE_MS);
     const sinRed     = !navigator.onLine || (desdeCache !== null && Date.now() - desdeCache >= AVISO_CACHE_MS);
+    const punto = document.getElementById('puntoSinSenal');
+    if (punto) punto.hidden = !sinRed;
     if (pendientes) pendientesDesde ??= Date.now();
     else {
         if (pendientesDesde && !sinRed && Date.now() - pendientesDesde >= AVISO_SUBIDO_MS)
