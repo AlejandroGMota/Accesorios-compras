@@ -989,12 +989,6 @@ function prepararSinSenal() {
     // Que el navegador no borre los datos guardados si se llena el teléfono
     navigator.storage?.persist?.().catch(() => {});
 
-    const barra = document.createElement('p');
-    barra.id = 'estadoSync';
-    barra.setAttribute('role', 'status');
-    barra.hidden = true;
-    document.querySelector('.container')?.prepend(barra);
-
     const repintar = () => pintarEstadoSync(ultimoFromCache);
     window.addEventListener('online', repintar);
     window.addEventListener('offline', repintar);
@@ -1002,8 +996,6 @@ function prepararSinSenal() {
 
 function pintarEstadoSync(fromCache) {
     ultimoFromCache = fromCache;
-    const barra = document.getElementById('estadoSync');
-    if (!barra) return;
     const pendientes = currentItems.filter(p => p.sinSubir).length;
     // Con una rayita de señal iOS dice que sí hay red: lo que manda es que
     // Firestore no haya podido hablar con el servidor
@@ -1011,22 +1003,6 @@ function pintarEstadoSync(fromCache) {
     if (desdeCache && Date.now() - desdeCache < AVISO_CACHE_MS)
         setTimeout(() => pintarEstadoSync(ultimoFromCache), AVISO_CACHE_MS);
     const sinRed     = !navigator.onLine || (desdeCache !== null && Date.now() - desdeCache >= AVISO_CACHE_MS);
-    const cambios    = `${pendientes} cambio${pendientes === 1 ? '' : 's'}`;
-
-    let texto = '';
-    if (window.PERSISTENCIA_FALLO)
-        texto = '⚠ Este navegador no deja guardar la lista en el teléfono: sin señal, lo que anotes se pierde al cerrar.';
-    else if (pendientes && sinRed)
-        texto = `Sin señal · ${cambios} guardado${pendientes === 1 ? '' : 's'} en el teléfono. Se suben solos cuando haya internet, aunque cierres la app.`;
-    else if (pendientes)
-        texto = `Subiendo ${cambios}…`;
-    else if (sinRed)
-        texto = 'Sin señal · ves la lista guardada en el teléfono. Puedes anotar.';
-
-    barra.textContent = texto;
-    barra.hidden = !texto;
-    barra.className = pendientes ? 'pendiente' : '';
-
     if (pendientes) pendientesDesde ??= Date.now();
     else {
         if (pendientesDesde && !sinRed && Date.now() - pendientesDesde >= AVISO_SUBIDO_MS)

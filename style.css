@@ -1170,16 +1170,6 @@ select:focus {
 .falta-cat .table-wrapper { margin-top: 8px; }
 
 /* ========== Sin señal ========== */
-#estadoSync {
-    margin: 0 0 16px;
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    background: var(--primary-light);
-    color: var(--primary);
-    font-size: 0.9em;
-    font-weight: 500;
-}
-#estadoSync.pendiente { background: #fff4e0; color: #8a5300; }
 
 /* Sin subir todavía: solo el borde punteado, sin texto */
 .product.sin-subir { border: 2px dashed #d08a00; }

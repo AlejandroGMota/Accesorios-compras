@@ -114,7 +114,7 @@ La lista del tianguis y las de los locales abren y se pueden usar sin internet:
 
 - `sw.js` guarda la página, los .js, el .css y el SDK de Firebase en el teléfono.
 - Firestore (`enablePersistence`) guarda la lista y la **cola de cambios sin subir** en el teléfono. Sobrevive a cerrar la app; se sube sola en cuanto la app se abre con señal.
-- Los renglones sin subir salen con borde punteado; arriba hay una barra con cuántos cambios faltan.
+- Los renglones sin subir salen con borde punteado (sin barra ni texto).
 - Ninguna escritura espera al servidor: sin señal la promesa no se cumple hasta que vuelve la red, y antes eso dejaba el botón colgado (y se le picaba 5 veces).
 
 Para que funcione hay que abrir la app **una vez con señal** después de instalarla: ahí se guarda todo. En Android (Chrome o Edge) la app instalada comparte los datos con el navegador; en iPhone, la de la pantalla de inicio tiene su propio almacenamiento, separado de Safari.
