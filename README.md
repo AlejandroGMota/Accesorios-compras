@@ -117,7 +117,7 @@ La lista del tianguis y las de los locales abren y se pueden usar sin internet:
 - Los renglones sin subir salen con borde punteado; arriba hay una barra con cuántos cambios faltan.
 - Ninguna escritura espera al servidor: sin señal la promesa no se cumple hasta que vuelve la red, y antes eso dejaba el botón colgado (y se le picaba 5 veces).
 
-Para que funcione hay que abrir la app **una vez con señal** después de cada instalación en el teléfono: ahí se guarda todo. En iPhone, la app de la pantalla de inicio tiene su propio almacenamiento, separado de Safari.
+Para que funcione hay que abrir la app **una vez con señal** después de instalarla: ahí se guarda todo. En Android (Chrome o Edge) la app instalada comparte los datos con el navegador; en iPhone, la de la pantalla de inicio tiene su propio almacenamiento, separado de Safari.
 
 ### Renglones repetidos
 
