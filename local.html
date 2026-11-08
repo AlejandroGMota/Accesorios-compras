@@ -215,10 +215,16 @@
         console.info('App Check sin configurar: falta el secret APPCHECK_SITE_KEY.');
     }
     const db = firebase.firestore();
-    db.enablePersistence().catch(err => console.warn('Persistencia offline no disponible:', err.code));
+    // La lista y los cambios sin subir se guardan en el teléfono. synchronizeTabs:
+    // con la app abierta en dos pestañas, las dos guardan (si no, una se queda sin)
+    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+        console.warn('Persistencia offline no disponible:', err.code);
+        window.PERSISTENCIA_FALLO = err.code;
+    });
 </script>
 
 <script src="precios.js"></script>
+<script src="modelos.js"></script>
 <script src="lista-core.js"></script>
 <script src="local.js"></script>
 </body>

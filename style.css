@@ -1168,3 +1168,72 @@ select:focus {
 .falta-cat { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
 .falta-cat summary { cursor: pointer; }
 .falta-cat .table-wrapper { margin-top: 8px; }
+
+/* ========== Sin señal ========== */
+#estadoSync {
+    margin: 0 0 16px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.9em;
+    font-weight: 500;
+}
+#estadoSync.pendiente { background: #fff4e0; color: #8a5300; }
+
+/* Sin subir todavía: solo el borde punteado, sin texto */
+.product.sin-subir { border-style: dashed; border-color: #e0a030; }
+
+/* ========== Renglón repetido ========== */
+.dialogo-repetido {
+    margin: auto;
+    width: min(420px, calc(100% - 32px));
+    padding: 20px;
+    border: none;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-hover);
+    color: var(--text);
+}
+.dialogo-repetido::backdrop { background: rgba(2, 50, 101, 0.35); }
+.dialogo-repetido .repetido-etiqueta {
+    font-size: 0.75em;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--danger-dark);
+}
+.dialogo-repetido h3 { margin: 4px 0 12px; color: var(--primary); }
+.dialogo-repetido dt { font-size: 0.8em; color: var(--text-muted); margin-top: 8px; }
+.dialogo-repetido dd { font-weight: 500; }
+.repetido-acciones { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.repetido-acciones button {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--primary);
+    font: inherit;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+}
+.repetido-acciones button.btn-primary { background: var(--primary); color: #fff; }
+.repetido-acciones .repetido-cancelar { border-color: var(--border); color: var(--text-muted); text-align: center; }
+
+/* ========== Hidrogel: pedidos en camino ========== */
+.hidro-en-camino { margin-top: 20px; display: grid; gap: 10px; }
+.hidro-en-camino .pedido-camino {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 12px 14px;
+    border: 1px solid #e0a030;
+    border-radius: var(--radius-sm);
+    background: #fff8ec;
+}
+.pedido-camino .pedido-camino-texto { flex: 1 1 220px; }
+.pedido-camino input[type="date"] { width: auto; margin: 0; }
+.pedido-camino button { width: auto; margin: 0; }

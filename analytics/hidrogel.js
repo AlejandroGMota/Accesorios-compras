@@ -3,7 +3,7 @@
 
 import {
     SKUS, SIN_KASR, DIAS_SIN_PEDIDO,
-    periodos, sugerirPedido, armarMensaje, describirPedido, fechaPedido, diaMx, formatoFecha, formatoNumero,
+    periodos, sugerirPedido, armarMensaje, describirPedido, fechaPedido, llegadaDe, textoEstimado, diaMx, formatoFecha, formatoNumero, haceDias,
 } from './hidrogel-core.js';
 
 const VENTAS  = db.collection('hidrogel_ventas');
@@ -24,7 +24,7 @@ function estado(mensaje) {
 
 function aObjeto(doc) {
     const d = doc.data();
-    return { id: doc.id, ...d, fecha: d.fecha.toDate() };
+    return { id: doc.id, ...d, fecha: d.fecha.toDate(), ...(d.llegada && { llegada: d.llegada.toDate() }) };
 }
 
 // Los últimos pedidos alcanzan para saber desde cuándo cuenta cada hoja
@@ -55,7 +55,9 @@ async function cargar() {
 
 function renderResumen(s) {
     const p = s.ultimoPedido;
-    $('hidro-ultimo').textContent   = p ? formatoFecha(p.fecha) : 'Sin registrar';
+    const llegada = p && llegadaDe(p);
+    $('hidro-ultimo').textContent   = !p ? 'Sin registrar'
+        : `${formatoFecha(p.fecha)} · ${llegada ? `llegó ${formatoFecha(llegada)}` : 'en camino'}`;
     $('hidro-dias').textContent     = p ? s.dias : '—';
     $('hidro-pedidas').textContent  = p ? formatoNumero(p.piezas || 0) : '—';
     $('hidro-vendidas').textContent = formatoNumero(s.resumen.piezas);
@@ -84,9 +86,29 @@ function filaHoja(h) {
             <td><strong>${esc(h.sku)}</strong> ${esc(h.descripcion)}</td>
             <td>${h.pedido || '—'}</td>
             <td>${h.vendido}</td>
-            <td>${q === null ? '—' : noCuadra ? `${q} · no cuadra` : q}</td>
+            <td>${q === null ? '—' : noCuadra ? `${q} · no cuadra` : q}${h.existencia.enCamino ? ` <span class="muted">+${h.existencia.enCamino} en camino</span>` : ''}</td>
             <td>${h.diasRestantes === null ? '—' : `~${h.diasRestantes} días`}</td>
         </tr>`;
+}
+
+// Pedidos hechos que no han llegado. «Ya llegó» guarda la fecha de llegada:
+// desde ahí esas piezas cuentan en el cajón. La fecha del pedido no se toca,
+// porque de ella sale lo que repone el siguiente pedido.
+function renderEnCamino(s) {
+    const caja = $('hidro-en-camino');
+    const hoy  = diaMx(new Date());
+    caja.hidden = !s.enCamino.length;
+    caja.innerHTML = s.enCamino.map(p => {
+        const dias = Math.floor((Date.now() - p.fecha) / 86400000);
+        const detalle = Object.entries(p.items || {}).map(([sku, n]) => `${sku} ${n}`).join(', ');
+        return `
+            <div class="pedido-camino">
+                <p class="pedido-camino-texto"><strong>En camino:</strong> pedido del ${formatoFecha(p.fecha)} (${haceDias(dias)}),
+                    ${formatoNumero(p.piezas || 0)} pzs; ${esc(textoEstimado(p, s.envio))}<br><span class="muted">${esc(detalle)}</span></p>
+                <input type="date" value="${hoy}" max="${hoy}" aria-label="Fecha de llegada" data-llegada-fecha="${esc(p.id)}">
+                <button class="btn-primary" data-llego="${esc(p.id)}">Ya llegó</button>
+            </div>`;
+    }).join('');
 }
 
 // «12 contadas el 10 oct 2026 + 20 compradas» / «20 de la compra del 15 oct 2026» / «Sin conteo»
@@ -161,6 +183,7 @@ async function refrescar() {
     try {
         const { sugerencia, ventas, sinConteos } = await cargar();
         renderResumen(sugerencia);
+        renderEnCamino(sugerencia);
         renderHojas(sugerencia, sinConteos);
         renderCantidades(sugerencia);
         renderCotizaciones(ventas);
@@ -195,7 +218,7 @@ $('hidro-registrar').addEventListener('click', async function () {
 
     const fecha = fechaPedido($('hidro-fecha').value);
     if (!confirm(`¿Registrar pedido a KASR de ${piezas} pzs con fecha ${formatoFecha(fecha)}?\n` +
-                 'Desde esa fecha se cuentan las ventas del siguiente pedido.')) return;
+                 'Desde esa fecha se cuentan las ventas del siguiente pedido. Queda en camino hasta que le des «Ya llegó».')) return;
 
     this.disabled = true;
     try {
@@ -204,10 +227,11 @@ $('hidro-registrar').addEventListener('click', async function () {
             proveedor: 'KASR',
             items,
             piezas,
+            estado:    'en_camino',
             origen:    'web',
             creado:    firebase.firestore.FieldValue.serverTimestamp(),
         });
-        estado('Pedido registrado.');
+        estado('Pedido registrado: queda en camino.');
         await refrescar();
     } catch (err) {
         estado(`Error al registrar: ${err.message}`);
@@ -245,6 +269,27 @@ $('hidro-compra-registrar').addEventListener('click', async function () {
             : `Error al registrar: ${err.message}`);
     } finally {
         this.disabled = false;
+    }
+});
+
+$('hidro-en-camino').addEventListener('click', async e => {
+    const id = e.target.dataset?.llego;
+    if (!id) return;
+    const campo   = $('hidro-en-camino').querySelector(`[data-llegada-fecha="${CSS.escape(id)}"]`);
+    const llegada = fechaPedido(campo.value);
+    if (!confirm(`¿Registrar que el pedido llegó el ${formatoFecha(llegada)}?\n` +
+                 'Desde esa fecha sus piezas cuentan en lo que queda.')) return;
+    e.target.disabled = true;
+    try {
+        await PEDIDOS.doc(id).update({
+            estado:  'llegado',
+            llegada: firebase.firestore.Timestamp.fromDate(llegada),
+        });
+        estado('Llegada registrada.');
+        await refrescar();
+    } catch (err) {
+        e.target.disabled = false;
+        estado(`Error al registrar la llegada: ${err.message}`);
     }
 });
 

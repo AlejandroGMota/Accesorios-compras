@@ -66,6 +66,8 @@ Accesorios-compras/
 ├── index.html                            # Lista del tianguis (la de siempre)
 ├── app.js                                # Arranque de la lista del tianguis
 ├── lista-core.js                         # Lógica compartida por las listas
+├── modelos.js                            # Reconocer un modelo («15» = «iPhone 15» ≠ «a15»); listas y Analytics
+├── sw.js                                 # Service worker: las listas abren sin señal
 ├── local.html / local.js                 # Lista de un local  ·  ?id=<idDelLocal>
 ├── locales.html / locales.js             # Índice de locales con su liga
 ├── admin.html / admin.js                 # Crear y editar locales (pide login)
@@ -105,6 +107,21 @@ toca cada cuánto. La vista **«separado por local»** es la del regreso.
 
 Palomear un producto en la global lo marca en **todos** los locales que lo
 pidieron, para que quien anotó vea que ya viene en camino.
+
+### Sin señal (el tianguis)
+
+La lista del tianguis y las de los locales abren y se pueden usar sin internet:
+
+- `sw.js` guarda la página, los .js, el .css y el SDK de Firebase en el teléfono.
+- Firestore (`enablePersistence`) guarda la lista y la **cola de cambios sin subir** en el teléfono. Sobrevive a cerrar la app; se sube sola en cuanto la app se abre con señal.
+- Los renglones sin subir salen con borde punteado; arriba hay una barra con cuántos cambios faltan.
+- Ninguna escritura espera al servidor: sin señal la promesa no se cumple hasta que vuelve la red, y antes eso dejaba el botón colgado (y se le picaba 5 veces).
+
+Para que funcione hay que abrir la app **una vez con señal** después de cada instalación en el teléfono: ahí se guarda todo. En iPhone, la app de la pantalla de inicio tiene su propio almacenamiento, separado de Safari.
+
+### Renglones repetidos
+
+Al agregar, si ya hay un renglón **sin palomear** con el mismo modelo, categoría y tipo, la app pregunta: *Reescribir* (deja la cantidad nueva), *Sumar*, *Guardar los dos* o *Cancelar*. El modelo se compara normalizado con `modelos.js`: `15`, `ip 15` e `iPhone 15` son el mismo; `a15` y `Samsung A15` son Samsung. En micas también cuentan los alias que comparten mica (`13` y `14`); en fundas no.
 
 ## Categorías de Productos
 

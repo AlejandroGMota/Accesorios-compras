@@ -204,16 +204,50 @@ export function periodos(pedidos, ahora = new Date(), conteos = [], compras = []
     };
 }
 
+// Un pedido a KASR tiene dos fechas que sirven para cosas distintas:
+//   - `fecha`, cuándo se pidió: de ahí se cuenta lo que hay que reponer en el
+//     siguiente pedido (lo vendido mientras viaja también hay que reponerlo).
+//   - `llegada`, cuándo llegó: desde ahí esas piezas existen en el cajón.
+// Mientras no llega, `estado` es 'en_camino'. Los pedidos viejos no traen
+// ninguno de los dos y se toman como llegados el día que se pidieron, que es
+// como se contaban antes. Las compras sin KASR se registran al llegar.
+export function llegadaDe(p) {
+    if (p.llegada) return p.llegada;
+    return p.estado === 'en_camino' ? null : p.fecha;
+}
+
+export const enCamino = pedidos => pedidos.filter(p => !llegadaDe(p));
+
+// Cuántos días tarda KASR, en promedio, según los pedidos que ya tienen fecha de
+// llegada guardada. Los viejos no cuentan: su «llegada» es la fecha del pedido.
+// Sin ninguno, lo que dice KASR (DIAS_ENVIO).
+export function diasEnvio(pedidos) {
+    const dias = pedidos.filter(p => p.llegada).map(p => (p.llegada - p.fecha) / DIA);
+    if (!dias.length) return { dias: DIAS_ENVIO, muestras: 0 };
+    return { dias: Math.round(dias.reduce((a, b) => a + b, 0) / dias.length), muestras: dias.length };
+}
+
+export const llegadaEstimada = (pedido, envio) => new Date(pedido.fecha.getTime() + envio.dias * DIA);
+
+// «llega aprox. el 9 nov 2026 (KASR tarda ~14 días, según 1 pedido)» o, si ya pasó, «debió llegar…»
+export function textoEstimado(pedido, envio, ahora = new Date()) {
+    const fecha  = llegadaEstimada(pedido, envio);
+    const fuente = envio.muestras
+        ? `KASR tarda ~${envio.dias} días, según ${envio.muestras} pedido${envio.muestras === 1 ? '' : 's'}`
+        : `KASR dice ${envio.dias} días; aún no hay llegadas registradas`;
+    return `${fecha < ahora ? 'debió llegar' : 'llega aprox.'} el ${formatoFecha(fecha)} (${fuente})`;
+}
+
 // Cuánto queda de una hoja o de un producto sin KASR. `pedidos` son los pedidos a
 // KASR para una hoja y las compras para un producto sin KASR: cuentan igual.
 //
-// Con conteo: lo contado, más lo pedido después, menos lo vendido después. Lo
-// pedido suma desde que se pide aunque tarde en llegar, que es lo que importa
-// para decidir el siguiente pedido. Por lo mismo, si al contar viene un pedido
-// en camino, hay que sumarlo al conteo: su fecha es anterior y ya no entra solo.
+// Con conteo: lo contado, más lo que llegó después, menos lo vendido después.
+// Sin conteo: lo del último pedido que llegó menos lo vendido desde que llegó.
+// Da por hecho que al llegar no quedaba nada de antes, que es justo lo que el
+// conteo corrige.
 //
-// Sin conteo: lo del último pedido menos lo vendido desde él. Da por hecho que
-// al llegar no quedaba nada de antes, que es justo lo que el conteo corrige.
+// Lo que viene en camino no está en el cajón: va aparte en `enCamino`, y solo
+// entra a la cuenta de los días que alcanza (para no pedir dos veces lo mismo).
 //
 // Sin conteo ni pedido no hay de dónde partir y `queda` es null.
 //
@@ -221,16 +255,21 @@ export function periodos(pedidos, ahora = new Date(), conteos = [], compras = []
 // que había, o sea que falta contar o hay cotizaciones que no se concretaron y
 // siguen contando como vendidas. Con un 0 el error se arrastra sin que se vea.
 function existencia(clave, tipos, { ventas, pedidos, conteos }) {
+    const piezasDeClave = p => p.items?.[clave] || 0;
+    const viajando = enCamino(pedidos).reduce((n, p) => n + piezasDeClave(p), 0);
+    // Desde aquí la fecha de cada entrada es la de llegada
+    const llegados = pedidos.filter(llegadaDe).map(p => ({ ...p, fecha: llegadaDe(p) }));
+
     const conteo = ultimoConteo(conteos, clave);
     if (conteo) {
-        const entro   = pedidos.filter(p => p.fecha > conteo.fecha).reduce((n, p) => n + (p.items?.[clave] || 0), 0);
+        const entro   = llegados.filter(p => p.fecha > conteo.fecha).reduce((n, p) => n + piezasDeClave(p), 0);
         const vendido = piezasDe(ventas, tipos, conteo.fecha);
-        return { conteo, pedido: null, base: conteo.piezas, entro, vendido, queda: conteo.piezas + entro - vendido };
+        return { conteo, pedido: null, base: conteo.piezas, entro, vendido, queda: conteo.piezas + entro - vendido, enCamino: viajando };
     }
-    const pedido = [...pedidos].sort((a, b) => b.fecha - a.fecha).find(p => (p.items?.[clave] || 0) > 0);
-    if (!pedido) return { conteo: null, pedido: null, base: null, entro: 0, vendido: null, queda: null };
+    const pedido = llegados.sort((a, b) => b.fecha - a.fecha).find(p => piezasDeClave(p) > 0);
+    if (!pedido) return { conteo: null, pedido: null, base: null, entro: 0, vendido: null, queda: null, enCamino: viajando };
     const vendido = piezasDe(ventas, tipos, pedido.fecha);
-    return { conteo: null, pedido, base: pedido.items[clave], entro: 0, vendido, queda: pedido.items[clave] - vendido };
+    return { conteo: null, pedido, base: pedido.items[clave], entro: 0, vendido, queda: pedido.items[clave] - vendido, enCamino: viajando };
 }
 
 // Qué pedirle a KASR: reponer lo vendido de cada hoja desde el último pedido que la
@@ -252,7 +291,10 @@ export function sugerirPedido({ ventas, pedidos, conteos = [], compras = [], aho
         const e       = existencia(clave, tipos, { ventas, pedidos: entradas, conteos });
         const enRitmo = piezasDe(ventas, tipos, desdeRitmo);
         const porDia  = enRitmo / diasRitmo;
-        const diasRestantes = e.queda !== null && e.queda >= 0 && porDia > 0 ? Math.floor(e.queda / porDia) : null;
+        // Lo que viene en camino sí cuenta para cuánto alcanza: si no, el aviso
+        // pediría otra vez lo que ya se pidió
+        const alcanza = e.queda === null ? null : e.queda + e.enCamino;
+        const diasRestantes = alcanza !== null && e.queda >= 0 && porDia > 0 ? Math.floor(alcanza / porDia) : null;
         return { existencia: e, enRitmo, porDia, diasRestantes };
     };
 
@@ -301,6 +343,8 @@ export function sugerirPedido({ ventas, pedidos, conteos = [], compras = [], aho
         desde: p.desdeGeneral,
         dias:  Math.max(0, Math.floor((ahora - p.desdeGeneral) / DIA)),
         ultimoPedido: p.ultimoPedido,
+        enCamino: enCamino(pedidos),
+        envio:    diasEnvio(pedidos),
         resumen,
         diasRitmo,
         hojas,

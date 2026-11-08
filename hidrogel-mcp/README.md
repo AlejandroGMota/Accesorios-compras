@@ -16,13 +16,15 @@ Chat de Claude ──(MCP)──▶ hidrogel.alejandrogmota.com ──▶ nginx 
 | `anular_cotizacion` | Marca una cotización como anulada (corrección o error) |
 | `ventas_hidrogel` | Suma lo cotizado en un periodo, por tipo (por defecto, desde el último pedido) |
 | `pedido_kasr` | Mensaje «Can you create a link for…» con lo vendido de cada hoja, costo y tarifa DDP |
-| `registrar_pedido_kasr` | Guarda un pedido a KASR en `hidrogel_pedidos` |
+| `registrar_pedido_kasr` | Guarda un pedido a KASR en `hidrogel_pedidos`, en camino |
+| `llego_pedido_kasr` | Marca como llegado el pedido en camino más reciente (o el de un id), con la fecha de llegada |
 | `registrar_compra` | Guarda una compra de Blue Ray o Tablet 13" (no son de KASR) en `hidrogel_compras` |
 
 Reglas de reposición (en [`analytics/hidrogel-core.js`](../analytics/hidrogel-core.js), compartido con la pestaña):
 
 - Cada hoja repone lo vendido desde el último pedido que la incluyó. El conteo físico no cambia eso.
-- Cuánto queda: último conteo físico (`hidrogel_conteos`) + lo pedido después − lo vendido después. Sin conteo, el último pedido − lo vendido desde él. Un negativo sale como «no cuadra».
+- Cada pedido tiene dos fechas: `fecha` (se pidió) manda en lo que se repone; `llegada` (llegó) manda en cuánto queda.
+- Cuánto queda: último conteo físico (`hidrogel_conteos`) + lo que llegó después − lo vendido después. Sin conteo, el último pedido que llegó − lo vendido desde que llegó. Lo que viene en camino sale aparte y sí cuenta para los días que alcanza. Un negativo sale como «no cuadra».
 - El ritmo de venta usa los últimos 30 días (o los que haya desde la primera cotización registrada).
 - Privacidad Matte → AG-12 · Privacidad HD → HD-09 · Privacidad Matte Lion → NT67 · Privacidad HD Lion → NT66.
 - Lion solo se cotiza si el mensaje dice «lion»; «privacidad» a secas es la normal.
@@ -71,9 +73,9 @@ Instrucciones del proyecto «Presupuesto de micas hidrogel». Son las que pega e
 
 ```
 Eres el asistente de cotizaciones de Celinki (micas de hidrogel).
-Tienes el conector «Hidrogel» con 6 herramientas:
+Tienes el conector «Hidrogel» con 7 herramientas:
   cotizar · anular_cotizacion · pedido_kasr · registrar_pedido_kasr ·
-  registrar_compra · ventas_hidrogel
+  llego_pedido_kasr · registrar_compra · ventas_hidrogel
 
 ╔══════════════════════════════════════════════════════╗
 ║  REGLA 1 (la más importante):                        ║
@@ -101,6 +103,9 @@ SI el mensaje pregunta cuánto queda de una mica
 
 SI el mensaje dice «ya pedí»
    → llama a registrar_pedido_kasr con las cantidades finales.
+
+SI el mensaje dice que ya llegó el pedido de KASR (o «llegó el hidrogel»)
+   → llama a llego_pedido_kasr (con fecha solo si no fue hoy).
 
 SI el mensaje dice que llegaron Blue Ray o cualquier Tablet 13" (no son de KASR)
    → llama a registrar_compra con las piezas que llegaron.
@@ -276,7 +281,9 @@ match /hidrogel_pedidos/{id} {
 
 | Campo | Tipo | |
 |---|---|---|
-| `fecha` | Timestamp | Cuándo se pidió; si solo se da el día (y no es hoy), 23:59 de ese día |
+| `fecha` | Timestamp | Cuándo se pidió; si solo se da el día (y no es hoy), 23:59 de ese día. De aquí sale lo que se repone |
+| `estado` | string | `en_camino` o `llegado`. Los pedidos viejos no lo traen y cuentan como llegados en su `fecha` |
+| `llegada` | Timestamp | Cuándo llegó (botón «Ya llegó» o `llego_pedido_kasr`). Desde aquí sus piezas cuentan en lo que queda |
 | `items` | map | Piezas por hoja: `{ "AG-12": 100, "NT68": 350, … }` |
 | `piezas` | number | Total |
 | `origen` | string | `claude` o `web` |

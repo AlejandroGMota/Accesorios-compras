@@ -10,6 +10,8 @@ on:
       - 'style.css'
       - 'app.js'
       - 'lista-core.js'
+      - 'modelos.js'
+      - 'sw.js'
       - 'precios.js'
       - 'manifest.webmanifest'
       - 'auth.js'
@@ -131,6 +133,11 @@ jobs:
                       f.write(nuevo)
                   print(path, 'versionado a', sha)
           "
+
+      # Los scrapers (código Go y el binario de 8.7 MB) viven en el repo pero no
+      # son parte del sitio: no se publican
+      - name: Remove non-site files
+        run: rm -rf catalogo-buytiti/scraper catalogo-myshop/scraper
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

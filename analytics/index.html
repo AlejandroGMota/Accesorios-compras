@@ -262,6 +262,8 @@
                 <span class="stat-value" id="hidro-vendidas">—</span>
             </div>
         </div>
+        <!-- Pedidos que ya se hicieron y todavía no llegan, con su botón de «Ya llegó» -->
+        <div id="hidro-en-camino" class="hidro-en-camino" hidden></div>
     </section>
 
     <!-- Hojas: pedido, vendido y cuánto alcanza -->
@@ -281,7 +283,8 @@
                 <tbody id="hidro-hojas"></tbody>
             </table>
         </div>
-        <p class="chart-note">«Queda» sale del último conteo físico más lo pedido después, menos lo vendido desde el conteo; sin conteo, del último pedido.
+        <p class="chart-note">«Queda» es lo que hay en el cajón: el último conteo físico más lo que llegó después, menos lo vendido desde el conteo; sin conteo, el último pedido que llegó menos lo vendido desde que llegó. Lo que viene en camino sale aparte y sí cuenta para «Alcanza».
+            «Vendido» es lo que repone el siguiente pedido: se cuenta desde el día en que se pidió, no desde que llegó.
             Si sale negativo, se vendió más de lo que había: falta contar o anular cotizaciones que no se concretaron.</p>
         <p id="hidro-fuera" class="chart-note"></p>
     </section>
@@ -332,6 +335,7 @@
         <label for="hidro-fecha">Fecha del pedido</label>
         <input type="date" id="hidro-fecha">
         <button id="hidro-registrar" class="btn-primary">Registrar como pedido enviado</button>
+        <p class="chart-note">Queda «en camino» hasta que le des «Ya llegó» arriba.</p>
         <p id="hidro-estado" class="muted"></p>
     </section>
 
@@ -434,6 +438,7 @@
     }
     const db = firebase.firestore();
 </script>
+<script src="../modelos.js"></script>
 <script src="./analytics.js"></script>
 <script type="module" src="./hidrogel.js"></script>
 </body>

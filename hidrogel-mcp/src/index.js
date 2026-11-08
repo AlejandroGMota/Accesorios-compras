@@ -5,7 +5,7 @@
 import {
     TIPOS, HOJAS, SKUS, SIN_KASR, DIAS_AVISO, DIAS_SIN_PEDIDO,
     parsearFecha, fechaPedido, formatoFecha, formatoNumero, haceDias,
-    resumirVentas, periodos, sugerirPedido, describirPedido,
+    resumirVentas, periodos, sugerirPedido, describirPedido, llegadaDe, enCamino, textoEstimado,
 } from '../../analytics/hidrogel-core.js';
 
 const VENTAS   = 'hidrogel_ventas';
@@ -170,7 +170,7 @@ function opcional(db, coleccion, limite) {
     });
 }
 
-const PEDIDO = { suman: 'pedidas',   la: 'el pedido' };
+const PEDIDO = { suman: 'que llegaron', la: 'el pedido' };
 const COMPRA = { suman: 'compradas', la: 'la compra' };
 
 // Cuánto queda, en palabras: «quedan ~50 según el conteo del 10 oct 2026 (~16 días)»
@@ -182,7 +182,8 @@ function textoExistencia(x, diasRitmo, entrada) {
         : `${entrada.la} del ${formatoFecha(e.pedido.fecha)} (${e.base})`;
     if (e.queda < 0) return `NO CUADRA: según ${origen} se vendieron ${-e.queda} de más; falta contar o anular cotizaciones que no se concretaron`;
     const dias = x.diasRestantes === null ? '' : ` (~${x.diasRestantes} días)${x.alerta ? ' ⚠' : ''}`;
-    return `quedan ~${e.queda} según ${origen}${dias}`;
+    const viajando = e.enCamino ? `, más ${e.enCamino} en camino` : '';
+    return `quedan ~${e.queda} según ${origen}${viajando}${dias}`;
 }
 
 // ========== Herramientas ==========
@@ -367,8 +368,10 @@ const HERRAMIENTAS = [
             const s = sugerirPedido({ ventas, pedidos, conteos, compras });
             const pedido = s.ultimoPedido;
 
+            const llegada = pedido && llegadaDe(pedido);
             const encabezado = pedido
-                ? `Último pedido a KASR: ${formatoFecha(pedido.fecha)} (${haceDias(s.dias)}), ${formatoNumero(pedido.piezas || 0)} pzs.`
+                ? `Último pedido a KASR: ${formatoFecha(pedido.fecha)} (${haceDias(s.dias)}), ${formatoNumero(pedido.piezas || 0)} pzs, ` +
+                  `${llegada ? `llegó el ${formatoFecha(llegada)}` : `todavía en camino; ${textoEstimado(pedido, s.envio)}`}.`
                 : `No hay pedido a KASR registrado; cuento los últimos ${DIAS_SIN_PEDIDO} días.`;
             const hojas = s.hojas.map(h =>
                 `- ${h.sku} (${h.descripcion}): por reponer ${h.vendido} (vendidas desde ${formatoFecha(h.desde)}); ${textoExistencia(h, s.diasRitmo, PEDIDO)}`);
@@ -392,7 +395,8 @@ const HERRAMIENTAS = [
         name: 'registrar_pedido_kasr',
         description:
             'Guarda que el usuario ya le hizo un pedido a KASR. Desde esta fecha se cuentan las ventas de las hojas que incluye. ' +
-            'Llámala solo cuando el usuario confirme que ya lo pidió, con las cantidades finales.',
+            'Llámala solo cuando el usuario confirme que ya lo pidió, con las cantidades finales. Queda en camino (no cuenta ' +
+            'en lo que queda) hasta que diga que llegó: entonces usa llego_pedido_kasr.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -414,10 +418,38 @@ const HERRAMIENTAS = [
             const ahora = new Date();
             const cuando = fechaPedido(fecha, ahora);
             const doc = await db.agregar(PEDIDOS, {
-                fecha: cuando, proveedor: 'KASR', items: limpios, piezas, origen: 'claude', creado: ahora,
+                fecha: cuando, proveedor: 'KASR', items: limpios, piezas, estado: 'en_camino', origen: 'claude', creado: ahora,
             });
             const detalle = Object.entries(limpios).map(([s, n]) => `${s} ${n}`).join(', ');
-            return `Pedido registrado (id ${doc.id}), ${formatoFecha(cuando)}: ${detalle} = ${piezas} pzs. ${describirPedido(limpios)}`;
+            return `Pedido registrado (id ${doc.id}), ${formatoFecha(cuando)}: ${detalle} = ${piezas} pzs. ${describirPedido(limpios)} ` +
+                   'Queda en camino hasta que llegue.';
+        },
+    },
+    {
+        name: 'llego_pedido_kasr',
+        description:
+            'Guarda que ya llegó un pedido a KASR que estaba en camino. Desde la fecha de llegada sus piezas cuentan en lo ' +
+            'que queda; la fecha del pedido no cambia, porque de ella sale lo que se repone en el siguiente. Llámala cuando ' +
+            'el usuario diga que le llegó el pedido o el hidrogel de KASR. Sin id, marca el pedido en camino más reciente.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                id:    { type: 'string', description: 'id del pedido; omítelo para el más reciente en camino' },
+                fecha: { type: 'string', description: 'AAAA-MM-DD (hora de México) en que llegó. Omítela si fue hoy.' },
+            },
+            additionalProperties: false,
+        },
+        async ejecutar({ id, fecha }, db) {
+            const viajando = enCamino(await pedidosRecientes(db));
+            const pedido = id ? viajando.find(p => p.id === id) : viajando[0];
+            if (!pedido) throw new Error(id
+                ? `El pedido ${id} no está en camino (ya llegó o no existe).`
+                : 'No hay pedidos a KASR en camino.');
+            const llegada = fechaPedido(fecha);
+            if (llegada < pedido.fecha) throw new Error(`La llegada (${formatoFecha(llegada)}) es anterior al pedido (${formatoFecha(pedido.fecha)}).`);
+            await db.actualizar(PEDIDOS, pedido.id, { estado: 'llegado', llegada });
+            return `Pedido del ${formatoFecha(pedido.fecha)} (${formatoNumero(pedido.piezas || 0)} pzs) marcado como llegado el ` +
+                   `${formatoFecha(llegada)}. Si hay tiempo, conviene contar las hojas para que lo que queda parta de un conteo.`;
         },
     },
     {
@@ -464,7 +496,8 @@ const INSTRUCCIONES =
     'Toda cotización de micas de hidrogel se hace con la herramienta cotizar, ANTES de responder: le pasas tipos, ' +
     'cantidades y precios, y respondes con el texto que devuelve. Así queda registrada sola; no pidas confirmación ' +
     'ni lo menciones (solo avisa si falla). ' +
-    'Para saber qué pedirle al proveedor usa pedido_kasr; cuando el usuario confirme que ya pidió, usa registrar_pedido_kasr. ' +
+    'Para saber qué pedirle al proveedor usa pedido_kasr; cuando el usuario confirme que ya pidió, usa registrar_pedido_kasr, ' +
+    'y cuando diga que ya le llegó el pedido de KASR, usa llego_pedido_kasr. ' +
     'Cuando diga que le llegaron Blue Ray o Tablet 13" (no son de KASR), usa registrar_compra.';
 
 function resultado(id, result) { return { jsonrpc: '2.0', id, result }; }

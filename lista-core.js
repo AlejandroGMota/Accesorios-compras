@@ -37,31 +37,29 @@ const LISTA_IDS = [
 const OPTION_IDS = ['micaOptions', 'hidrogelOptions', 'fundaColors', 'fundaTypes', 'fundasNuevasOptions', 'unaHoraOptions'];
 
 // ========== Datos ==========
-async function agregarItem(datos) {
-    try {
-        const ref = await ITEMS_REF.add({
-            ...datos,
-            local:    LOCAL_ID,
-            comprada: null,
-            creado:   Date.now(),   // orden de la lista; la fecha real de compra la lleva Analytics
-        });
-        return ref;
-    } catch (err) {
-        console.error('Error al guardar en Firestore:', err);
-        showToast('Error al guardar. Revisa tu conexión.', 'error', 5000);
-        return null;
-    }
+// Sin señal (el tianguis no tiene) Firestore guarda cada cambio en el teléfono
+// al instante, lo muestra en la lista y lo sube solo cuando vuelve la red,
+// aunque la app se cierre en medio (enablePersistence lo deja en IndexedDB).
+//
+// Pero la promesa de .set() / .update() / .commit() se cumple hasta que el
+// SERVIDOR contesta. Esperarla sin señal es quedarse colgado: el botón no
+// respondía, se le volvía a picar y se guardaba el mismo renglón 5 veces. Por
+// eso nunca se espera: el cambio ya está guardado en cuanto se llama. Si el
+// servidor lo rechaza después (reglas), ahí sí se avisa.
+function enviar(promesa, mensaje = 'El servidor rechazó un cambio. Revisa la lista.') {
+    promesa.catch(err => {
+        console.error(mensaje, err);
+        showToast(mensaje, 'error', 6000);
+    });
 }
 
-async function actualizarItem(id, cambios) {
-    try {
-        await ITEMS_REF.doc(id).update(cambios);
-        return true;
-    } catch (err) {
-        console.error('Error al actualizar en Firestore:', err);
-        showToast('Error al guardar. Revisa tu conexión.', 'error', 5000);
-        return false;
-    }
+// La hora del teléfono, no la del servidor: un cambio hecho sin señal el sábado
+// puede subirse hasta el lunes, y serverTimestamp() le pondría la del lunes.
+const ahoraTs = () => firebase.firestore.Timestamp.now();
+
+function actualizarItem(id, cambios) {
+    enviar(ITEMS_REF.doc(id).update(cambios));
+    return true;
 }
 
 // ========== DOM: dónde va cada producto ==========
@@ -128,7 +126,7 @@ function addProductToDOM(product) {
 
     const div = document.createElement('div');
     // Ya se palomea en todas las categorías, no solo en micas
-    div.className = `product con-compra${product.comprada ? ' comprada' : ''}`;
+    div.className = `product con-compra${product.comprada ? ' comprada' : ''}${product.sinSubir ? ' sin-subir' : ''}`;
     div.innerHTML = `
         <h3>${escapeHtml(product.name)}</h3>
         ${CON_PRECIOS ? `<p><span>Precio:</span> $${(product.price ?? 0).toFixed(2)}</p>` : ''}
@@ -181,13 +179,7 @@ async function deleteProduct(id) {
     if (!product) return;
     if (!confirm(`¿Borrar "${product.name}" de la lista?`)) return;
 
-    try {
-        await ITEMS_REF.doc(id).delete();
-    } catch (err) {
-        console.error('Error al borrar en Firestore:', err);
-        showToast('No se pudo borrar. Revisa tu conexión.', 'error', 5000);
-        return;
-    }
+    enviar(ITEMS_REF.doc(id).delete(), `El servidor no dejó borrar "${product.name}".`);
     showToast('Producto eliminado', 'error');
 
     // Lo que se borra sin palomear nunca se compró: su registro se anula
@@ -201,15 +193,9 @@ async function borrarCompradas() {
     const n = compradas.length;
     if (!confirm(`¿Quitar de la lista ${n} producto${n === 1 ? '' : 's'} ya comprado${n === 1 ? '' : 's'}? Las micas siguen contando en Analytics.`)) return;
 
-    try {
-        const lote = db.batch();
-        compradas.forEach(p => lote.delete(ITEMS_REF.doc(p.id)));
-        await lote.commit();
-    } catch (err) {
-        console.error('Error al borrar las compradas:', err);
-        showToast('No se pudieron borrar. Revisa tu conexión.', 'error', 5000);
-        return;
-    }
+    const lote = db.batch();
+    compradas.forEach(p => lote.delete(ITEMS_REF.doc(p.id)));
+    enviar(lote.commit(), 'El servidor no dejó borrar las compradas.');
     showToast(`${n} producto${n === 1 ? '' : 's'} fuera de la lista`, 'success');
 }
 
@@ -219,8 +205,7 @@ async function toggleComprada(id) {
     if (!product) return;
 
     const comprada = !product.comprada;
-    const ok = await actualizarItem(id, { comprada: comprada ? Date.now() : null });
-    if (!ok) return;
+    actualizarItem(id, { comprada: comprada ? Date.now() : null });
 
     if (!comprada) {
         showToast('Ya no está marcada como comprada');
@@ -379,7 +364,7 @@ async function comprarParcial(product, elegido) {
         lote.set(db.collection(spec.col).doc(), {
             ...datos,
             estado:   'comprado',
-            comprado: firebase.firestore.FieldValue.serverTimestamp(),
+            comprado: ahoraTs(),
         });
         lote.update(ITEMS_REF.doc(product.id), {
             quantity: restante,
@@ -388,7 +373,8 @@ async function comprarParcial(product, elegido) {
             ...(quedan ? { colors: quedan.colors, fundaTypes: quedan.fundaTypes } : {}),
         });
 
-        await lote.commit();
+        // Sin esperar al servidor (ver `enviar`): el lote ya quedó en el teléfono
+        enviar(lote.commit(), 'El servidor rechazó la compra parcial. Revisa ese renglón.');
     } catch (err) {
         console.error(`Error registrando la compra parcial en ${spec.col}:`, err);
         showToast('No se pudo guardar la compra parcial. Nada cambió: vuelve a intentarlo.',
@@ -519,7 +505,18 @@ function initFormulario() {
     const borrarBtn = document.getElementById('borrarCompradasBtn');
     if (borrarBtn) borrarBtn.addEventListener('click', borrarCompradas);
 
-    document.getElementById('addProductBtn').addEventListener('click', onAgregarProducto);
+    // Un toque a la vez: mientras se arma el renglón (o se responde si está
+    // repetido) el botón no hace nada
+    const agregarBtn = document.getElementById('addProductBtn');
+    agregarBtn.addEventListener('click', async () => {
+        if (agregarBtn.disabled) return;
+        agregarBtn.disabled = true;
+        try {
+            await onAgregarProducto();
+        } finally {
+            agregarBtn.disabled = false;
+        }
+    });
 
     hideAllOptions();
 }
@@ -591,11 +588,18 @@ async function onAgregarProducto() {
         ...(piezas ? { piezas } : {}),
     };
 
-    const ref = await agregarItem(product);
-    if (!ref) return;
-    showToast('Producto agregado', 'success');
-
-    registrarCompra({ ...product, id: ref.id }).catch(() => {});
+    // ¿Ya estaba pendiente el mismo modelo? Pasa al anotar una semana y volver a
+    // anotar la siguiente porque no se fue por las cosas.
+    const repetido = await buscarRepetido(product);
+    if (repetido) {
+        const accion = await preguntarRepetido(repetido, product);
+        if (accion === 'cancelar') return;
+        if (accion === 'reemplazar') reemplazarRenglon(repetido, product);
+        if (accion === 'sumar')      reemplazarRenglon(repetido, sumarRenglones(repetido, product));
+        if (accion === 'ambas')      await guardarNuevo(product);
+    } else {
+        await guardarNuevo(product);
+    }
 
     document.getElementById('productName').value = '';
     document.querySelectorAll('#fundaColors input, #fundaTypes input')
@@ -607,6 +611,142 @@ function precioPorDefecto(category, tipo) {
     if (category === 'Micas')    return precioMica(tipo);
     if (category === 'Hidrogel') return precioHidrogel(tipo);
     return 0;
+}
+
+// ========== Guardar un renglón nuevo ==========
+// El renglón y su registro de Analytics van en un mismo lote, con el id del
+// registro ya puesto en el renglón: sin señal no hay segunda escritura que
+// esperar, y o se suben los dos o ninguno.
+async function guardarNuevo(product) {
+    const spec   = specRegistro(product.category);
+    const item   = ITEMS_REF.doc();
+    const reg    = db.collection(spec.col).doc();
+    const datos  = await datosRegistro({ ...product, local: LOCAL_ID }, product.quantity);
+
+    const lote = db.batch();
+    lote.set(item, {
+        ...product,
+        local:       LOCAL_ID,
+        comprada:    null,
+        creado:      Date.now(),   // orden de la lista; la fecha real de compra la lleva Analytics
+        analyticsId: reg.id,
+    });
+    lote.set(reg, datos);
+    enviar(lote.commit(), `El servidor rechazó "${product.name}". Vuelve a anotarlo.`);
+    showToast('Producto agregado', 'success');
+    return item;
+}
+
+// ========== Renglones repetidos ==========
+// Mismo modelo, misma categoría y mismo tipo, todavía sin palomear. El modelo
+// se compara ya normalizado (modelos.js): «15», «ip 15» e «iPhone 15» son el
+// mismo; «a15» es Samsung y no choca con el iPhone. En micas también cuentan
+// los alias que comparten mica («13» y «14»): es la misma caja. En lo demás
+// no: una funda de A15 no le queda a un A24.
+async function buscarRepetido(product) {
+    const aliasMap = await cargarAliases(window.RUTA_ALIASES);
+    const opciones = { conAlias: product.category === 'Micas' };
+    const modelo   = modeloCanonico(product.name, aliasMap, opciones);
+    if (!modelo) return null;
+    return currentItems.find(p =>
+        !p.comprada &&
+        p.category === product.category &&
+        (p.type ?? '') === (product.type ?? '') &&
+        modeloCanonico(p.name, aliasMap, opciones) === modelo) ?? null;
+}
+
+function etiquetaTipo(p) {
+    const categoria = { '1hora': '1 Hora' }[p.category] ?? p.category;
+    return [categoria, p.type].filter(Boolean).join(' ');
+}
+
+function detalleRenglon(p) {
+    const variantes = [...(p.colors ?? []), ...(p.fundaTypes ?? [])];
+    return `${textoCantidad(p)}${variantes.length ? ` · ${variantes.join(', ')}` : ''}`;
+}
+
+// Lo que queda si se juntan los dos. En fundas cada color o tipo es una funda,
+// así que se juntan las casillas (sin repetir) en vez de sumar números.
+function sumarRenglones(viejo, nuevo) {
+    if (viejo.category === 'Fundas') {
+        const colors     = [...new Set([...(viejo.colors ?? []), ...(nuevo.colors ?? [])])];
+        const fundaTypes = [...new Set([...(viejo.fundaTypes ?? []), ...(nuevo.fundaTypes ?? [])])];
+        return { ...nuevo, colors, fundaTypes, quantity: colors.length + fundaTypes.length };
+    }
+    // Micas de local: se suman las piezas y las cajas salen de ahí
+    if (viejo.piezas && nuevo.piezas) {
+        const piezas = viejo.piezas + nuevo.piezas;
+        return { ...nuevo, piezas, quantity: Math.ceil(piezas / PZS_POR_CAJA) };
+    }
+    const { piezas, ...sinPiezas } = nuevo;
+    return { ...sinPiezas, quantity: viejo.quantity + nuevo.quantity };
+}
+
+// El renglón viejo con los datos nuevos encima. `piezas` no se hereda: si lo
+// nuevo no las trae, las del viejo ya no cuadran con las cajas.
+const combinar = (viejo, nuevo) => ({ ...viejo, piezas: undefined, ...nuevo });
+
+// Pasa al renglón que ya estaba los datos de `nuevo`. Se queda su nombre, su
+// fecha y su registro de Analytics, que se ajusta a la cantidad nueva.
+async function reemplazarRenglon(viejo, nuevo) {
+    const borrar = firebase.firestore.FieldValue.delete();
+    actualizarItem(viejo.id, {
+        quantity:   nuevo.quantity,
+        price:      nuevo.price,
+        colors:     nuevo.colors ?? [],
+        fundaTypes: nuevo.fundaTypes ?? [],
+        piezas:     nuevo.piezas ?? borrar,
+    });
+    showToast(`"${viejo.name}" quedó en ${detalleRenglon(combinar(viejo, nuevo))}`, 'success', 4000);
+
+    // Si el registro no aparece da igual: al palomear se escribe con la
+    // cantidad del renglón (ver marcarComprada). Va aparte del renglón para que
+    // un registro perdido no tumbe el cambio de la lista.
+    const ref = await buscarRegistro(viejo);
+    if (!ref) return;
+    ref.update({
+        cantidad: nuevo.quantity,
+        precio:   nuevo.price ?? 0,
+        ...(viejo.category === 'Fundas' ? { colores: nuevo.colors ?? [], tipos: nuevo.fundaTypes ?? [] } : {}),
+    }).catch(err => console.warn('No se pudo ajustar el registro de Analytics:', err));
+}
+
+let dialogoRepetido = null;
+
+// Resuelve con 'reemplazar', 'sumar', 'ambas' o 'cancelar'
+function preguntarRepetido(viejo, nuevo) {
+    if (!dialogoRepetido) {
+        dialogoRepetido = document.createElement('dialog');
+        dialogoRepetido.className = 'dialogo-repetido';
+        document.body.appendChild(dialogoRepetido);
+    }
+    const d = dialogoRepetido;
+    const anotado = viejo.creado
+        ? new Date(viejo.creado).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+        : '';
+    const suma = sumarRenglones(viejo, nuevo);
+    d.innerHTML = `
+        <form method="dialog">
+            <p class="repetido-etiqueta">Ya está en la lista</p>
+            <h3>${escapeHtml(etiquetaTipo(viejo))} · ${escapeHtml(viejo.name)}</h3>
+            <dl>
+                <dt>Ya anotado${anotado ? ` el ${escapeHtml(anotado)}` : ''}</dt>
+                <dd>«${escapeHtml(viejo.name)}» · ${escapeHtml(detalleRenglon(viejo))}</dd>
+                <dt>Lo que acabas de poner</dt>
+                <dd>«${escapeHtml(nuevo.name)}» · ${escapeHtml(detalleRenglon(nuevo))}</dd>
+            </dl>
+            <div class="repetido-acciones">
+                <button value="reemplazar" class="btn-primary">Reescribir: dejar ${escapeHtml(detalleRenglon(nuevo))}</button>
+                <button value="sumar">Sumar: queda en ${escapeHtml(detalleRenglon(combinar(viejo, suma)))}</button>
+                <button value="ambas">Guardar los dos renglones</button>
+                <button value="cancelar" class="repetido-cancelar">Cancelar</button>
+            </div>
+        </form>`;
+    return new Promise(resolve => {
+        d.addEventListener('close', () => resolve(d.returnValue || 'cancelar'), { once: true });
+        d.returnValue = '';
+        d.showModal();
+    });
 }
 
 // ========== Analytics: registro de compras ==========
@@ -627,26 +767,24 @@ function specRegistro(category) {
 
 let _aliasMap = null;
 
+// El mismo Map que arma Analytics (modelos.js): las claves pasan por
+// claveNombre, así «iPhone 15» encuentra el alias «15»
 async function cargarAliases(ruta = './analytics/aliases.csv') {
     if (_aliasMap) return _aliasMap;
     try {
         const resp = await fetch(ruta);
-        const text = await resp.text();
-        _aliasMap = new Map();
-        text.trim().split('\n').slice(1).forEach(linea => {
-            const [alias, nombre] = linea.split(',').map(s => s.trim());
-            if (alias && nombre) _aliasMap.set(alias.toLowerCase(), nombre);
-        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        _aliasMap = parsearAliases(await resp.text());
     } catch (e) {
         console.warn('aliases.csv no disponible, se usará nombre original:', e);
-        _aliasMap = new Map();
+        // Sin guardarlo: que se vuelva a intentar en cuanto haya señal
+        return new Map();
     }
     return _aliasMap;
 }
 
 function normalizarNombre(nombreOriginal, aliasMap) {
-    const clave = nombreOriginal.trim().toLowerCase();
-    return aliasMap.get(clave) ?? nombreOriginal.trim();
+    return aliasMap.get(claveNombre(nombreOriginal)) ?? nombreOriginal.trim();
 }
 
 // El tipo, siempre en un solo string. Las fundas viejas lo traían en
@@ -674,7 +812,7 @@ async function datosRegistro(product, cantidad, compradas = null) {
         // El local del producto, no el de la pantalla: la lista global maneja
         // items de todos los locales y ahí `LOCAL_ID` no está puesto
         local:    product.local ?? LOCAL_ID,
-        fecha:    firebase.firestore.FieldValue.serverTimestamp(),
+        fecha:    ahoraTs(),
         mes:      ahora.getMonth() + 1,
         año:      ahora.getFullYear(),
         // Hasta que se palomee en la lista no cuenta como compra
@@ -692,17 +830,20 @@ async function datosRegistro(product, cantidad, compradas = null) {
     return datos;
 }
 
+// Registro de un renglón que todavía no tenía (anotado antes de que su
+// categoría registrara nada). Devuelve la referencia sin esperar al servidor.
 async function registrarCompra(product) {
     const spec = specRegistro(product.category);
     try {
         const datos = await datosRegistro(product, product.quantity);
-        const doc   = await db.collection(spec.col).add(datos);
+        const ref   = db.collection(spec.col).doc();
+        enviar(ref.set(datos), `"${product.name}" no se registró en Analytics.`);
         // El id del registro se guarda en el producto para poder marcarlo después
-        if (product.id) await actualizarItem(product.id, { analyticsId: doc.id });
-        return doc;
+        if (product.id) actualizarItem(product.id, { analyticsId: ref.id });
+        return ref;
     } catch (err) {
         console.error(`Error registrando analytics en ${spec.col}:`, err);
-        showToast(`"${product.name}" no se registró en Analytics. Revisa tu conexión.`, 'error', 6000);
+        showToast(`"${product.name}" no se registró en Analytics.`, 'error', 6000);
         return null;
     }
 }
@@ -724,7 +865,7 @@ async function buscarRegistro(product) {
         const doc = candidatos[0];
         if (!doc) return null;
         // Se guarda cuál es, para que marcar y desmarcar caigan siempre en el mismo
-        if (product.id) await actualizarItem(product.id, { analyticsId: doc.id });
+        if (product.id) actualizarItem(product.id, { analyticsId: doc.id });
         return doc.ref;
     } catch (err) {
         console.error('No se pudo buscar el registro de la compra:', err);
@@ -744,12 +885,15 @@ async function marcarComprada(product, comprada) {
             ref = await registrarCompra(product);
             if (!ref) return false;
         }
-        await ref.update(comprada
-            ? { comprado: firebase.firestore.FieldValue.serverTimestamp(),
+        // Sin esperar al servidor (ver `enviar`). Si el registro no existe, que
+        // no tumbe nada: la lista ya quedó marcada.
+        ref.update(comprada
+            ? { comprado: ahoraTs(),
                 estado:   'comprado',
                 // La cantidad pudo haber bajado por una compra parcial anterior
                 cantidad: product.quantity }
-            : { comprado: firebase.firestore.FieldValue.delete(), estado: 'pendiente' });
+            : { comprado: firebase.firestore.FieldValue.delete(), estado: 'pendiente' })
+            .catch(err => console.warn('No se pudo marcar la compra en Analytics:', err));
         return true;
     } catch (err) {
         console.error('No se pudo marcar la compra en Analytics:', err);
@@ -762,10 +906,71 @@ async function anularRegistro(product) {
     try {
         const ref = await buscarRegistro(product);
         if (!ref) return;
-        await ref.update({ anulado: true, estado: 'anulado' });
+        ref.update({ anulado: true, estado: 'anulado' })
+            .catch(err => console.warn('No se pudo anular el registro de la compra:', err));
     } catch (err) {
         console.error('No se pudo anular el registro de la compra:', err);
     }
+}
+
+// ========== Sin señal ==========
+// El service worker (sw.js) hace que la app abra sin internet; Firestore guarda
+// la lista y la cola de cambios en el teléfono. Aquí solo se avisa qué pasa.
+
+let ultimoFromCache = false;
+let habiaPendientes = false;
+let desdeCache      = null;   // desde cuándo la lista sale solo del teléfono
+
+// Al abrir con señal, la primera foto de la lista también sale del teléfono
+// por un instante: solo se avisa si sigue así pasado este tiempo
+const AVISO_CACHE_MS = 4000;
+
+function prepararSinSenal() {
+    if ('serviceWorker' in navigator)
+        navigator.serviceWorker.register('sw.js').catch(err => console.warn('Service worker no disponible:', err));
+    // Que el navegador no borre los datos guardados si se llena el teléfono
+    navigator.storage?.persist?.().catch(() => {});
+
+    const barra = document.createElement('p');
+    barra.id = 'estadoSync';
+    barra.setAttribute('role', 'status');
+    barra.hidden = true;
+    document.querySelector('.container')?.prepend(barra);
+
+    const repintar = () => pintarEstadoSync(ultimoFromCache);
+    window.addEventListener('online', repintar);
+    window.addEventListener('offline', repintar);
+}
+
+function pintarEstadoSync(fromCache) {
+    ultimoFromCache = fromCache;
+    const barra = document.getElementById('estadoSync');
+    if (!barra) return;
+    const pendientes = currentItems.filter(p => p.sinSubir).length;
+    // Con una rayita de señal iOS dice que sí hay red: lo que manda es que
+    // Firestore no haya podido hablar con el servidor
+    desdeCache = fromCache ? (desdeCache ?? Date.now()) : null;
+    if (desdeCache && Date.now() - desdeCache < AVISO_CACHE_MS)
+        setTimeout(() => pintarEstadoSync(ultimoFromCache), AVISO_CACHE_MS);
+    const sinRed     = !navigator.onLine || (desdeCache !== null && Date.now() - desdeCache >= AVISO_CACHE_MS);
+    const cambios    = `${pendientes} cambio${pendientes === 1 ? '' : 's'}`;
+
+    let texto = '';
+    if (window.PERSISTENCIA_FALLO)
+        texto = '⚠ Este navegador no deja guardar la lista en el teléfono: sin señal, lo que anotes se pierde al cerrar.';
+    else if (pendientes && sinRed)
+        texto = `Sin señal · ${cambios} guardado${pendientes === 1 ? '' : 's'} en el teléfono. Se suben solos cuando haya internet, aunque cierres la app.`;
+    else if (pendientes)
+        texto = `Subiendo ${cambios}…`;
+    else if (sinRed)
+        texto = 'Sin señal · ves la lista guardada en el teléfono. Puedes anotar.';
+
+    barra.textContent = texto;
+    barra.hidden = !texto;
+    barra.className = pendientes ? 'pendiente' : '';
+
+    if (habiaPendientes && !pendientes && !sinRed) showToast('Todo subido ✓', 'success');
+    habiaPendientes = pendientes > 0;
 }
 
 // ========== Arranque ==========
@@ -776,12 +981,16 @@ function initLista({ local, conPrecios = true }) {
 
     escucharPrecios();
     initFormulario();
+    prepararSinSenal();
 
-    ITEMS_REF.where('local', '==', local).onSnapshot(snap => {
+    // Con includeMetadataChanges la lista se vuelve a pintar cuando un cambio
+    // termina de subir, para quitarle la marca de «falta subir»
+    ITEMS_REF.where('local', '==', local).onSnapshot({ includeMetadataChanges: true }, snap => {
         currentItems = snap.docs
-            .map(d => ({ id: d.id, ...d.data() }))
+            .map(d => ({ id: d.id, ...d.data(), sinSubir: d.metadata.hasPendingWrites }))
             .sort((a, b) => (a.creado ?? 0) - (b.creado ?? 0));
         renderAllProducts(currentItems);
+        pintarEstadoSync(snap.metadata.fromCache);
     }, err => {
         console.error('Error al leer la lista:', err);
         showToast('No se pudo cargar la lista. Revisa tu conexión.', 'error', 6000);
